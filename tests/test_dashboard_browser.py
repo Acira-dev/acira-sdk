@@ -62,6 +62,84 @@ async def test_connect_project_guide_does_not_create_projects_or_start_runs(tmp_
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("width,windows", [(1440, False), (390, True)])
+async def test_policy_filenames_reveal_locations_without_editing_files(tmp_path, monkeypatch, width, windows):
+    monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
+    project = initialize(tmp_path / "Orders", selected=["checkout", "credentials"], dashboard=False)
+    original = [Path(policy["path"]).read_bytes() for policy in project.policies("default")]
+    document = project.path.read_bytes()
+    service = Service()
+    # Two identically named files remain distinguishable by their full source path.
+    # Exercise Windows separators and literal markup without touching backend identity.
+    roots = [r"C:\Users\Developer\Orders\policies\general", r"C:\Users\Developer\Shared policies"] if windows else ["/Users/Developer/Orders/policies/general", "/Users/Developer/Shared policies"]
+    separator = "\\" if windows else "/"
+    filename = "review & <input>.json"
+    locations = [root + separator + filename for root in roots]
+    async with TestServer(service.app(), host="127.0.0.1") as server:
+        service.port = server.port
+        async with ClientSession(headers={"Authorization": "Bearer " + service.admin_key}) as client:
+            ticket = (await (await client.post(server.make_url("/api/ticket"), json={})).json())["ticket"]
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            context = await browser.new_context(viewport={"width": width, "height": 900}, permissions=["clipboard-read", "clipboard-write"])
+            ui = await context.new_page()
+            errors, writes = [], []
+            ui.on("pageerror", lambda error: errors.append(str(error)))
+            async def paths(route):
+                response = await route.fetch()
+                data = await response.json()
+                for policy, location in zip(data["policies"], locations):
+                    policy["path"] = location
+                await route.fulfill(response=response, json=data)
+            await ui.route("**/api/projects/*/policies?*", paths)
+            try:
+                await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
+                await ui.get_by_role("button", name="Policies", exact=True).click()
+                files = ui.get_by_role("button", name="File details for " + filename, exact=True)
+                await expect(files).to_have_count(2)
+                ui.on("request", lambda request: writes.append(request.url) if request.method not in {"GET", "HEAD"} else None)
+                for index, location in enumerate(locations):
+                    file = files.nth(index)
+                    assert await file.get_attribute("title") == location
+                    assert (await file.locator("..").locator("..").inner_text()).splitlines() == ["{}", filename]
+                    await file.hover()
+                    await file.click(button="right")
+                    popup = ui.get_by_role("dialog", name="File location for " + filename, exact=True)
+                    await expect(popup).to_be_visible()
+                    await expect(popup.locator("pre")).to_have_text(location)
+                    assert await popup.locator("input").count() == 0
+                    assert await file.get_attribute("aria-expanded") == "true"
+                    box = await popup.bounding_box()
+                    assert box["x"] >= 0 and box["x"] + box["width"] <= width
+                    await popup.get_by_role("button", name="Copy file path", exact=True).click()
+                    assert await ui.evaluate("navigator.clipboard.readText()") == location
+                    await expect(popup.get_by_role("status")).to_have_text("File path copied.")
+                    await ui.keyboard.press("Escape")
+                    await expect(popup).not_to_be_visible()
+                    await expect(file).to_be_focused()
+                    await file.press("Shift+F10")
+                    await expect(popup).to_be_visible()
+                    await popup.get_by_role("button", name="Close file details").click()
+                    await expect(file).to_be_focused()
+                    await file.press("Enter")
+                    await expect(popup).to_be_visible()
+                    await ui.keyboard.press("Escape")
+                # Browser restrictions on clipboard access still leave a selectable path.
+                await ui.evaluate("Object.defineProperty(navigator, 'clipboard', {value: {writeText: async()=>{throw new Error('denied')}}})")
+                await files.first.click()
+                popup = ui.get_by_role("dialog", name="File location for " + filename, exact=True)
+                await popup.get_by_role("button", name="Copy file path", exact=True).click()
+                await expect(popup.get_by_role("status")).to_contain_text("Select and copy")
+                await ui.get_by_role("heading", name="Policies", exact=True).click()
+                await expect(popup).not_to_be_visible()
+                assert [Path(policy["path"]).read_bytes() for policy in project.policies("default")] == original
+                assert project.path.read_bytes() == document
+                assert not writes and not errors
+            finally:
+                await browser.close()
+
+
+@pytest.mark.asyncio
 async def test_navigation_during_a_view_load_is_not_dropped(tmp_path, monkeypatch):
     monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
     initialize(tmp_path / "Orders", selected=["credentials"], dashboard=False)
@@ -552,6 +630,13 @@ async def test_graph_assignment_copy_folder_edit_and_accessible_layout(tmp_path,
             await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
             await ui.get_by_role("button", name="Policies", exact=True).click()
             await ui.get_by_role("button", name="Assignments / graph", exact=True).click()
+            file = ui.locator("#dialog").get_by_role("button", name="File details for " + Path(source["path"]).name, exact=True)
+            await file.press("Enter")
+            location = ui.get_by_role("dialog", name="File location for " + Path(source["path"]).name, exact=True)
+            await expect(location.locator("pre")).to_have_text(source["path"])
+            await ui.keyboard.press("Escape")
+            await expect(file).to_be_focused()
+            assert await ui.locator("#dialog").is_visible()
             node = ui.get_by_role("button", name="Inspect policy " + source["name"], exact=True)
             await keyboard_activate(ui, node)
             transform = await node.get_attribute("transform")

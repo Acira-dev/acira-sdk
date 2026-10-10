@@ -155,6 +155,18 @@ summary { cursor: pointer; color: var(--ink-2); font-size: 12.5px; }
 .skip:focus { top: 10px; }
 .checkbox { display: flex; align-items: center; gap: 8px; }
 .filename { overflow-wrap: anywhere; }
+.policy-file-wrap { max-width: 260px; }
+.policy-file { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; max-width: 100%; padding: 6px 9px; border-color: transparent; background: var(--surface-2); font: 11.5px/1.5 var(--font-mono); text-align: left; }
+.policy-file:hover, .policy-file[aria-expanded="true"] { border-color: var(--line-2); background: var(--surface-3); }
+.policy-file-icon { flex: 0 0 auto; color: var(--eyebrow); font-size: 10px; }
+.policy-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-location { position: fixed; inset: auto; width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; margin: 0; padding: 18px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: var(--surface); box-shadow: var(--pop-shadow); }
+.file-location h3 { margin: 0 0 16px; }
+.file-location .eyebrow { font-size: 9px; letter-spacing: 1.4px; margin: 0 0 6px; }
+.file-location-path { margin: 0 0 14px; padding: 12px; user-select: text; }
+.file-location button { margin: 0 6px 0 0; }
+.file-location-feedback { margin: 12px 0 0; color: var(--eyebrow); font-size: 12px; }
+.file-location-feedback:empty { display: none; }
 .split { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 18px; }
 .assignment-canvas { width: 100%; height: 460px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; touch-action: none; }
 .assignment-canvas [data-node] { cursor: grab; }

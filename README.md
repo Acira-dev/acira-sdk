@@ -145,6 +145,9 @@ Each agent gets separate policy folders by default. You may deliberately configu
 shared folders; the editor displays affected agents before saving.
 
 The dashboard includes Agents, Approvals, Policies, Activity, Backtesting and Settings.
+Policy tables show JSON filenames. Hover to see the full path, or click/right-click
+the filename to inspect and copy its location. Keyboard users can press Enter or
+Shift+F10 on the filename; Escape closes the file details.
 Policy saves are validated, checked for edit conflicts and written atomically.
 **Saved** means the intended files were written; **Active** means the selected run
 acknowledged that revision. Invalid edits stop affected mutations. A policy change

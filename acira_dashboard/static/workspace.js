@@ -109,6 +109,83 @@ function option(value, label) {
   node.value = value;
   return node;
 }
+let fileLocationId = 0;
+function policyFile(path) {
+  if (!path) return el("span", "Location unavailable", "muted");
+  const location = String(path),
+    filename = location.split(/[\\/]/).pop() || location,
+    wrap = el("div", undefined, "policy-file-wrap"),
+    trigger = el("button", undefined, "policy-file"),
+    popup = el("div", undefined, "file-location");
+  trigger.type = "button";
+  trigger.title = location;
+  trigger.setAttribute("aria-label", "File details for " + filename);
+  trigger.setAttribute("aria-haspopup", "dialog");
+  trigger.setAttribute("aria-expanded", "false");
+  const icon = el("span", "{}", "policy-file-icon");
+  icon.setAttribute("aria-hidden", "true");
+  trigger.append(icon, el("span", filename, "policy-file-name"));
+  popup.id = "file-location-" + ++fileLocationId;
+  popup.setAttribute("popover", "auto");
+  popup.setAttribute("role", "dialog");
+  popup.setAttribute("aria-label", "File location for " + filename);
+  trigger.setAttribute("aria-controls", popup.id);
+  trigger.setAttribute("popovertarget", popup.id);
+  const feedback = el("p", undefined, "file-location-feedback");
+  feedback.setAttribute("role", "status");
+  const copy = el("button", "Copy file path");
+  copy.type = "button";
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(location);
+      feedback.textContent = "File path copied.";
+    } catch {
+      feedback.textContent = "Clipboard unavailable. Select and copy the location above.";
+    }
+  });
+  function dismiss() {
+    popup.hidePopover();
+    trigger.focus();
+  }
+  popup.append(
+    el("h3", filename),
+    el("p", "Location", "eyebrow"),
+    el("pre", location, "file-location-path"),
+    copy,
+    button("Close file details", dismiss),
+    feedback,
+  );
+  // A native popover supplies light dismissal and works inside the graph dialog.
+  // The filename is the keyboard-accessible invoker; right-click opens the same UI.
+  popup.addEventListener("beforetoggle", (event) => {
+    trigger.setAttribute("aria-expanded", String(event.newState === "open"));
+    if (event.newState !== "open") return;
+    feedback.textContent = "";
+    const anchor = trigger.getBoundingClientRect(),
+      width = Math.min(420, window.innerWidth - 32);
+    popup.style.left = Math.max(16, Math.min(anchor.left, window.innerWidth - width - 16)) + "px";
+    popup.style.top = Math.max(16, Math.min(anchor.bottom + 8, window.innerHeight - 320)) + "px";
+  });
+  function openDetails(event) {
+    event.preventDefault();
+    trigger.focus();
+    if (!popup.matches(":popover-open")) popup.showPopover();
+    copy.focus();
+  }
+  trigger.addEventListener("contextmenu", openDetails);
+  trigger.addEventListener("keydown", (event) => {
+    if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) openDetails(event);
+  });
+  popup.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      dismiss();
+    }
+  });
+  copy.autofocus = true;
+  wrap.append(trigger, popup);
+  return wrap;
+}
 function table(headers, rows) {
   const wrap = el("div", undefined, "table-wrap"),
     table = el("table"),
@@ -122,7 +199,8 @@ function table(headers, rows) {
     const row = el("tr");
     cells.forEach((value) => {
       const cell = el("td");
-      if (typeof value === "string" && /^(\/|[A-Za-z]:[\\/])/.test(value))
+      if ((typeof value === "string" && /^(\/|[A-Za-z]:[\\/])/.test(value)) ||
+          (value instanceof Node && value.classList.contains("policy-file-wrap")))
         cell.className = "filename";
       cell.append(
         value instanceof Node
@@ -701,7 +779,7 @@ async function policies(content) {
       data.policies.map((policy) => [
         policy.name,
         policy.kind,
-        policy.path,
+        policyFile(policy.path),
         button("Configure", () => policyDialog(policy)),
       ]),
     ),
@@ -1383,7 +1461,7 @@ async function graphDialog() {
             )
             .map((policy) => [
               group.agent.name,
-              policy.path,
+              policyFile(policy.path),
               group.agent.disabled_policies?.includes(policy.id)
                 ? "Disabled"
                 : "Enabled",
