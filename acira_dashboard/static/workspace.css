@@ -95,6 +95,44 @@ dialog::backdrop { background: rgba(23,24,28,.3); }
 dialog .actions { justify-content: end; margin-top: 22px; }
 dialog canvas { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; }
 .review-target { font-size: 19px; font-weight: 500; margin-bottom: 10px; }
+.acira-mascot { width: 28px; height: 28px; object-fit: contain; flex: 0 0 auto; }
+.empty-companion { width: 74px; height: 74px; margin: 0 auto 18px; }
+.review-question { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+.approval-dialog .dialog-heading { position: sticky; top: -26px; margin: -26px -26px 20px; padding: 20px 26px; background: var(--surface); border-bottom: 1px solid var(--line); z-index: 2; }
+.approval-dialog .dialog-heading h2 { font-size: 16px; }
+.review-question .review-target { margin: 0; flex: 1; min-width: 120px; font-size: 23px; letter-spacing: -.5px; }
+.review-companion { width: 34px; height: 34px; }
+.review-focus { margin: 18px 0 0; background: var(--surface); border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; }
+.target-caption { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.target-caption > div { flex: 1; min-width: 0; }
+.target-caption strong, .target-caption span { display: block; font-size: 12.5px; overflow-wrap: anywhere; }
+.target-caption strong { font-weight: 500; }
+.target-caption.companion-right { flex-direction: row-reverse; }
+.target-companion { width: 32px; height: 32px; }
+.review-picture { position: relative; }
+dialog .review-picture canvas { display: block; width: 100%; height: auto; border: 0; border-radius: 0; }
+.review-annotation { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
+.target-halo { stroke: white; stroke-width: 5.5; }
+.target-outline { stroke: var(--blue); stroke-width: 2.5; }
+.target-pointer { stroke: var(--blue); stroke-width: 1.8; stroke-linecap: round; }
+.review-overview .review-picture { margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.capture-note { color: var(--eyebrow); font-size: 11.5px; margin: 12px 0 18px; }
+.review-focus > .capture-note { padding: 0 14px; }
+.review-decision-bar { position: sticky; bottom: -26px; margin: 0 -26px -26px; padding: 14px 26px 22px; background: var(--surface); border-top: 1px solid var(--line); z-index: 1; }
+.review-decision-bar #review-status { padding: 0; margin: 0; background: transparent; }
+.review-decision-bar .actions { margin: 12px 0 0; }
+.appearance-settings { margin-bottom: 30px; }
+.appearance-settings select { max-width: 220px; }
+.appearance-settings p { font-size: 12.5px; margin-top: 12px; }
+:root[data-mascots="hidden"] .acira-mascot { display: none; }
+:root[data-mascots="hidden"] .target-pointer { display: none; }
+:root[data-mascots="animated"] [data-review-state="pending"] .review-companion { animation: companion-wait 3.5s ease-in-out infinite; }
+:root[data-mascots="animated"] .target-pointer { stroke-dasharray: 1; animation: companion-mark 400ms ease-out; }
+@keyframes companion-wait { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes companion-mark { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .acira-mascot, .target-pointer { animation: none !important; }
+}
 .review-context { font-size: 11.5px; }
 .review-evidence { background: var(--surface-2); border-radius: 12px; padding: 18px; margin: 18px 0; }
 .review-evidence > p { margin: 0 0 12px; color: var(--ink-2); }
@@ -161,6 +199,10 @@ summary { cursor: pointer; color: var(--ink-2); font-size: 12.5px; }
   .dialog-heading { gap: 10px; }
   .dialog-heading h2 { font-size: 18px; }
   .review-evidence { padding: 12px; }
+  .review-question { gap: 9px; }
+  .approval-dialog .dialog-heading { top: -18px; margin: -18px -18px 18px; padding: 16px 18px; }
+  .review-question .review-target { font-size: 21px; }
+  .review-decision-bar { bottom: -18px; margin: 0 -18px -18px; padding: 12px 18px 18px; }
   .risk-row { flex-wrap: wrap; gap: 8px; }
   .actions button { padding: 8px 11px; }
   .empty { padding: 38px 20px; }

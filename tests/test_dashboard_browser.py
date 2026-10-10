@@ -135,7 +135,7 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     await ui.get_by_role("button", name="Approvals", exact=False).first.click()
                     await ui.get_by_role("button", name="Review operation").wait_for(timeout=12000)
                     await ui.get_by_role("button", name="Review operation").click()
-                    await ui.locator('dialog canvas[data-rendered="true"]').wait_for()
+                    await ui.locator('dialog .review-focus-canvas[data-rendered="true"]').wait_for()
                     # Technical identities are available without competing with
                     # the destination and facts the human must review.
                     context = ui.locator("dialog .review-context")
@@ -146,14 +146,37 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     await ui.keyboard.press("Enter")
                     assert not action.done()
                     await ui.get_by_role("button", name="Review operation").click()
-                    await ui.locator('dialog canvas[data-rendered="true"]').wait_for()
-                    assert await ui.locator("dialog canvas").evaluate("""el=>{
-                        const pixels=el.getContext('2d').getImageData(0,0,el.width,el.height).data;
-                        let red=0;
-                        for(let i=0;i<pixels.length;i+=4) if(pixels[i]>240&&pixels[i+1]<100&&pixels[i+2]<100) red++;
-                        return red>20;
+                    await ui.locator('dialog .review-focus-canvas[data-rendered="true"]').wait_for()
+                    await expect(ui.get_by_role("heading", name="Click “Next”?", exact=True)).to_be_visible()
+                    assert await ui.locator(".review-companion").evaluate("el=>el.complete && el.naturalWidth > 0")
+                    # Compare the visible overlay with the actual browser target,
+                    # including the captured device-pixel scaling. This target is
+                    # at the viewport's top-left, so its crop begins at (0, 0).
+                    real_target = await page.locator("#next").bounding_box()
+                    displayed = await ui.locator(".review-focus .target-outline").evaluate("""el=>{
+                        const matrix=el.getScreenCTM();
+                        const origin=new DOMPoint(el.x.baseVal.value,el.y.baseVal.value).matrixTransform(matrix);
+                        return {x:origin.x,width:el.width.baseVal.value*matrix.a};
                     }""")
-                    assert await ui.locator("dialog canvas").evaluate("el=>el.getContext('2d').lineWidth*el.clientWidth/el.width >= 2"), "The target outline must remain visible when a Retina image is scaled down"
+                    frame = await ui.locator(".review-focus-canvas").bounding_box()
+                    physical_width = await ui.locator(".review-focus-canvas").evaluate("el=>el.width")
+                    screenshot_width = await ui.locator(".review-overview-canvas").evaluate("el=>el.width")
+                    # CDP may normalize a Retina capture to CSS pixels. Use the
+                    # actual capture dimensions, rather than assuming its scale.
+                    capture_scale = screenshot_width / page.viewport_size["width"]
+                    scale = capture_scale * frame["width"] / physical_width
+                    assert abs(displayed["x"] - frame["x"] - real_target["x"] * scale) < 1
+                    assert abs(displayed["width"] - real_target["width"] * scale) < 1
+                    assert await ui.locator(".review-focus .target-outline").evaluate("el=>getComputedStyle(el).stroke") == "rgb(37, 99, 235)"
+                    assert await ui.locator(".review-focus .target-outline").get_attribute("vector-effect") == "non-scaling-stroke"
+                    overview = ui.get_by_text("Full page screenshot", exact=True)
+                    await overview.click()
+                    await expect(ui.locator(".review-overview-canvas")).to_be_visible()
+                    await overview.click()
+                    # The decision controls stay accessible while a long capture
+                    # and the technical disclosures remain available above them.
+                    approve_box = await ui.get_by_role("button", name="Approve once", exact=True).bounding_box()
+                    assert 0 <= approve_box["y"] and approve_box["y"] + approve_box["height"] <= 1000
                     if os.environ.get("ACIRA_TEST_ARTIFACTS"):
                         directory = Path(os.environ["ACIRA_TEST_ARTIFACTS"])
                         directory.mkdir(parents=True, exist_ok=True)
@@ -213,6 +236,125 @@ async def test_critical_review_shows_semantic_facts_and_separates_same_agent_run
                 await ui.get_by_role("dialog").wait_for(state="hidden")
                 assert journal.review(first["review_id"])["state"] == "approved"
                 assert journal.review(second["review_id"])["state"] == "pending"
+            finally:
+                await browser.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("coordinates", ["missing_box", "missing_viewport", "zero", "offscreen", "invalid", "partial", "expired_image"])
+async def test_review_preview_does_not_invent_missing_targets(tmp_path, monkeypatch, coordinates):
+    import base64
+    import io
+    import time
+    from PIL import Image, ImageDraw
+
+    monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
+    project = initialize(tmp_path / "Capture evidence", selected=[], dashboard=False)
+    journal = Journal(project.root)
+    pixels = Image.new("RGB", (800, 600), "white")
+    ImageDraw.Draw(pixels).rectangle((20, 20, 60, 50), fill="black")
+    png = io.BytesIO()
+    pixels.save(png, format="PNG")
+    artifact = {"capture_status": "ready", "captured_at": time.time(), "mime_type": "image/png",
+                "image": base64.b64encode(png.getvalue()).decode(), "viewport": {"width": 400, "height": 300},
+                "bounding_box": {"x": 10, "y": 10, "width": 20, "height": 15}}
+    if coordinates == "missing_box":
+        artifact["bounding_box"] = None
+    elif coordinates == "missing_viewport":
+        artifact["viewport"] = None
+    elif coordinates == "zero":
+        artifact["bounding_box"]["width"] = 0
+    elif coordinates == "offscreen":
+        artifact["bounding_box"]["x"] = 500
+    elif coordinates == "invalid":
+        artifact["bounding_box"]["x"] = "10"
+    elif coordinates == "partial":
+        artifact["bounding_box"] = {"x": 380, "y": 280, "width": 60, "height": 40}
+    artifact = journal.store_artifact(artifact)
+    if coordinates == "expired_image":
+        (project.root / ".acira/artifacts" / artifact["id"]).unlink()
+    journal.create_review("capture-run", {"agent": "default", "policy_revision": project.snapshot().revision,
+        "reason": "Inspect masked capture", "classification": {"action": "click", "target": {"text": "Next"}},
+        "evidence": {}, "artifact": artifact, "grant_eligible": False})
+    service = Service()
+    async with TestServer(service.app(), host="127.0.0.1") as server:
+        service.port = server.port
+        async with ClientSession(headers={"Authorization": "Bearer " + service.admin_key}) as client:
+            ticket = (await (await client.post(server.make_url("/api/ticket"), json={})).json())["ticket"]
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            ui = await browser.new_page(viewport={"width": 390, "height": 850})
+            errors = []
+            ui.on("pageerror", lambda error: errors.append(str(error)))
+            try:
+                await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
+                await ui.get_by_role("heading", name="Capture evidence", exact=True).wait_for()
+                await ui.get_by_role("button", name="Approvals", exact=False).first.click()
+                await ui.get_by_role("button", name="Review operation").click()
+                if coordinates == "expired_image":
+                    await expect(ui.get_by_text("Screenshot unavailable or expired. Review the structured action details.", exact=True)).to_be_visible()
+                    assert not await ui.locator(".review-preview canvas").count()
+                elif coordinates == "partial":
+                    await ui.locator('.review-preview[data-loaded="true"]').wait_for()
+                    await expect(ui.get_by_text("Part of the target is outside this capture. Review the full page and action details.", exact=True)).to_be_visible()
+                    rect = ui.locator(".review-overview .target-outline")
+                    assert float(await rect.get_attribute("width")) == 40
+                    assert float(await rect.get_attribute("height")) == 40
+                else:
+                    await expect(ui.get_by_text("Target coordinates are unavailable in this capture. Use the action details; no highlight has been inferred.", exact=True)).to_be_visible()
+                    assert not await ui.locator(".review-focus, .target-outline, .target-pointer").count()
+                    await expect(ui.locator(".review-overview-canvas")).to_be_visible()
+                    # The original masked black region stays black in the UI.
+                    assert await ui.locator(".review-overview-canvas").evaluate("el=>Array.from(el.getContext('2d').getImageData(25,25,1,1).data)") == [0, 0, 0, 255]
+                assert await ui.locator(".review-companion").evaluate("el=>el.complete && el.naturalWidth > 0")
+                assert not errors
+            finally:
+                await browser.close()
+
+
+@pytest.mark.asyncio
+async def test_companion_preferences_keep_evidence_and_respect_reduced_motion(tmp_path, monkeypatch):
+    monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
+    project = initialize(tmp_path / "Appearance", selected=[], dashboard=False)
+    journal = Journal(project.root)
+    review = journal.create_review("appearance-run", {"agent": "default", "policy_revision": project.snapshot().revision,
+        "reason": "Review the note", "classification": {"action": "click", "target": {"text": "Save note"}},
+        "evidence": {"destination": "https://fixture.invalid/notes"}, "grant_eligible": False})
+    service = Service()
+    async with TestServer(service.app(), host="127.0.0.1") as server:
+        service.port = server.port
+        async with ClientSession(headers={"Authorization": "Bearer " + service.admin_key}) as client:
+            ticket = (await (await client.post(server.make_url("/api/ticket"), json={})).json())["ticket"]
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            ui = await browser.new_page()
+            try:
+                await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
+                await ui.get_by_role("heading", name="Appearance", exact=True).wait_for()
+                await ui.get_by_role("button", name="Settings", exact=True).click()
+                mode = ui.get_by_role("combobox", name="Companion appearance")
+                await expect(mode).to_have_value("still")
+                await mode.select_option("hidden")
+                await ui.get_by_role("button", name="Approvals", exact=False).first.click()
+                await ui.get_by_role("button", name="Review operation").click()
+                await expect(ui.locator(".review-companion")).not_to_be_visible()
+                await expect(ui.get_by_role("heading", name="Click “Save note”?", exact=True)).to_be_visible()
+                await expect(ui.get_by_text("Destination: https://fixture.invalid/notes", exact=True)).to_be_visible()
+                assert journal.review(review["review_id"])["state"] == "pending"
+                await ui.get_by_role("button", name="Close dialog").click()
+                await ui.reload()
+                await ui.get_by_role("button", name="Settings", exact=True).click()
+                await expect(mode).to_have_value("hidden")
+                await mode.select_option("animated")
+                await ui.emulate_media(reduced_motion="reduce")
+                await ui.get_by_role("button", name="Approvals", exact=False).first.click()
+                await ui.get_by_role("button", name="Review operation").click()
+                assert await ui.locator(".review-companion").evaluate("el=>getComputedStyle(el).animationName") == "none"
+                await ui.emulate_media(reduced_motion="no-preference")
+                assert await ui.locator(".review-companion").evaluate("el=>getComputedStyle(el).animationName") == "companion-wait"
+                journal.decide(review["review_id"], "rejected")
+                await ui.locator("dialog .pill").filter(has_text="rejected").wait_for(timeout=12000)
+                assert await ui.locator(".review-companion").evaluate("el=>getComputedStyle(el).animationName") == "none"
             finally:
                 await browser.close()
 

@@ -89,6 +89,7 @@ function pretty(value) {
 }
 function empty(title, message) {
   const box = el("div", undefined, "empty");
+  if (state.view === "Agents") box.append(AciraReview.mascot("blip", "empty-companion"));
   box.append(el("h2", title), el("p", message));
   return box;
 }
@@ -138,6 +139,8 @@ function table(headers, rows) {
 }
 function dialog(title) {
   state.review = null;
+  $("dialog").classList.remove("approval-dialog");
+  delete $("dialog-content").dataset.reviewState;
   $("dialog-title").textContent = title;
   $("dialog-content").replaceChildren();
   $("dialog").showModal();
@@ -484,21 +487,14 @@ async function approvals(content) {
 
 async function reviewDialog(review) {
   const body = dialog("Review · " + review.project.name + " / " + review.agent);
+  $("dialog").classList.add("approval-dialog");
   const target = review.classification?.target;
   const status = pill(review.state);
-  body.append(
-    el(
-      "h3",
-      (review.classification?.action || "Operation") +
-        " · " +
-        (target?.text ||
-          target?.aria_label ||
-          target?.id ||
-          "Resolved browser target"),
-    ),
-    status,
-  );
-  body.querySelector("h3").className = "review-target";
+  const targetLabel = target?.text || target?.aria_label || target?.id || "";
+  const headline = el("div", undefined, "review-question");
+  headline.append(AciraReview.mascot("pill", "review-companion"),
+    el("h3", AciraReview.question(review.classification?.action, targetLabel), "review-target"), status);
+  body.append(headline);
   const evidence = review.evidence || {};
   const context = el("details", undefined, "review-context");
   context.append(
@@ -507,7 +503,7 @@ async function reviewDialog(review) {
   );
   const evidencePanel = el("section", undefined, "review-evidence");
   evidencePanel.setAttribute("aria-label", "Operation evidence");
-  body.append(context, evidencePanel);
+  body.append(evidencePanel);
   evidencePanel.append(
     el("p", "Destination: " + (evidence.destination || "Not established")),
   );
@@ -545,57 +541,10 @@ async function reviewDialog(review) {
     );
   const artifact = review.artifact || {};
   if (artifact.capture_status === "ready" && (artifact.image || artifact.id)) {
-    const canvas = el("canvas"),
-      loading = el("p", "Loading masked screenshot…", "muted");
-    loading.setAttribute("role", "status");
-    canvas.hidden = true;
-    canvas.width = 0;
-    canvas.height = 0;
-    canvas.setAttribute("role", "img");
-    canvas.setAttribute(
-      "aria-label",
-      artifact.bounding_box
-        ? "Masked browser screenshot with the proposed target outlined. Operation details follow."
-        : "Masked browser screenshot. Target coordinates are unavailable; use the operation details.",
-    );
-    body.append(loading, canvas);
-    const image = new Image();
-    image.onload = () => {
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
-      canvas.hidden = false;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(image, 0, 0);
-      const box = artifact.bounding_box;
-      if (box && artifact.viewport) {
-        const sx = canvas.width / artifact.viewport.width,
-          sy = canvas.height / artifact.viewport.height;
-        ctx.strokeStyle = "#ff3c39";
-        // Keep a three-CSS-pixel outline when a high-resolution image is
-        // scaled to a narrow review dialog.
-        ctx.lineWidth = Math.max(3, 3 * canvas.width / Math.max(1, canvas.clientWidth));
-        ctx.strokeRect(box.x * sx, box.y * sy, box.width * sx, box.height * sy);
-      }
-      canvas.dataset.rendered = "true";
-      loading.remove();
-    };
-    image.onerror = () => {
-      loading.textContent =
-        "Screenshot unavailable or expired. Review the structured operation details.";
-      canvas.remove();
-    };
-    image.src = artifact.image
+    const source = artifact.image
       ? "data:image/png;base64," + artifact.image
       : `/api/projects/${review.project.id}/artifacts/${artifact.id}`;
-    body.append(
-      el(
-        "p",
-        "Captured " +
-          new Date(artifact.captured_at * 1000).toLocaleTimeString() +
-          " · editable controls masked",
-        "muted",
-      ),
-    );
+    body.append(AciraReview.preview(artifact, source, targetLabel));
   } else
     body.append(
       el(
@@ -606,6 +555,7 @@ async function reviewDialog(review) {
       ),
     );
   body.append(
+    context,
     detail("Operation details", { ...evidence, artifact: undefined }),
     detail("Policy explanation", review.classification),
   );
@@ -669,15 +619,18 @@ async function reviewDialog(review) {
         cls,
       ),
     );
-  body.append(feedback, actions);
+  const decisionBar = el("div", undefined, "review-decision-bar");
+  decisionBar.append(feedback, actions);
+  body.append(decisionBar);
   await refreshOpenReview();
 }
 
 function updateReviewStatus(current, review) {
   const losesFocus = current.actions.contains(document.activeElement) || current.grant === document.activeElement;
   current.review = { ...current.review, ...review };
+  current.body.dataset.reviewState = review.state;
   current.status.replaceWith(pill(review.state));
-  current.status = current.body.querySelector(".pill");
+  current.status = current.body.querySelector(".review-question .pill");
   current.actions.disabled = review.state !== "pending";
   if (current.grant) current.grant.disabled = current.actions.disabled;
   if (current.actions.disabled && losesFocus) $("dialog-close").focus();
@@ -1873,6 +1826,18 @@ async function configurationDialog() {
   );
 }
 async function settings(content) {
+  const appearance = el("section", undefined, "appearance-settings");
+  const preference = el("label", "Companions");
+  const mode = el("select");
+  mode.setAttribute("aria-label", "Companion appearance");
+  for (const [value, label] of [["animated", "Animated"], ["still", "Still"], ["hidden", "Hidden"]])
+    mode.append(option(value, label));
+  mode.value = AciraReview.appearance();
+  mode.onchange = () => AciraReview.appearance(mode.value);
+  preference.append(mode);
+  appearance.append(el("h2", "Appearance"), preference,
+    el("p", "Original Acira companions, kept still by default. Reduced motion is respected. Hiding them keeps every target highlight and action detail.", "muted"));
+  content.append(appearance);
   content.append(
     el("h2", "Project and local service"),
     el("p", selected().root, "muted"),
