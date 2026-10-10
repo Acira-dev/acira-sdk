@@ -1,5 +1,6 @@
 """Repeatable offline checks of the live sweep's safety and evidence contracts."""
 import argparse
+import importlib.util
 import json
 from pathlib import Path
 from urllib.robotparser import RobotFileParser
@@ -8,7 +9,10 @@ import pytest
 
 pytest.importorskip("playwright.async_api")
 from playwright.async_api import Browser, Route
-from tools import public_site_sweep as sweep
+_tool = Path(__file__).resolve().parents[1] / "tools" / "public_site_sweep.py"
+_spec = importlib.util.spec_from_file_location("acira_public_site_sweep_tests", _tool)
+sweep = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(sweep)
 
 
 @pytest.mark.parametrize("url,method,navigation", [
