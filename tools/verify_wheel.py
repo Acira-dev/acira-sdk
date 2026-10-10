@@ -54,7 +54,7 @@ def main() -> None:
                 python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
                 interpreters.append(python)
                 run(python, "-m", "pip", "install", "--quiet", str(wheel))
-                run(python, "-I", "-c", "from importlib.resources import files; import acira; assert 'site-packages' in acira.__file__; assert files('acira_dashboard').joinpath('static/workspace.html').is_file()")
+                run(python, "-I", "-c", "from importlib.resources import files; import acira; assert 'site-packages' in acira.__file__; assets = files('acira_dashboard').joinpath('static'); required = ('workspace.html', 'workspace.css', 'workspace.js', 'theme.css', 'styles.css', 'index.html', 'google-sans.woff2', 'GeistMono-Regular.woff2', 'GoogleSans-OFL.txt', 'GeistMono-OFL.txt', 'acira-logo.png', 'acira-mark.png'); assert all(assets.joinpath(name).is_file() for name in required), 'Installed dashboard assets or font notices are missing'")
                 assert "demo" in run(python, "-m", "acira", "--help")
                 missing_extra = subprocess.run([str(python), "-m", "acira", "demo", "--no-open"],
                     env=env, cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15)

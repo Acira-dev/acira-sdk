@@ -18,7 +18,44 @@ from acira.service import Service
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("device_scale,ui_width",[(1,1440),(2,507)])
+async def test_navigation_during_a_view_load_is_not_dropped(tmp_path, monkeypatch):
+    monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
+    initialize(tmp_path / "Orders", selected=["credentials"], dashboard=False)
+    service = Service()
+    async with TestServer(service.app(), host="127.0.0.1") as server:
+        service.port = server.port
+        async with ClientSession(headers={"Authorization": "Bearer " + service.admin_key}) as client:
+            response = await client.post(server.make_url("/api/ticket"), json={})
+            ticket = (await response.json())["ticket"]
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            ui = await browser.new_page()
+            started, release = asyncio.Event(), asyncio.Event()
+
+            async def slow_policies(route):
+                started.set()
+                await asyncio.wait_for(release.wait(), timeout=10)
+                await route.continue_()
+
+            try:
+                await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
+                await ui.get_by_role("heading", name="Orders", exact=True).wait_for()
+                await ui.route("**/api/projects/*/policies?*", slow_policies)
+                await ui.get_by_role("button", name="Policies", exact=True).click()
+                await asyncio.wait_for(started.wait(), timeout=5)
+                await ui.get_by_role("button", name="Agents", exact=True).click()
+                release.set()
+                await expect(ui.get_by_role("heading", name="Agents", exact=True)).to_be_visible()
+                await expect(ui.get_by_role("heading", name="Orders", exact=True)).to_be_visible()
+                assert await ui.get_by_role("button", name="Agents", exact=True).get_attribute("aria-current") == "page"
+                assert await ui.get_by_role("button", name="Add protection", exact=True).count() == 0
+            finally:
+                release.set()
+                await browser.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("device_scale,ui_width",[(1,1440),(2,507),(1,390),(1,320)])
 async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch,device_scale,ui_width):
     monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
     project = initialize(tmp_path / "Orders", selected=[], dashboard=False)
@@ -36,7 +73,9 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
             ui_browser = await p.chromium.launch()
             ui = await ui_browser.new_page(viewport={"width":ui_width,"height":1000})
             errors = []
+            requests = []
             ui.on("pageerror", lambda error: errors.append(str(error)))
+            ui.on("request", lambda request: requests.append(request.url))
             await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
             await ui.get_by_role("heading", name="Orders", exact=True).wait_for()
             await ui.get_by_role("heading", name="Support", exact=True).wait_for()
@@ -53,7 +92,11 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     await ui.get_by_role("button", name="Review operation").wait_for(timeout=12000)
                     await ui.get_by_role("button", name="Review operation").click()
                     await ui.locator('dialog canvas[data-rendered="true"]').wait_for()
-                    assert await ui.get_by_text("Run: " + guard.runtime_control.run_id[:16], exact=False).is_visible()
+                    # Technical identities are available without competing with
+                    # the destination and facts the human must review.
+                    context = ui.locator("dialog .review-context")
+                    assert guard.runtime_control.run_id in await context.text_content()
+                    assert not await context.locator("pre").is_visible()
                     assert await ui.get_by_role("button", name="Close dialog").evaluate("el=>el===document.activeElement")
                     # Enter closes the focused dialog; it must not approve an action.
                     await ui.keyboard.press("Enter")
@@ -70,7 +113,7 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     if os.environ.get("ACIRA_TEST_ARTIFACTS"):
                         directory = Path(os.environ["ACIRA_TEST_ARTIFACTS"])
                         directory.mkdir(parents=True, exist_ok=True)
-                        await ui.screenshot(path=str(directory / "approval.png"), full_page=True)
+                        await ui.screenshot(path=str(directory / f"approval-{ui_width}.png"), full_page=True)
                     await ui.get_by_role("button", name="Approve once", exact=True).click()
                     await asyncio.wait_for(action, timeout=10)
                     assert await page.locator("#next").inner_text() == "Done"
@@ -80,8 +123,10 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     for view in ("Policies", "Activity", "Backtesting", "Settings", "Agents"):
                         await ui.get_by_role("button", name=view, exact=True).click()
                         await ui.get_by_role("heading", name=view, exact=True).wait_for()
+                        assert await ui.evaluate("document.body.scrollWidth <= innerWidth"), f"{view} overflowed the {ui_width}px viewport"
                     if os.environ.get("ACIRA_TEST_ARTIFACTS"):
-                        await ui.screenshot(path=str(directory / "agents.png"), full_page=True)
+                        await ui.screenshot(path=str(directory / f"agents-{ui_width}.png"), full_page=True)
+                    assert all(url.startswith((str(server.make_url("/")), "data:", "blob:")) for url in requests), "The local dashboard requested an external asset"
                     assert not errors
                 finally:
                     if not action.done():
@@ -115,7 +160,8 @@ async def test_critical_review_shows_semantic_facts_and_separates_same_agent_run
                 await ui.get_by_role("heading", name="Orders", exact=True).wait_for()
                 await ui.get_by_role("button", name="Approvals", exact=False).first.click()
                 await ui.get_by_role("row").filter(has_text="run-one").get_by_role("button", name="Review operation").click()
-                assert await ui.get_by_text("Run: run-one", exact=False).is_visible()
+                await ui.get_by_text("Run and policy revision", exact=True).click()
+                assert "run-one" in await ui.locator("dialog .review-context pre").inner_text()
                 for fact in evidence["verified_fields"].values():
                     assert await ui.get_by_role("cell", name=fact, exact=True).is_visible()
                 assert await ui.get_by_role("checkbox").count() == 0

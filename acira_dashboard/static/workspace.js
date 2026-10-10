@@ -7,6 +7,7 @@ const state = {
   agent: "default",
   catalog: [],
   busy: false,
+  renderPending: false,
   review: null,
 };
 function el(tag, text, cls) {
@@ -69,15 +70,18 @@ function button(text, action, cls) {
   return node;
 }
 function pill(text) {
+  const status = text.split(" · ")[0];
   return el(
     "span",
     text,
     "pill " +
-      (["Active", "running", "approved"].includes(text)
+      (["Active", "running", "approved"].includes(status)
         ? "ok"
-        : ["Invalid configuration", "rejected", "failed"].includes(text)
+        : ["Invalid configuration", "Failed to apply", "failed"].includes(status)
           ? "bad"
-          : "warn"),
+          : ["Applying", "pending", "paused", "waiting_for_review"].includes(status)
+            ? "warn"
+            : ""),
   );
 }
 function pretty(value) {
@@ -117,6 +121,8 @@ function table(headers, rows) {
     const row = el("tr");
     cells.forEach((value) => {
       const cell = el("td");
+      if (typeof value === "string" && /^(\/|[A-Za-z]:[\\/])/.test(value))
+        cell.className = "filename";
       cell.append(
         value instanceof Node
           ? value
@@ -215,10 +221,26 @@ document.querySelectorAll("[data-view]").forEach((node) =>
 );
 
 async function render() {
-  if (state.busy) return;
+  if (state.busy) {
+    // Coalesce a navigation or scope change while the current view is loading.
+    // Its latest selection must render as soon as that request finishes.
+    state.renderPending = true;
+    return;
+  }
   state.busy = true;
   try {
     $("page-title").textContent = state.view;
+    $("page-description").textContent = {
+      Agents: "Your projects and agents, in one place.",
+      Approvals: "A clear view of what your agent wants to do.",
+      Policies: "Set the boundaries. Your agents keep them.",
+      Activity: "See what was checked, decided, and actually done.",
+      Backtesting: "Compare your policies against recorded actions.",
+      Settings: "Your projects, connections, and local preferences.",
+    }[state.view];
+    document.querySelectorAll("[data-view]").forEach((node) =>
+      node.setAttribute("aria-current", node.dataset.view === state.view ? "page" : "false"),
+    );
     const content = $("content");
     content.replaceChildren();
     if (!state.projects.length) {
@@ -250,6 +272,10 @@ async function render() {
     notice(error.message, true);
   } finally {
     state.busy = false;
+    if (state.renderPending) {
+      state.renderPending = false;
+      await render();
+    }
   }
 }
 
@@ -278,17 +304,19 @@ async function agents(content) {
   const cards = el("div", undefined, "cards");
   for (const project of state.projects) {
     const card = el("section", undefined, "card");
-    card.append(el("h2", project.name), el("p", project.root));
+    const folder = el("details", undefined, "project-folder");
+    folder.append(el("summary", "Project folder"), el("p", project.root));
+    card.append(el("h2", project.name), folder);
     if (project.error) card.append(el("p", project.error));
     for (const profile of project.agents) {
-      const row = el("div", undefined, "row");
+      const row = el("div", undefined, "row agent-row");
       const selectAgent = button(profile.name, async () => {
         state.project = project.id;
         state.agent = profile.name;
         state.view = "Policies";
         await refresh();
         await render();
-      });
+      }, "agent-link");
       selectAgent.dataset.projectId = project.id;
       selectAgent.dataset.agentName = profile.name;
       row.append(selectAgent, pill(profile.state));
@@ -431,30 +459,28 @@ async function reviewDialog(review) {
     ),
     status,
   );
+  body.querySelector("h3").className = "review-target";
   const evidence = review.evidence || {};
-  const context = el(
-    "p",
-    "Run: " +
-      String(review.run_id || "Unknown").slice(0, 16) +
-      " · Policy revision: " +
-      String(review.policy_revision || "Unknown").slice(0, 12),
-    "muted",
+  const context = el("details", undefined, "review-context");
+  context.append(
+    el("summary", "Run and policy revision"),
+    pretty({ run: review.run_id, policy_revision: review.policy_revision }),
   );
-  context.title =
-    "Run: " + review.run_id + " · Policy revision: " + review.policy_revision;
-  body.append(
-    context,
+  const evidencePanel = el("section", undefined, "review-evidence");
+  evidencePanel.setAttribute("aria-label", "Operation evidence");
+  body.append(context, evidencePanel);
+  evidencePanel.append(
     el("p", "Destination: " + (evidence.destination || "Not established")),
   );
   if (evidence.fields?.length)
-    body.append(
+    evidencePanel.append(
       table(
         ["Reviewed field", "Observed value"],
         evidence.fields.map((field) => [field.name, field.display]),
       ),
     );
   if (evidence.submission_fields?.length)
-    body.append(
+    evidencePanel.append(
       el("h3", "Exact request that may be sent"),
       el("p", evidence.request_method + " " + evidence.destination),
       table(
@@ -463,7 +489,7 @@ async function reviewDialog(review) {
       ),
     );
   if (evidence.verified_fields && Object.keys(evidence.verified_fields).length)
-    body.append(
+    evidencePanel.append(
       el("h3", "Verified operation facts"),
       table(
         ["Fact", "Reviewed value"],
@@ -471,7 +497,7 @@ async function reviewDialog(review) {
       ),
     );
   if (evidence.bounded_steps?.length)
-    body.append(
+    evidencePanel.append(
       el("h3", "Declared form changes"),
       table(
         ["Field", "Proposed value"],
