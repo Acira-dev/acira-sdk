@@ -13,6 +13,23 @@ permissions:
   contents: read
 
 jobs:
+  release-authorization:
+    if: inputs.publish != 'none'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Require configured release approval and main-only deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/verify_release_environment.py --environment "${{ inputs.publish }}"
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -102,7 +119,7 @@ jobs:
 
   publish-testpypi:
     if: inputs.publish == 'testpypi' && github.ref == 'refs/heads/main'
-    needs: [build, verify, dependency-audit]
+    needs: [build, verify, dependency-audit, release-authorization]
     runs-on: ubuntu-latest
     environment: testpypi
     permissions:
@@ -118,7 +135,7 @@ jobs:
 
   publish-pypi:
     if: inputs.publish == 'pypi' && github.ref == 'refs/heads/main'
-    needs: [build, verify, dependency-audit]
+    needs: [build, verify, dependency-audit, release-authorization]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:

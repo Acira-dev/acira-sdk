@@ -238,6 +238,26 @@ Billing was not changed. The preceding successful 15-job shutdown matrix does no
 establish Windows/Linux results for the subsequent capture, dependency, cleanup or
 expression changes. Use the matching PR checks when that external gate is repaired.
 
+## Acira-owned repository verification, 2026-10-10
+
+The complete portable snapshot is now in the private
+[Acira-dev/acira-sdk repository](https://github.com/Acira-dev/acira-sdk).
+Commit `7111bbf9f61f0f8575b3912c50a6472a29888ffa` passed all **15 jobs** in its
+[matching CI run](https://github.com/Acira-dev/acira-sdk/actions/runs/38045735594):
+all-platform core and clean-wheel jobs, and installed-wheel Chromium tests on
+macOS, Windows and Linux with Python 3.11 and 3.12. A fresh-checkout test-directory
+setup failure in the initial migration run was repaired before this successful
+run. Local default-path verification passed **509 tests in 347.32 seconds**.
+Historical source-repository billing failures are not failures of this new run.
+
+GitHub accepted the new repository's `pypi` environment, exact `main` branch
+restriction and disabled administrator bypass, but rejected required reviewers
+because of private-repository plan limitations. The release workflow verifies the
+actual provider controls and blocks upload if approval rules are missing; it does
+not interpret a partially created environment as an approved release route.
+See [the release guide](release.md). Publication remains separately gated by the
+dependency audit and the final revision's checks.
+
 ## Full delivery sequence, preserved
 
 1. Protection foundation — implemented with the explicit supported-boundary matrix,
@@ -274,12 +294,15 @@ expression changes. Use the matching PR checks when that external gate is repair
   not a missing synchronization requirement.
 - Complete the five genuine project integrations and two-week pilot. No adoption,
   maintenance savings or product demand has been fabricated.
-- The previously registered pending trusted publisher under **Acira-Dev** on PyPI
-  names `FouadDim/Acira-Browser-Security`. The new Acira-owned repository is
-  `Acira-dev/acira-sdk`; its matching publisher and GitHub `pypi` environment
-  must be configured before release. GitHub administration access is available
-  for the new repository. See [repository provenance](repository.md).
-  Publication remains gated by passing checks and the dependency audit. Confirm
+- The pending trusted publisher under **Acira-Dev** on PyPI now names
+  `Acira-dev/acira-sdk`, workflow `release.yml`, environment `pypi`. The old
+  `FouadDim/Acira-Browser-Security` publisher was removed after verifying the new
+  route. GitHub's `pypi` environment restricts deployments to `main` and disables
+  administrator bypass, but required reviewers are unavailable under the current
+  private-repository plan. The release check blocks publication until those
+  controls are available. GitHub administration access is verified for the new
+  repository. See [repository provenance](repository.md).
+  Publication also remains gated by passing checks and the dependency audit. Confirm
   extension-store access separately; repository migration is not store publication.
   The manual release workflow defaults to build/verify without publication.
 

@@ -37,6 +37,13 @@ fake-data demo does not exercise PDF parsing or remote model TLS, but this does 
 establish the safety of arbitrary downstream workflows. Resolving the upstream pins
 and rechecking the actual dependency graph remains a publication gate.
 
+Publishing also checks GitHub's actual environment configuration with
+`tools/verify_release_environment.py`. It requires the selected repository-owner
+user as the release reviewer, permits that owner's self-review, disables
+administrator bypass, and accepts only the exact `main` branch. Missing, unreadable,
+or weaker provider controls block both publishing jobs. Build-only verification
+does not require publishing environments or PyPI access.
+
 Configure PyPI/TestPyPI trusted publishing for this repository, workflow filename
 `release.yml`, and the corresponding `pypi` / `testpypi` GitHub environment. Configure
 required reviewers on those environments. Publication access and the package name
@@ -59,14 +66,25 @@ A pending publisher does not reserve the package name. If `acira` already belong
 to that account, add the same publisher in the existing project's settings instead.
 The Acira GitHub account has administration access to this repository. Configure
 the `pypi` environment and its release approval/branch controls before publication;
-the reviewed release workflow must be available on `main`. The repository migration
-does not itself register the new publisher on PyPI. The previously registered
-pending publisher names `FouadDim/Acira-Browser-Security`; it must be replaced or
-superseded by the exact fields above. GitHub and PyPI ownership remain separate.
+the reviewed release workflow must be available on `main`. On 2026-10-10, the
+authenticated Acira-Dev PyPI account registered this exact pending publisher,
+and the superseded `FouadDim/Acira-Browser-Security` publisher was removed after
+the new connection was verified. No distribution has been uploaded. GitHub and
+PyPI ownership remain separate.
 Publishing configuration is not complete until both services acknowledge it.
 Account passwords and long-lived upload tokens are not needed in the repository.
 TestPyPI is a separate account/project setup using the `testpypi` environment.
 See [PyPI's first-publication instructions](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
+
+During the Acira-owned repository setup on 2026-10-10, GitHub accepted the `pypi`
+environment, exact `main` branch rule, and disabled administrator bypass, but
+rejected required reviewers with an HTTP 422 plan-availability error. The
+[GitHub environment documentation](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)
+states that required reviewers on Free, Pro and Team plans are available only for
+public repositories. The repository remains private. The release check correctly
+blocks publishing in this state; an environment existing by name is not proof of
+configured approval. No billing change, public-visibility change, or upload is
+performed to work around this limitation.
 
 Select `testpypi` or `pypi` only for an approved release. Publication jobs receive
 OIDC permission, download already-tested artifacts, and do not run checkout/build

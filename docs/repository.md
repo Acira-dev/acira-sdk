@@ -30,6 +30,7 @@ publishing requires an explicit PyPI trusted publisher authorizing these fields:
 
 The old publisher for `FouadDim/Acira-Browser-Security` does not authorize this
 repository. The release workflow remains manual, defaults to build-only, and
-requires passing browser/platform checks and a dependency audit before any upload.
+requires passing browser/platform checks, a dependency audit, and verification of
+the actual GitHub release approval and branch controls before any upload.
 Publishing setup status is recorded in [the release guide](release.md). No passwords
 or long-lived package-upload tokens belong in Git.
