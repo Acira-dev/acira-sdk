@@ -30,6 +30,14 @@
     image.draggable = false;
     return image;
   }
+  function perchedPill() {
+    const perch = node("span", "acira-mascot target-companion pill-perch");
+    perch.setAttribute("aria-hidden", "true");
+    const still = mascot("pill", "pill-perch-still", "perched"),
+      movement = node("span", "pill-perch-motion");
+    perch.append(still, movement);
+    return perch;
+  }
   function question(action, label) {
     const verbs = { click: "Click", double_click: "Double-click", fill: "Fill", type: "Type into", submit: "Submit", select: "Select", check: "Check", uncheck: "Uncheck", upload: "Upload to", download: "Download", navigation: "Open" };
     const verb = verbs[action];
@@ -52,7 +60,7 @@
     const cropHeight = Math.min(imageHeight, Math.max(110 * sy, height + 64 * sy));
     const cropX = Math.max(0, Math.min(imageWidth - cropWidth, x + width / 2 - cropWidth / 2));
     const cropY = Math.max(0, Math.min(imageHeight - cropHeight, y + height / 2 - cropHeight / 2));
-    return { x, y, width, height, cropX, cropY, cropWidth, cropHeight,
+    return { x, y, width, height, cropX, cropY, cropWidth, cropHeight, paddingX: 6 * sx, paddingY: 6 * sy,
       partial: box.x < 0 || box.y < 0 || box.x + box.width > viewport.width || box.y + box.height > viewport.height };
   }
   function svgElement(tag, attributes) {
@@ -62,12 +70,17 @@
   }
   function outline(width, height, rect, pointer) {
     const svg = svgElement("svg", { viewBox: `0 0 ${width} ${height}`, "aria-hidden": "true", class: "review-annotation", preserveAspectRatio: "none" });
-    const attributes = { x: rect.x, y: rect.y, width: rect.width, height: rect.height, rx: 3, fill: "none", "vector-effect": "non-scaling-stroke" };
+    // Keep the exact browser bounds separate from the decorative outer ring.
+    // Neither the blue stroke nor its white halo should paint over target text.
+    svg.append(svgElement("rect", { x: rect.x, y: rect.y, width: rect.width, height: rect.height, fill: "none", stroke: "none", class: "target-bounds" }));
+    const attributes = { x: rect.x - rect.paddingX, y: rect.y - rect.paddingY,
+      width: rect.width + 2 * rect.paddingX, height: rect.height + 2 * rect.paddingY,
+      rx: 5, fill: "none", "vector-effect": "non-scaling-stroke" };
     svg.append(svgElement("rect", { ...attributes, class: "target-halo" }), svgElement("rect", { ...attributes, class: "target-outline" }));
     if (pointer) {
       const fromRight = rect.x + rect.width / 2 < width / 2;
-      const startX = fromRight ? width - 12 : 12;
-      const endX = fromRight ? rect.x + rect.width + 5 : rect.x - 5;
+      const startX = fromRight ? width - 36 : 36;
+      const endX = fromRight ? rect.x + rect.width + rect.paddingX + 5 : rect.x - rect.paddingX - 5;
       const endY = rect.y + rect.height / 2;
       const path = `M ${startX} 12 Q ${startX} ${endY} ${Math.max(2, Math.min(width - 2, endX))} ${endY}`;
       svg.append(svgElement("path", { d: path, class: "target-pointer", fill: "none", "vector-effect": "non-scaling-stroke", pathLength: 1 }));
@@ -86,7 +99,8 @@
     frame.append(canvas);
     if (rect) {
       const scaleX = canvas.width / crop.width, scaleY = canvas.height / crop.height;
-      frame.append(outline(canvas.width, canvas.height, { x: (rect.x - crop.x) * scaleX, y: (rect.y - crop.y) * scaleY, width: rect.width * scaleX, height: rect.height * scaleY }, pointer));
+      frame.append(outline(canvas.width, canvas.height, { x: (rect.x - crop.x) * scaleX, y: (rect.y - crop.y) * scaleY,
+        width: rect.width * scaleX, height: rect.height * scaleY, paddingX: rect.paddingX * scaleX, paddingY: rect.paddingY * scaleY }, pointer));
     }
     return frame;
   }
@@ -105,7 +119,7 @@
         if (rect.x - rect.cropX + rect.width / 2 < rect.cropWidth / 2) caption.classList.add("companion-right");
         const text = node("div");
         text.append(node("strong", "", "Proposed target"), node("span", "muted", targetLabel || "Resolved browser target"));
-        caption.append(mascot("pill", "target-companion"), text);
+        caption.append(perchedPill(), text);
         focus.append(caption, picture(image, { x: rect.cropX, y: rect.cropY, width: rect.cropWidth, height: rect.cropHeight }, rect,
           "review-focus-canvas", "Masked target close-up. The proposed target is outlined in blue.", true));
         if (rect.partial) focus.append(node("p", "capture-note", "Part of the target is outside this capture. Review the full page and action details."));

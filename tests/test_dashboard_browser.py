@@ -231,7 +231,7 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     # including the captured device-pixel scaling. This target is
                     # at the viewport's top-left, so its crop begins at (0, 0).
                     real_target = await page.locator("#next").bounding_box()
-                    displayed = await ui.locator(".review-focus .target-outline").evaluate("""el=>{
+                    displayed = await ui.locator(".review-focus .target-bounds").evaluate("""el=>{
                         const matrix=el.getScreenCTM();
                         const origin=new DOMPoint(el.x.baseVal.value,el.y.baseVal.value).matrixTransform(matrix);
                         return {x:origin.x,width:el.width.baseVal.value*matrix.a};
@@ -245,6 +245,23 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     scale = capture_scale * frame["width"] / physical_width
                     assert abs(displayed["x"] - frame["x"] - real_target["x"] * scale) < 1
                     assert abs(displayed["width"] - real_target["width"] * scale) < 1
+                    ring = ui.locator(".review-focus .target-outline")
+                    bounds = ui.locator(".review-focus .target-bounds")
+                    # Decoration is outside the exact target, including its halo.
+                    assert float(await ring.get_attribute("x")) < float(await bounds.get_attribute("x"))
+                    assert float(await ring.get_attribute("y")) < float(await bounds.get_attribute("y"))
+                    assert float(await ring.get_attribute("width")) > float(await bounds.get_attribute("width"))
+                    assert await ring.evaluate("el=>getComputedStyle(el).strokeWidth") == "1.5px"
+                    perch = ui.locator(".pill-perch")
+                    await expect(perch.locator("img")).to_be_visible()
+                    await expect(perch.locator(".pill-perch-motion")).not_to_be_visible()
+                    assert await perch.locator("img").evaluate("el=>el.complete && el.naturalWidth===196 && el.naturalHeight===232")
+                    perch_box = await perch.bounding_box()
+                    caption_box = await ui.locator(".target-caption").bounding_box()
+                    seat = perch_box["y"] + perch_box["height"] * (176.7356952123663 / 232)
+                    assert abs(seat - caption_box["y"] - caption_box["height"]) < 2
+                    assert perch_box["y"] >= caption_box["y"]
+                    assert perch_box["y"] + perch_box["height"] <= frame["y"]
                     assert await ui.locator(".review-focus .target-outline").evaluate("el=>getComputedStyle(el).stroke") == "rgb(37, 99, 235)"
                     assert await ui.locator(".review-focus .target-outline").get_attribute("vector-effect") == "non-scaling-stroke"
                     overview = ui.get_by_text("Full page screenshot", exact=True)
@@ -375,7 +392,7 @@ async def test_review_preview_does_not_invent_missing_targets(tmp_path, monkeypa
                 elif coordinates == "partial":
                     await ui.locator('.review-preview[data-loaded="true"]').wait_for()
                     await expect(ui.get_by_text("Part of the target is outside this capture. Review the full page and action details.", exact=True)).to_be_visible()
-                    rect = ui.locator(".review-overview .target-outline")
+                    rect = ui.locator(".review-overview .target-bounds")
                     assert float(await rect.get_attribute("width")) == 40
                     assert float(await rect.get_attribute("height")) == 40
                 else:
@@ -392,12 +409,22 @@ async def test_review_preview_does_not_invent_missing_targets(tmp_path, monkeypa
 
 @pytest.mark.asyncio
 async def test_companion_preferences_keep_evidence_and_respect_reduced_motion(tmp_path, monkeypatch):
+    import base64
+    import io
+    import time
+    from PIL import Image
+
     monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
     project = initialize(tmp_path / "Appearance", selected=[], dashboard=False)
     journal = Journal(project.root)
+    png = io.BytesIO()
+    Image.new("RGB", (800, 600), "white").save(png, format="PNG")
+    artifact = journal.store_artifact({"capture_status": "ready", "captured_at": time.time(), "mime_type": "image/png",
+        "image": base64.b64encode(png.getvalue()).decode(), "viewport": {"width": 800, "height": 600},
+        "bounding_box": {"x": 40, "y": 40, "width": 120, "height": 40}})
     review = journal.create_review("appearance-run", {"agent": "default", "policy_revision": project.snapshot().revision,
         "reason": "Review the note", "classification": {"action": "click", "target": {"text": "Save note"}},
-        "evidence": {"destination": "https://fixture.invalid/notes"}, "grant_eligible": False})
+        "evidence": {"destination": "https://fixture.invalid/notes"}, "artifact": artifact, "grant_eligible": False})
     service = Service()
     async with TestServer(service.app(), host="127.0.0.1") as server:
         service.port = server.port
@@ -416,6 +443,8 @@ async def test_companion_preferences_keep_evidence_and_respect_reduced_motion(tm
                 await ui.get_by_role("button", name="Approvals", exact=False).first.click()
                 await ui.get_by_role("button", name="Review operation").click()
                 await expect(ui.locator(".review-companion")).not_to_be_visible()
+                await expect(ui.locator(".pill-perch")).not_to_be_visible()
+                await expect(ui.locator(".review-focus .target-outline")).to_be_visible()
                 await expect(ui.get_by_role("heading", name="Click “Save note”?", exact=True)).to_be_visible()
                 await expect(ui.get_by_text("Destination: https://fixture.invalid/notes", exact=True)).to_be_visible()
                 assert journal.review(review["review_id"])["state"] == "pending"
@@ -428,11 +457,20 @@ async def test_companion_preferences_keep_evidence_and_respect_reduced_motion(tm
                 await ui.get_by_role("button", name="Approvals", exact=False).first.click()
                 await ui.get_by_role("button", name="Review operation").click()
                 assert await ui.locator(".review-companion").evaluate("el=>getComputedStyle(el).animationName") == "none"
+                await expect(ui.locator(".pill-perch-still")).to_be_visible()
+                await expect(ui.locator(".pill-perch-motion")).not_to_be_visible()
                 await ui.emulate_media(reduced_motion="no-preference")
                 assert await ui.locator(".review-companion").evaluate("el=>getComputedStyle(el).animationName") == "companion-wait"
+                await expect(ui.locator(".pill-perch-motion")).to_be_visible()
+                assert await ui.locator(".pill-perch-motion").evaluate("el=>getComputedStyle(el).animationName") == "pill-leg-swing"
+                start = await ui.locator(".pill-perch-motion").evaluate("el=>getComputedStyle(el).backgroundPositionX")
+                await ui.wait_for_timeout(500)
+                assert await ui.locator(".pill-perch-motion").evaluate("el=>getComputedStyle(el).backgroundPositionX") != start
                 journal.decide(review["review_id"], "rejected")
                 await ui.locator("dialog .pill").filter(has_text="rejected").wait_for(timeout=12000)
                 assert await ui.locator(".review-companion").evaluate("el=>getComputedStyle(el).animationName") == "none"
+                await expect(ui.locator(".pill-perch-still")).to_be_visible()
+                await expect(ui.locator(".pill-perch-motion")).not_to_be_visible()
             finally:
                 await browser.close()
 

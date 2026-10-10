@@ -156,8 +156,10 @@ invalidates pending reviews and applies at the next guarded action boundary.
 ## Human review and critical submissions
 
 Reviews show operation details, a masked browser screenshot when available, and the
-target highlight. The dashboard's Pill companion marks the proposed target in an
-enlarged masked preview; the full-page capture and technical details remain available.
+target highlight. The full-body Pill companion sits on the enlarged preview's border;
+its legs swing gently when animated companions are enabled. The thin blue outline sits
+outside the target so it does not cover its text. The full-page capture and technical
+details remain available.
 Companions can be animated, kept still (the default), or hidden in Settings; reduced
 motion is respected. One approval covers one attempt. DOM targets, form values and
 policy revision are checked again before dispatch. There is no implicit approval
