@@ -231,7 +231,7 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     # including the captured device-pixel scaling. This target is
                     # at the viewport's top-left, so its crop begins at (0, 0).
                     real_target = await page.locator("#next").bounding_box()
-                    displayed = await ui.locator(".review-focus .target-bounds").evaluate("""el=>{
+                    displayed = await ui.locator(".review-stage .target-bounds").evaluate("""el=>{
                         const matrix=el.getScreenCTM();
                         const origin=new DOMPoint(el.x.baseVal.value,el.y.baseVal.value).matrixTransform(matrix);
                         return {x:origin.x,width:el.width.baseVal.value*matrix.a};
@@ -243,10 +243,14 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     # actual capture dimensions, rather than assuming its scale.
                     capture_scale = screenshot_width / page.viewport_size["width"]
                     scale = capture_scale * frame["width"] / physical_width
+                    # The close-up can shrink on narrow screens but must not
+                    # enlarge a captured target beyond its browser CSS scale.
+                    assert frame["width"] <= physical_width / capture_scale + 1
+                    assert await ui.locator(".target-pointer").count() == 0
                     assert abs(displayed["x"] - frame["x"] - real_target["x"] * scale) < 1
                     assert abs(displayed["width"] - real_target["width"] * scale) < 1
-                    ring = ui.locator(".review-focus .target-outline")
-                    bounds = ui.locator(".review-focus .target-bounds")
+                    ring = ui.locator(".review-stage .target-outline")
+                    bounds = ui.locator(".review-stage .target-bounds")
                     # Decoration is outside the exact target, including its halo.
                     assert float(await ring.get_attribute("x")) < float(await bounds.get_attribute("x"))
                     assert float(await ring.get_attribute("y")) < float(await bounds.get_attribute("y"))
@@ -262,8 +266,8 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     assert abs(seat - caption_box["y"] - caption_box["height"]) < 2
                     assert perch_box["y"] >= caption_box["y"]
                     assert perch_box["y"] + perch_box["height"] <= frame["y"]
-                    assert await ui.locator(".review-focus .target-outline").evaluate("el=>getComputedStyle(el).stroke") == "rgb(37, 99, 235)"
-                    assert await ui.locator(".review-focus .target-outline").get_attribute("vector-effect") == "non-scaling-stroke"
+                    assert await ui.locator(".review-stage .target-outline").evaluate("el=>getComputedStyle(el).stroke") == "rgb(37, 99, 235)"
+                    assert await ui.locator(".review-stage .target-outline").get_attribute("vector-effect") == "non-scaling-stroke"
                     overview = ui.get_by_text("Full page screenshot", exact=True)
                     await overview.click()
                     await expect(ui.locator(".review-overview-canvas")).to_be_visible()
@@ -295,6 +299,81 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                         action.cancel()
                     await browser.close()
             await ui_browser.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("width,device_scale", [(1440, 2), (320, 1)])
+async def test_payment_preview_preserves_context_and_keeps_evidence_readable(tmp_path, monkeypatch, width, device_scale):
+    import base64
+    import time
+
+    monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
+    project = initialize(tmp_path / "Payment evidence", selected=[], dashboard=False)
+    service = Service()
+    async with TestServer(service.app(), host="127.0.0.1") as server:
+        service.port = server.port
+        async with ClientSession(headers={"Authorization": "Bearer " + service.admin_key}) as client:
+            ticket = (await (await client.post(server.make_url("/api/ticket"), json={})).json())["ticket"]
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            source = await browser.new_page(viewport={"width": 1280, "height": 720}, device_scale_factor=device_scale)
+            ui = await browser.new_page(viewport={"width": width, "height": 1000})
+            try:
+                # An inert fixture: this test never submits a payment. The black
+                # region represents masking already performed by the runtime.
+                await source.set_content('''<style>
+                    body { font: 16px Arial; padding: 50px; color: #17181c; }
+                    main { width: 620px; } h1 { font-size: 26px; }
+                    .masked { width: 420px; height: 30px; background: black; margin: 18px 0; }
+                    button { background: #3047d6; color: white; border: 0;
+                        border-radius: 8px; padding: 18px 28px; font: 600 22px Arial; }
+                    </style><main><h1>Invoice checkout</h1><p>Fixture merchant · USD 10.00</p>
+                    <div class="masked"></div><button type="button">Pay $10.00</button>
+                    <h2>Account records</h2><p>Fixture billing account</p></main>''')
+                target = await source.get_by_role("button", name="Pay $10.00", exact=True).bounding_box()
+                masked = await source.locator(".masked").bounding_box()
+                artifact = Journal(project.root).store_artifact({
+                    "capture_status": "ready", "captured_at": time.time(), "mime_type": "image/png",
+                    "image": base64.b64encode(await source.screenshot()).decode(),
+                    "viewport": source.viewport_size, "bounding_box": target,
+                })
+                Journal(project.root).create_review("payment-preview-run", {
+                    "agent": "default", "policy_revision": project.snapshot().revision,
+                    "classification": {"action": "click", "target": {"text": "Pay $10.00"}},
+                    "evidence": {"critical": True, "destination": "https://fixture.invalid/payments",
+                        "verified_fields": {"Recipient": "Fixture merchant", "Amount": "10.00", "Currency": "USD", "Account": "Fixture billing account"}},
+                    "artifact": artifact, "grant_eligible": False,
+                })
+                await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
+                await ui.get_by_role("heading", name="Payment evidence", exact=True).wait_for()
+                await ui.get_by_role("button", name="Approvals", exact=False).first.click()
+                await ui.get_by_role("button", name="Review operation").click()
+                await ui.locator('.review-preview[data-loaded="true"]').wait_for()
+                frame = await ui.locator(".review-focus-canvas").bounding_box()
+                assert frame["width"] <= 640 + 1
+                assert await ui.locator(".review-focus-canvas").evaluate("el=>el.width") == 640 * device_scale
+                await expect(ui.get_by_role("cell", name="Fixture merchant", exact=True)).to_be_visible()
+                # The annotation and avatar live above the masked source, never
+                # rasterized into it. All words and masking remain original.
+                crop_x = max(0, min(1280 - 640, target["x"] + target["width"] / 2 - 320))
+                crop_y = max(0, min(720 - 260, target["y"] + target["height"] / 2 - 130))
+                masked_pixel = {"x": (masked["x"] + masked["width"] / 2 - crop_x) * device_scale,
+                    "y": (masked["y"] + masked["height"] / 2 - crop_y) * device_scale}
+                assert await ui.locator(".review-focus-canvas").evaluate(
+                    """(el, pixel)=>Array.from(el.getContext('2d').getImageData(pixel.x,pixel.y,1,1).data)""", masked_pixel
+                ) == [0, 0, 0, 255]
+                text = await ui.locator(".target-caption-name").bounding_box()
+                avatar = await ui.locator(".pill-perch").bounding_box()
+                assert text["x"] + text["width"] <= avatar["x"]
+                assert avatar["y"] + avatar["height"] < frame["y"]
+                assert await ui.locator("dialog").evaluate("el=>el.scrollWidth<=el.clientWidth")
+                await ui.get_by_role("button", name="Approve once", exact=True).scroll_into_view_if_needed()
+                if os.environ.get("ACIRA_TEST_ARTIFACTS"):
+                    directory = Path(os.environ["ACIRA_TEST_ARTIFACTS"])
+                    directory.mkdir(parents=True, exist_ok=True)
+                    await ui.screenshot(path=str(directory / f"payment-preview-{width}.png"))
+            finally:
+                await browser.close()
 
 
 @pytest.mark.asyncio
@@ -444,9 +523,10 @@ async def test_companion_preferences_keep_evidence_and_respect_reduced_motion(tm
                 await ui.get_by_role("button", name="Review operation").click()
                 await expect(ui.locator(".review-companion")).not_to_be_visible()
                 await expect(ui.locator(".pill-perch")).not_to_be_visible()
-                await expect(ui.locator(".review-focus .target-outline")).to_be_visible()
+                await expect(ui.locator(".review-stage .target-outline")).to_be_visible()
                 await expect(ui.get_by_role("heading", name="Click “Save note”?", exact=True)).to_be_visible()
-                await expect(ui.get_by_text("Destination: https://fixture.invalid/notes", exact=True)).to_be_visible()
+                await expect(ui.locator(".review-destination").get_by_text("Destination", exact=True)).to_be_visible()
+                await expect(ui.locator(".review-destination").get_by_text("https://fixture.invalid/notes", exact=True)).to_be_visible()
                 assert journal.review(review["review_id"])["state"] == "pending"
                 await ui.get_by_role("button", name="Close dialog").click()
                 await ui.reload()

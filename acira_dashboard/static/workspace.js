@@ -582,9 +582,10 @@ async function reviewDialog(review) {
   const evidencePanel = el("section", undefined, "review-evidence");
   evidencePanel.setAttribute("aria-label", "Operation evidence");
   body.append(evidencePanel);
-  evidencePanel.append(
-    el("p", "Destination: " + (evidence.destination || "Not established")),
-  );
+  const destination = el("p", undefined, "review-destination");
+  destination.append(el("span", "Destination", "muted"),
+    el("span", evidence.destination || "Not established"));
+  evidencePanel.append(destination);
   if (evidence.fields?.length)
     evidencePanel.append(
       table(

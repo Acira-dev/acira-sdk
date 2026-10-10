@@ -56,11 +56,13 @@
     const bottom = Math.min(imageHeight, (box.y + box.height) * sy);
     if (right <= x || bottom <= y) return null;
     const width = right - x, height = bottom - y;
-    const cropWidth = Math.min(imageWidth, Math.max(360 * sx, width + 72 * sx));
-    const cropHeight = Math.min(imageHeight, Math.max(110 * sy, height + 64 * sy));
+    // Keep enough page context to recognize the action. The presentation also
+    // caps its CSS width, so a small target never becomes a giant blurry button.
+    const cropWidth = Math.min(imageWidth, Math.max(640 * sx, width + 128 * sx));
+    const cropHeight = Math.min(imageHeight, Math.max(260 * sy, height + 112 * sy));
     const cropX = Math.max(0, Math.min(imageWidth - cropWidth, x + width / 2 - cropWidth / 2));
     const cropY = Math.max(0, Math.min(imageHeight - cropHeight, y + height / 2 - cropHeight / 2));
-    return { x, y, width, height, cropX, cropY, cropWidth, cropHeight, paddingX: 6 * sx, paddingY: 6 * sy,
+    return { x, y, width, height, cropX, cropY, cropWidth, cropHeight, cssWidth: cropWidth / sx, paddingX: 6 * sx, paddingY: 6 * sy,
       partial: box.x < 0 || box.y < 0 || box.x + box.width > viewport.width || box.y + box.height > viewport.height };
   }
   function svgElement(tag, attributes) {
@@ -68,7 +70,7 @@
     Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
     return element;
   }
-  function outline(width, height, rect, pointer) {
+  function outline(width, height, rect) {
     const svg = svgElement("svg", { viewBox: `0 0 ${width} ${height}`, "aria-hidden": "true", class: "review-annotation", preserveAspectRatio: "none" });
     // Keep the exact browser bounds separate from the decorative outer ring.
     // Neither the blue stroke nor its white halo should paint over target text.
@@ -77,17 +79,9 @@
       width: rect.width + 2 * rect.paddingX, height: rect.height + 2 * rect.paddingY,
       rx: 5, fill: "none", "vector-effect": "non-scaling-stroke" };
     svg.append(svgElement("rect", { ...attributes, class: "target-halo" }), svgElement("rect", { ...attributes, class: "target-outline" }));
-    if (pointer) {
-      const fromRight = rect.x + rect.width / 2 < width / 2;
-      const startX = fromRight ? width - 36 : 36;
-      const endX = fromRight ? rect.x + rect.width + rect.paddingX + 5 : rect.x - rect.paddingX - 5;
-      const endY = rect.y + rect.height / 2;
-      const path = `M ${startX} 12 Q ${startX} ${endY} ${Math.max(2, Math.min(width - 2, endX))} ${endY}`;
-      svg.append(svgElement("path", { d: path, class: "target-pointer", fill: "none", "vector-effect": "non-scaling-stroke", pathLength: 1 }));
-    }
     return svg;
   }
-  function picture(image, crop, rect, cls, label, pointer) {
+  function picture(image, crop, rect, cls, label) {
     const frame = node("div", "review-picture");
     const canvas = node("canvas", cls);
     canvas.width = Math.round(crop.width);
@@ -100,7 +94,7 @@
     if (rect) {
       const scaleX = canvas.width / crop.width, scaleY = canvas.height / crop.height;
       frame.append(outline(canvas.width, canvas.height, { x: (rect.x - crop.x) * scaleX, y: (rect.y - crop.y) * scaleY,
-        width: rect.width * scaleX, height: rect.height * scaleY, paddingX: rect.paddingX * scaleX, paddingY: rect.paddingY * scaleY }, pointer));
+        width: rect.width * scaleX, height: rect.height * scaleY, paddingX: rect.paddingX * scaleX, paddingY: rect.paddingY * scaleY }));
     }
     return frame;
   }
@@ -113,15 +107,23 @@
     image.onload = () => {
       const rect = geometry(artifact, image.naturalWidth, image.naturalHeight);
       const children = [];
+      let focus;
       if (rect) {
-        const focus = node("figure", "review-focus");
-        const caption = node("figcaption", "target-caption");
-        if (rect.x - rect.cropX + rect.width / 2 < rect.cropWidth / 2) caption.classList.add("companion-right");
+        focus = node("figure", "review-focus");
+        const caption = node("figcaption", "target-caption companion-right");
         const text = node("div");
-        text.append(node("strong", "", "Proposed target"), node("span", "muted", targetLabel || "Resolved browser target"));
+        const label = node("span", "target-caption-label", "Browser target");
+        const icon = svgElement("svg", { viewBox: "0 0 16 16", "aria-hidden": "true", class: "target-caption-icon" });
+        icon.append(svgElement("path", { d: "M6 2H2v4m8-4h4v4M2 10v4h4m8-4v4h-4", fill: "none", stroke: "currentColor", "stroke-width": 1.3, "stroke-linecap": "round", "stroke-linejoin": "round" }));
+        label.prepend(icon);
+        text.append(label, node("strong", "target-caption-name", targetLabel || "Resolved browser target"));
         caption.append(perchedPill(), text);
-        focus.append(caption, picture(image, { x: rect.cropX, y: rect.cropY, width: rect.cropWidth, height: rect.cropHeight }, rect,
-          "review-focus-canvas", "Masked target close-up. The proposed target is outlined in blue.", true));
+        const stage = node("div", "review-stage");
+        const closeup = picture(image, { x: rect.cropX, y: rect.cropY, width: rect.cropWidth, height: rect.cropHeight }, rect,
+          "review-focus-canvas", "Masked target close-up. The proposed target is outlined in blue.");
+        closeup.style.maxWidth = rect.cssWidth + "px";
+        stage.append(closeup);
+        focus.append(caption, stage);
         if (rect.partial) focus.append(node("p", "capture-note", "Part of the target is outside this capture. Review the full page and action details."));
         children.push(focus);
       } else children.push(node("p", "muted", "Target coordinates are unavailable in this capture. Use the action details; no highlight has been inferred."));
@@ -129,10 +131,12 @@
       overview.open = !rect;
       overview.append(node("summary", "", "Full page screenshot"), picture(image,
         { x: 0, y: 0, width: image.naturalWidth, height: image.naturalHeight }, rect, "review-overview-canvas",
-        rect ? "Full masked browser screenshot with the proposed target outlined in blue." : "Full masked browser screenshot. Target coordinates are unavailable.", false));
+        rect ? "Full masked browser screenshot with the proposed target outlined in blue." : "Full masked browser screenshot. Target coordinates are unavailable."));
       const when = Number.isFinite(artifact.captured_at) ? "Captured " + new Date(artifact.captured_at * 1000).toLocaleTimeString() : "Capture time unavailable";
       const note = node("p", "capture-note", when + " · editable controls masked. Acira rechecks the target before acting.");
-      section.replaceChildren(...children, overview, note);
+      if (focus) focus.append(overview);
+      else children.push(overview);
+      section.replaceChildren(...children, note);
       section.dataset.loaded = "true";
     };
     image.onerror = () => section.replaceChildren(node("p", "muted", "Screenshot unavailable or expired. Review the structured action details."));
