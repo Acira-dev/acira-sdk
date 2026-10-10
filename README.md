@@ -20,6 +20,10 @@ Follow the [step-by-step existing-project setup](docs/quickstart.md), or the
 [Playwright](docs/playwright-quickstart.md) and
 [browser-use](docs/browser-use-quickstart.md) integration guides.
 
+The [signed-out public-site sweep](docs/public-site-sweep.md) provides a repeatable,
+opt-in compatibility check across hundreds of real public websites, with baseline,
+allow, block and review cases. It reports unavailable sites separately from passes.
+
 This checkout contains the SDK/shared-dashboard implementation. See
 [implementation and release status](docs/implementation-status.md) for verified behavior
 and remaining release gates. Do not infer full adapter coverage from package installation.

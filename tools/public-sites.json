@@ -1,0 +1,1577 @@
+{
+  "schema": "acira.public-site-catalog.v1",
+  "sites": [
+    {
+      "category": "developer",
+      "url": "https://www.python.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://docs.python.org/3/"
+    },
+    {
+      "category": "developer",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/"
+    },
+    {
+      "category": "developer",
+      "url": "https://playwright.dev/python/docs/intro"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.djangoproject.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://flask.palletsprojects.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://fastapi.tiangolo.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.rust-lang.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://go.dev/"
+    },
+    {
+      "category": "developer",
+      "url": "https://julialang.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.ruby-lang.org/en/"
+    },
+    {
+      "category": "developer",
+      "url": "https://elixir-lang.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.erlang.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.haskell.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.scala-lang.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://clojure.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://racket-lang.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.lua.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.php.net/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.perl.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://groovy-lang.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://kotlinlang.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.swift.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.typescriptlang.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://openjdk.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://cplusplus.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.learncpp.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://nim-lang.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://ziglang.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://ocaml.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://fortran-lang.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://vlang.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://deno.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://nodejs.org/en"
+    },
+    {
+      "category": "developer",
+      "url": "https://bun.sh/"
+    },
+    {
+      "category": "developer",
+      "url": "https://react.dev/"
+    },
+    {
+      "category": "developer",
+      "url": "https://vuejs.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://angular.dev/"
+    },
+    {
+      "category": "developer",
+      "url": "https://svelte.dev/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.solidjs.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://astro.build/"
+    },
+    {
+      "category": "developer",
+      "url": "https://nextjs.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://nuxt.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://tailwindcss.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://getbootstrap.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://bulma.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://lit.dev/"
+    },
+    {
+      "category": "developer",
+      "url": "https://htmx.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://alpinejs.dev/"
+    },
+    {
+      "category": "developer",
+      "url": "https://preactjs.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://webpack.js.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://vite.dev/"
+    },
+    {
+      "category": "developer",
+      "url": "https://rollupjs.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://esbuild.github.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://eslint.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://prettier.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://jestjs.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://vitest.dev/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.cypress.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.selenium.dev/"
+    },
+    {
+      "category": "developer",
+      "url": "https://robotframework.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.scrapy.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.sphinx-doc.org/en/master/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.mkdocs.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://docusaurus.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://gohugo.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://jekyllrb.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.11ty.dev/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.w3.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.w3schools.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.freecodecamp.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.theodinproject.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://developer.chrome.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://web.dev/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.postgresql.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.sqlite.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://mariadb.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.mysql.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://redis.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.mongodb.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://duckdb.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://cassandra.apache.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.elastic.co/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.opensearch.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.rabbitmq.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://kafka.apache.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.nginx.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.caddyserver.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.haproxy.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.envoyproxy.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.docker.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://podman.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://kubernetes.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://helm.sh/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.terraform.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.pulumi.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.ansible.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.jenkins.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.git-scm.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://mercurial-scm.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.debian.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://ubuntu.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://fedoraproject.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://archlinux.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.opensuse.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.freebsd.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.openbsd.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.netbsd.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.kernel.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.gnu.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.fsf.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://opensource.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.linuxfoundation.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.apache.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.eclipse.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.qt.io/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.gtk.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.wxwidgets.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.blender.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.gimp.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://inkscape.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.krita.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.audacityteam.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.videolan.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.libreoffice.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.documentfoundation.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://godotengine.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.beeware.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.kivy.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.electronjs.org/"
+    },
+    {
+      "category": "developer",
+      "url": "https://tauri.app/"
+    },
+    {
+      "category": "developer",
+      "url": "https://obsproject.com/"
+    },
+    {
+      "category": "developer",
+      "url": "https://www.ffmpeg.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://numpy.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://pandas.pydata.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://scipy.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://matplotlib.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://seaborn.pydata.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://scikit-learn.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://scikit-image.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://pytorch.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.tensorflow.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://keras.io/"
+    },
+    {
+      "category": "science",
+      "url": "https://jax.readthedocs.io/"
+    },
+    {
+      "category": "science",
+      "url": "https://jupyter.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.sympy.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.sagemath.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.r-project.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://posit.co/"
+    },
+    {
+      "category": "science",
+      "url": "https://bioconductor.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://bokeh.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://plotly.com/"
+    },
+    {
+      "category": "science",
+      "url": "https://d3js.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://observablehq.com/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.astropy.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.sunpy.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.rdkit.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.openstreetmap.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.qgis.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.osgeo.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://gdal.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.cern.ch/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.esa.int/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.nasa.gov/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.eso.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://global.jaxa.jp/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.noaa.gov/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.nist.gov/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.nsf.gov/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.usgs.gov/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.nih.gov/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.ncbi.nlm.nih.gov/"
+    },
+    {
+      "category": "science",
+      "url": "https://medlineplus.gov/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.cdc.gov/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.who.int/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.nature.com/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.science.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.scientificamerican.com/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.newscientist.com/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.quantamagazine.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.sciencenews.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.smithsonianmag.com/"
+    },
+    {
+      "category": "science",
+      "url": "https://arxiv.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.plos.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.frontiersin.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.biomedcentral.com/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.royalsociety.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.aps.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.aip.org/"
+    },
+    {
+      "category": "science",
+      "url": "https://www.acs.org/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.mit.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.stanford.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.harvard.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.yale.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.princeton.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.columbia.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.cornell.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.duke.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.northwestern.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.upenn.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.brown.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://home.dartmouth.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.jhu.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.cmu.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.caltech.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.nyu.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.uchicago.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.ucla.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.ucsd.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.berkeley.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.ucsb.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.ucdavis.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.wisc.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://umich.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://illinois.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.utexas.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.psu.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.osu.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.purdue.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.gatech.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.unc.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.ufl.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.virginia.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.washington.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.ox.ac.uk/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.cam.ac.uk/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.imperial.ac.uk/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.ucl.ac.uk/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.kcl.ac.uk/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.manchester.ac.uk/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.ed.ac.uk/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.bristol.ac.uk/"
+    },
+    {
+      "category": "education",
+      "url": "https://ethz.ch/en.html"
+    },
+    {
+      "category": "education",
+      "url": "https://www.epfl.ch/en/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.tum.de/en/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.uni-heidelberg.de/en"
+    },
+    {
+      "category": "education",
+      "url": "https://www.sorbonne-universite.fr/en"
+    },
+    {
+      "category": "education",
+      "url": "https://www.unimelb.edu.au/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.sydney.edu.au/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.anu.edu.au/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.uq.edu.au/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.monash.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.utoronto.ca/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.ubc.ca/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.mcgill.ca/"
+    },
+    {
+      "category": "education",
+      "url": "https://uwaterloo.ca/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.nus.edu.sg/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.ntu.edu.sg/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.hku.hk/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.cuhk.edu.hk/english/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.kaist.ac.kr/en/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.u-tokyo.ac.jp/en/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.kyoto-u.ac.jp/en"
+    },
+    {
+      "category": "education",
+      "url": "https://www.snu.ac.kr/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.khanacademy.org/"
+    },
+    {
+      "category": "education",
+      "url": "https://ocw.mit.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.open.edu/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.edx.org/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.coursera.org/"
+    },
+    {
+      "category": "education",
+      "url": "https://www.futurelearn.com/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.wikipedia.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.wikimedia.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.wikibooks.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.wikisource.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.wikivoyage.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.gutenberg.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://archive.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.loc.gov/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.bl.uk/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.bnf.fr/en"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.europeana.eu/en"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.si.edu/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.metmuseum.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.louvre.fr/en"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.tate.org.uk/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.britishmuseum.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.rijksmuseum.nl/en"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.vangoghmuseum.nl/en"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.artic.edu/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.lacma.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.getty.edu/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.guggenheim.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.moma.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://whitney.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.nationalgallery.org.uk/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.nationaltrust.org.uk/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.vam.ac.uk/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.theacropolismuseum.gr/en"
+    },
+    {
+      "category": "culture",
+      "url": "https://australian.museum/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.sciencemuseum.org.uk/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.nhm.ac.uk/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.tepapa.govt.nz/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.rom.on.ca/"
+    },
+    {
+      "category": "culture",
+      "url": "https://ago.ca/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.mca.com.au/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.un.org/en/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.unesco.org/en"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.unicef.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.unep.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.wfp.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.unhcr.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.ifrc.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.icrc.org/en"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.worldwildlife.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.rspb.org.uk/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.conservation.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.iucn.org/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.greenpeace.org/international/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.nationalgeographic.com/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.lonelyplanet.com/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.timeout.com/"
+    },
+    {
+      "category": "culture",
+      "url": "https://www.atlasobscura.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.bbc.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.reuters.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://apnews.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.cnn.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.npr.org/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.pbs.org/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.nbcnews.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://abcnews.go.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.cbsnews.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.cnet.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://arstechnica.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.theverge.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.wired.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://techcrunch.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.engadget.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.theguardian.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.independent.co.uk/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.telegraph.co.uk/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.ft.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.lemonde.fr/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.france24.com/en/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.dw.com/en/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.aljazeera.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.euronews.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.scmp.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.japantimes.co.jp/"
+    },
+    {
+      "category": "news",
+      "url": "https://www3.nhk.or.jp/nhkworld/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.nytimes.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.washingtonpost.com/"
+    },
+    {
+      "category": "news",
+      "url": "https://www.economist.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.apple.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.microsoft.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.samsung.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.sony.com/en/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.nintendo.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.playstation.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.xbox.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.lenovo.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.dell.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.hp.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.asus.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.acer.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.logitech.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.adobe.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.canva.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.figma.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.notion.so/"
+    },
+    {
+      "category": "product",
+      "url": "https://slack.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://discord.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://github.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://about.gitlab.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://bitbucket.org/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.atlassian.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.dropbox.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.spotify.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.netflix.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.youtube.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.ikea.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.etsy.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.amazon.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.ebay.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.walmart.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.target.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.bestbuy.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.costco.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.homedepot.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.lowes.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.wayfair.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.chewy.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.petsmart.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.booking.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.expedia.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.tripadvisor.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.airbnb.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.nikon.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://global.canon/en/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.fujifilm.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://gopro.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.garmin.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.polar.com/"
+    },
+    {
+      "category": "product",
+      "url": "https://www.tomtom.com/"
+    }
+  ]
+}
