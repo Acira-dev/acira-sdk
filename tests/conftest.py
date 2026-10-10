@@ -24,4 +24,6 @@ def pytest_configure(config):
     if config.option.basetemp is None:
         # Keep Windows-friendly checkout ACLs without allowing another pytest
         # process to delete an active run's fixtures.
-        config.option.basetemp = REPO_ROOT / ".pytest_tmp" / ("run-"+uuid.uuid4().hex)
+        parent = REPO_ROOT / ".pytest_tmp"
+        parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        config.option.basetemp = parent / ("run-"+uuid.uuid4().hex)
