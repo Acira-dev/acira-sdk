@@ -225,7 +225,7 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     assert not action.done()
                     await ui.get_by_role("button", name="Review operation").click()
                     await ui.locator('dialog .review-focus-canvas[data-rendered="true"]').wait_for()
-                    await expect(ui.get_by_role("heading", name="Click “Next”?", exact=True)).to_be_visible()
+                    await expect(ui.get_by_role("dialog").get_by_role("heading", name="Click “Next”?", exact=True)).to_be_visible()
                     assert await ui.locator(".review-companion").evaluate("el=>el.complete && el.naturalWidth > 0")
                     # Compare the visible overlay with the actual browser target,
                     # including the captured device-pixel scaling. This target is
@@ -287,8 +287,8 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     assert any(event["type"] == "browser_call_completed" for event in events)
                     assert any(review.get("artifact", {}).get("id") for review in Journal(project.root).reviews())
                     for view in ("Policies", "Activity", "Backtesting", "Settings", "Agents"):
-                        await ui.get_by_role("button", name=view, exact=True).click()
-                        await ui.get_by_role("heading", name=view, exact=True).wait_for()
+                        await click_control(ui, ui.get_by_role("button", name=view, exact=True, include_hidden=True))
+                        await ui.get_by_role("heading", name=view, exact=True, include_hidden=True).wait_for()
                         assert await ui.evaluate("document.body.scrollWidth <= innerWidth"), f"{view} overflowed the {ui_width}px viewport"
                     if os.environ.get("ACIRA_TEST_ARTIFACTS"):
                         await ui.screenshot(path=str(directory / f"agents-{ui_width}.png"), full_page=True)
@@ -400,7 +400,7 @@ async def test_critical_review_shows_semantic_facts_and_separates_same_agent_run
                 await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
                 await ui.get_by_role("heading", name="Orders", exact=True).wait_for()
                 await ui.get_by_role("button", name="Approvals", exact=False).first.click()
-                await ui.get_by_role("row").filter(has_text="run-one").get_by_role("button", name="Review operation").click()
+                await ui.locator('[data-review-card][data-run-id="run-one"]').get_by_role("button", name="Review operation").click()
                 await ui.get_by_text("Run and policy revision", exact=True).click()
                 assert "run-one" in await ui.locator("dialog .review-context pre").inner_text()
                 for fact in evidence["verified_fields"].values():
@@ -515,7 +515,7 @@ async def test_companion_preferences_keep_evidence_and_respect_reduced_motion(tm
             try:
                 await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
                 await ui.get_by_role("heading", name="Appearance", exact=True).wait_for()
-                await ui.get_by_role("button", name="Settings", exact=True).click()
+                await click_control(ui, ui.get_by_role("button", name="Settings", exact=True, include_hidden=True))
                 mode = ui.get_by_role("combobox", name="Companion appearance")
                 await expect(mode).to_have_value("still")
                 await mode.select_option("hidden")
@@ -524,13 +524,13 @@ async def test_companion_preferences_keep_evidence_and_respect_reduced_motion(tm
                 await expect(ui.locator(".review-companion")).not_to_be_visible()
                 await expect(ui.locator(".pill-perch")).not_to_be_visible()
                 await expect(ui.locator(".review-stage .target-outline")).to_be_visible()
-                await expect(ui.get_by_role("heading", name="Click “Save note”?", exact=True)).to_be_visible()
+                await expect(ui.get_by_role("dialog").get_by_role("heading", name="Click “Save note”?", exact=True)).to_be_visible()
                 await expect(ui.locator(".review-destination").get_by_text("Destination", exact=True)).to_be_visible()
                 await expect(ui.locator(".review-destination").get_by_text("https://fixture.invalid/notes", exact=True)).to_be_visible()
                 assert journal.review(review["review_id"])["state"] == "pending"
                 await ui.get_by_role("button", name="Close dialog").click()
                 await ui.reload()
-                await ui.get_by_role("button", name="Settings", exact=True).click()
+                await click_control(ui, ui.get_by_role("button", name="Settings", exact=True, include_hidden=True))
                 await expect(mode).to_have_value("hidden")
                 await mode.select_option("animated")
                 await ui.emulate_media(reduced_motion="reduce")
@@ -555,9 +555,127 @@ async def test_companion_preferences_keep_evidence_and_respect_reduced_motion(tm
                 await browser.close()
 
 
+async def reveal_control(page, locator, *, keyboard=False):
+    """Use actual disclosure controls before reaching an advanced action."""
+    await locator.wait_for(state="attached")
+    for section in await locator.locator("xpath=ancestor::details").all():
+        if await locator.is_visible():
+            break
+        if await section.get_attribute("open") is None:
+            summary = section.locator(":scope > summary")
+            if keyboard:
+                await keyboard_activate(page, summary)
+            else:
+                await summary.click()
+    await locator.wait_for(state="visible")
+
+
+async def click_control(page, locator):
+    await reveal_control(page, locator)
+    await locator.click()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("width", [1440, 320])
+async def test_quiet_overview_keeps_reviews_errors_and_advanced_tools_accessible(tmp_path, monkeypatch, width):
+    monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
+    orders = initialize(tmp_path / "Orders", selected=["checkout"], dashboard=False)
+    support = initialize(tmp_path / "Support", selected=["credentials"], dashboard=False)
+    journal = Journal(orders.root)
+    journal.update_run("old-run-private-id", {"agent": "default", "state": "ended", "connected": False})
+    review = journal.create_review("review-run-private-id", {
+        "agent": "default", "policy_revision": orders.snapshot().revision,
+        "reason": "Review before saving the draft", "classification": {"action": "click", "target": {"text": "Save draft"}},
+        "evidence": {}, "grant_eligible": False,
+    })
+    # A real invalid policy must remain discoverable even with its project closed.
+    invalid = Path(support.policies("default")[0]["path"])
+    invalid.write_text("{")
+    before = [project.path.read_bytes() for project in (orders, support)]
+    service = Service()
+    async with TestServer(service.app(), host="127.0.0.1") as server:
+        service.port = server.port
+        async with ClientSession(headers={"Authorization": "Bearer " + service.admin_key}) as client:
+            ticket = (await (await client.post(server.make_url("/api/ticket"), json={})).json())["ticket"]
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            ui = await browser.new_page(viewport={"width": width, "height": 1000})
+            errors, writes = [], []
+            ui.on("pageerror", lambda error: errors.append(str(error)))
+            async def unavailable_empty_queue(route):
+                response = await route.fetch()
+                data = await response.json()
+                if not data["reviews"]:
+                    await route.fulfill(status=503, json={"error": "Temporarily unavailable"})
+                else:
+                    await route.fulfill(response=response, json=data)
+            if width == 320:
+                await ui.route("**/api/projects/*/reviews", unavailable_empty_queue)
+            try:
+                await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
+                await expect(ui.get_by_role("heading", name="Orders", exact=True)).to_be_visible()
+                ui.on("request", lambda request: writes.append(request.url) if request.method not in {"GET", "HEAD"} else None)
+                await expect(ui.get_by_role("heading", name="No agents running", exact=True)).to_be_visible()
+                assert await ui.locator("nav > button:visible").count() == 3
+                assert not await ui.get_by_role("button", name="Backtesting", exact=True, include_hidden=True).is_visible()
+                assert not await ui.get_by_role("combobox", name="Project", exact=True).is_visible()
+                assert not await ui.get_by_role("button", name="default", exact=True).first.is_visible()
+                assert "old-run-private-id" not in await ui.locator("main").inner_text()
+                assert str(orders.root) not in await ui.locator("main").inner_text()
+                await expect(ui.locator(".attention-strip")).to_contain_text("1 action needs your review")
+                if width == 320:
+                    await expect(ui.get_by_text("Some review requests could not be loaded.", exact=False)).to_be_visible()
+                await expect(ui.locator(".project-error")).to_contain_text("Support / default: configuration needs attention")
+                assert not await ui.locator(".project-error pre").is_visible()
+                assert await ui.locator(".metric").count() == 0
+                project_row = ui.locator(".project-row").filter(has=ui.get_by_role("heading", name="Orders", exact=True))
+                await keyboard_activate(ui, project_row.locator(":scope > summary"))
+                folder = project_row.get_by_text("Project folder", exact=True)
+                await keyboard_activate(ui, folder)
+                await expect(project_row.locator("pre")).to_have_text(str(orders.root))
+                # Actual polling must preserve the open sections and keyboard focus.
+                journal.update_run("second-old-run", {"agent": "default", "state": "ended", "connected": False})
+                await expect(ui.locator(".previous-runs > summary")).to_have_text("Previous runs (2)", timeout=12000)
+                assert await project_row.get_attribute("open") is not None
+                await expect(folder).to_be_focused()
+                await expect(project_row.locator("pre")).to_be_visible()
+                if width == 320:
+                    await ui.unroute("**/api/projects/*/reviews", unavailable_empty_queue)
+                await keyboard_activate(ui, ui.get_by_role("button", name="Open approvals", exact=True))
+                card = ui.locator('[data-review-card="' + review["review_id"] + '"]')
+                await expect(card).to_contain_text("Save draft")
+                assert "review-run-private-id" not in await card.inner_text()
+                await keyboard_activate(ui, card.get_by_role("button", name="Review operation"))
+                await expect(ui.get_by_role("button", name="Approve once", exact=True)).to_be_enabled()
+                await keyboard_activate(ui, ui.get_by_role("button", name="Close dialog", exact=True))
+                assert journal.review(review["review_id"])["state"] == "pending"
+                await keyboard_activate(ui, ui.get_by_role("button", name="Settings", exact=True, include_hidden=True))
+                await expect(ui.get_by_role("combobox", name="Companion appearance")).to_be_visible()
+                assert not await ui.get_by_role("button", name="Advanced configuration", exact=True, include_hidden=True).is_visible()
+                await keyboard_activate(ui, ui.get_by_role("button", name="Advanced configuration", exact=True, include_hidden=True))
+                await expect(ui.get_by_role("dialog")).to_be_visible()
+                await keyboard_activate(ui, ui.get_by_role("button", name="Close dialog", exact=True))
+                await keyboard_activate(ui, ui.get_by_role("button", name="Policies", exact=True))
+                await expect(ui.get_by_role("button", name="Add protection", exact=True)).to_be_visible()
+                assert not await ui.get_by_role("button", name="Revision history", exact=True, include_hidden=True).is_visible()
+                await keyboard_activate(ui, ui.get_by_role("button", name="Revision history", exact=True, include_hidden=True))
+                await expect(ui.get_by_role("dialog")).to_be_visible()
+                await keyboard_activate(ui, ui.get_by_role("button", name="Close dialog", exact=True))
+                assert await ui.evaluate("document.body.scrollWidth <= innerWidth")
+                assert [project.path.read_bytes() for project in (orders, support)] == before
+                assert not writes and not errors
+                if os.environ.get("ACIRA_TEST_ARTIFACTS"):
+                    directory = Path(os.environ["ACIRA_TEST_ARTIFACTS"])
+                    directory.mkdir(parents=True, exist_ok=True)
+                    await keyboard_activate(ui, ui.get_by_role("button", name="Agents", exact=True))
+                    await ui.screenshot(path=str(directory / f"quiet-agents-{width}.png"), full_page=True)
+            finally:
+                await browser.close()
+
+
 async def keyboard_focus(page, locator):
     """Reach a control using ordinary Tab navigation, without synthetic focus."""
-    await locator.wait_for(state="visible")
+    await reveal_control(page, locator, keyboard=True)
     for _ in range(220):
         if await locator.evaluate("node => node === document.activeElement"):
             return
@@ -671,14 +789,14 @@ async def test_keyboard_policy_import_error_recovery_assignments_and_rollback(tm
             await keyboard_activate(ui, ui.get_by_role("button", name="Save policy", exact=True))
             await ui.get_by_role("dialog").wait_for(state="hidden")
             assert project.policies("default")[0]["name"] == "Keyboard edited policy"
-            await keyboard_activate(ui, ui.get_by_role("button", name="Agent assignments", exact=True))
+            await keyboard_activate(ui, ui.get_by_role("button", name="Agent assignments", exact=True, include_hidden=True))
             toggle = ui.get_by_role("checkbox", name="Keyboard edited policy")
             await keyboard_focus(ui, toggle)
             await ui.keyboard.press("Space")
             await keyboard_activate(ui, ui.get_by_role("button", name="Save assignments", exact=True))
             await ui.get_by_role("dialog").wait_for(state="hidden")
             assert project.document()["agents"]["default"]["disabled_policies"] == [policy["id"]]
-            await keyboard_activate(ui, ui.get_by_role("button", name="Revision history", exact=True))
+            await keyboard_activate(ui, ui.get_by_role("button", name="Revision history", exact=True, include_hidden=True))
             row = ui.get_by_role("row").filter(has_text=imported[:12])
             await keyboard_activate(ui, row.get_by_role("button", name="Compare with current"))
             await ui.get_by_role("heading", name="Changes since " + imported[:12]).wait_for()
@@ -714,12 +832,12 @@ async def test_older_revisions_are_available_in_history_and_comparisons(tmp_path
             ui = await browser.new_page()
             await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
             await ui.get_by_role("button", name="Policies", exact=True).click()
-            await ui.get_by_role("button", name="Revision history", exact=True).click()
+            await click_control(ui, ui.get_by_role("button", name="Revision history", exact=True, include_hidden=True))
             assert await ui.get_by_role("row").filter(has_text=first[:12]).count() == 0
             await keyboard_activate(ui, ui.get_by_role("button", name="Load older revisions", exact=True))
             await ui.get_by_role("row").filter(has_text=first[:12]).wait_for()
             await ui.get_by_role("button", name="Close dialog").click()
-            await ui.get_by_role("button", name="Backtesting", exact=True).click()
+            await click_control(ui, ui.get_by_role("button", name="Backtesting", exact=True, include_hidden=True))
             await ui.get_by_role("combobox", name="Baseline revision", exact=True).wait_for()
             assert await ui.locator('select[aria-label="Baseline revision"] option').count() == 51
             await keyboard_activate(ui, ui.get_by_role("button", name="Load older policy revisions", exact=True))
@@ -747,7 +865,7 @@ async def test_graph_assignment_copy_folder_edit_and_accessible_layout(tmp_path,
             ui.on("pageerror", lambda error: errors.append(str(error)))
             await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
             await ui.get_by_role("button", name="Policies", exact=True).click()
-            await ui.get_by_role("button", name="Assignments / graph", exact=True).click()
+            await click_control(ui, ui.get_by_role("button", name="Assignments / graph", exact=True, include_hidden=True))
             file = ui.locator("#dialog").get_by_role("button", name="File details for " + Path(source["path"]).name, exact=True)
             await file.press("Enter")
             location = ui.get_by_role("dialog", name="File location for " + Path(source["path"]).name, exact=True)
@@ -765,7 +883,7 @@ async def test_graph_assignment_copy_folder_edit_and_accessible_layout(tmp_path,
             assert project.document()["agents"]["default"]["disabled_policies"] == [source["id"]]
             assert not project.document()["agents"]["research"].get("disabled_policies")
             assert Path(source["path"]).read_bytes() == original
-            await ui.get_by_role("button", name="Assignments / graph", exact=True).click()
+            await click_control(ui, ui.get_by_role("button", name="Assignments / graph", exact=True, include_hidden=True))
             node = ui.get_by_role("button", name="Inspect policy " + source["name"], exact=True)
             assert await node.get_attribute("transform") != transform
             await keyboard_activate(ui, ui.get_by_text("Copy an installed policy to another agent", exact=True))
@@ -774,7 +892,7 @@ async def test_graph_assignment_copy_folder_edit_and_accessible_layout(tmp_path,
             await ui.get_by_role("dialog").wait_for(state="hidden")
             assert project.policies("research")[0]["id"] == source["id"]
             assert project.policies("research")[0]["path"] != source["path"]
-            await ui.get_by_role("button", name="Assignments / graph", exact=True).click()
+            await click_control(ui, ui.get_by_role("button", name="Assignments / graph", exact=True, include_hidden=True))
             await ui.get_by_role("button", name="Inspect agent research", exact=True).click()
             await ui.get_by_role("heading", name="research", exact=True).wait_for()
             await keyboard_activate(ui, ui.get_by_role("button", name="Edit folders for research", exact=True))
@@ -782,7 +900,7 @@ async def test_graph_assignment_copy_folder_edit_and_accessible_layout(tmp_path,
             await keyboard_activate(ui, ui.get_by_role("button", name="Save policy folders", exact=True))
             await ui.get_by_role("dialog").wait_for(state="hidden")
             assert project.folders("default")["general"] == project.folders("research")["general"]
-            await ui.get_by_role("button", name="Assignments / graph", exact=True).click()
+            await click_control(ui, ui.get_by_role("button", name="Assignments / graph", exact=True, include_hidden=True))
             await keyboard_activate(ui, ui.get_by_role("button", name="Inspect policy " + source["name"], exact=True))
             await ui.get_by_text("Shared file edits affect: default, research", exact=False).wait_for()
             await ui.get_by_role("button", name="Edit policy file", exact=True).click()
@@ -808,8 +926,8 @@ async def test_keyboard_settings_agent_retention_references_and_validation_recov
             errors = []
             ui.on("pageerror", lambda error: errors.append(str(error)))
             await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
-            await keyboard_activate(ui, ui.get_by_role("button", name="Settings", exact=True))
-            await keyboard_activate(ui, ui.get_by_role("button", name="Add agent", exact=True))
+            await keyboard_activate(ui, ui.get_by_role("button", name="Settings", exact=True, include_hidden=True))
+            await keyboard_activate(ui, ui.get_by_role("button", name="Add agent", exact=True, include_hidden=True))
             name = ui.get_by_role("textbox", name="Agent configuration name", exact=True)
             await keyboard_focus(ui, name)
             await ui.keyboard.insert_text("!invalid")
@@ -821,7 +939,7 @@ async def test_keyboard_settings_agent_retention_references_and_validation_recov
             await keyboard_activate(ui, ui.get_by_role("button", name="Create agent", exact=True))
             await ui.get_by_role("dialog").wait_for(state="hidden")
             assert project.folders("checkout")["general"] != project.folders("default")["general"]
-            await keyboard_activate(ui, ui.get_by_role("button", name="History retention", exact=True))
+            await keyboard_activate(ui, ui.get_by_role("button", name="History retention", exact=True, include_hidden=True))
             days = ui.get_by_role("spinbutton", name="Audit history · days", exact=True)
             await keyboard_focus(ui, days)
             await ui.keyboard.press("ControlOrMeta+A")
@@ -829,7 +947,7 @@ async def test_keyboard_settings_agent_retention_references_and_validation_recov
             await keyboard_activate(ui, ui.get_by_role("button", name="Save retention", exact=True))
             await ui.get_by_role("dialog").wait_for(state="hidden")
             assert project.document()["retention"]["audit_days"] == 14
-            await keyboard_activate(ui, ui.get_by_role("button", name="Secret references", exact=True))
+            await keyboard_activate(ui, ui.get_by_role("button", name="Secret references", exact=True, include_hidden=True))
             await keyboard_activate(ui, ui.get_by_role("button", name="Add reference", exact=True))
             for label, value in [("Reference ID", "login"), ("Display label", "Test account"), ("Environment variable name", "TEST_ACCOUNT")]:
                 field = ui.get_by_role("textbox", name=label, exact=True)
@@ -838,7 +956,7 @@ async def test_keyboard_settings_agent_retention_references_and_validation_recov
             await keyboard_activate(ui, ui.get_by_role("button", name="Save references", exact=True))
             await ui.get_by_role("dialog").wait_for(state="hidden")
             assert project.document()["agents"]["checkout"]["guard"]["secrets_config_path"]
-            await keyboard_activate(ui, ui.get_by_role("button", name="Advanced configuration", exact=True))
+            await keyboard_activate(ui, ui.get_by_role("button", name="Advanced configuration", exact=True, include_hidden=True))
             editor = ui.get_by_role("textbox", name="Project configuration JSON", exact=True)
             await keyboard_focus(ui, editor)
             await ui.keyboard.press("ControlOrMeta+A")
@@ -850,7 +968,7 @@ async def test_keyboard_settings_agent_retention_references_and_validation_recov
             await ui.keyboard.insert_text(json.dumps(project.document()))
             await keyboard_activate(ui, ui.get_by_role("button", name="Validate and save", exact=True))
             await ui.get_by_role("dialog").wait_for(state="hidden")
-            await keyboard_activate(ui, ui.get_by_role("button", name="Pair capture extension", exact=True))
+            await keyboard_activate(ui, ui.get_by_role("button", name="Pair capture extension", exact=True, include_hidden=True))
             await ui.get_by_role("heading", name="Pair Acira Capture", exact=True).wait_for()
             await keyboard_activate(ui, ui.get_by_role("button", name="Close dialog", exact=True))
             assert not errors
@@ -876,15 +994,23 @@ async def test_agents_refresh_ended_run_even_with_control_focused(tmp_path, monk
             ui = await browser.new_page()
             try:
                 await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
-                row = ui.get_by_role("row").filter(has_text="run-live")
+                row = ui.locator('.running-section [data-run-card="run-live"]')
                 await expect(row).to_contain_text("running")
                 control = row.get_by_role("button", name="Pause" if focused_action == "pause" else "Inspect", exact=True)
                 await keyboard_focus(ui, control)
                 journal.update_run("run-live", {**payload, "state": "ended", "connected": False})
-                await expect(row).to_contain_text("ended", timeout=12000)
-                assert await row.get_by_role("button", name="Pause", exact=True).count() == 0
-                expected = ui.get_by_role("button", name="Refresh", exact=True) if focused_action == "pause" else row.get_by_role("button", name="Inspect", exact=True)
-                assert await expected.evaluate("el=>el===document.activeElement")
-                assert await ui.locator(".metric").filter(has_text="Live runs").locator("strong").inner_text() == "0"
+                await expect(row).to_have_count(0, timeout=12000)
+                await expect(ui.get_by_role("heading", name="No agents running", exact=True)).to_be_visible()
+                await expect(ui.get_by_role("button", name="Refresh", exact=True)).to_be_focused()
+                previous = ui.locator(".previous-runs")
+                assert not await previous.locator('[data-run-card="run-live"]').is_visible()
+                await keyboard_activate(ui, previous.locator("summary"))
+                ended = previous.locator('[data-run-card="run-live"]')
+                await expect(ended).to_contain_text("ended")
+                assert await ended.get_by_role("button", name="Pause", exact=True).count() == 0
+                await ended.get_by_role("button", name="Inspect", exact=True).click()
+                await expect(ui.get_by_role("dialog")).to_be_visible()
+                await ui.get_by_text("Run details", exact=True).click()
+                await expect(ui.get_by_role("dialog").locator("pre").last).to_contain_text("run-live")
             finally:
                 await browser.close()

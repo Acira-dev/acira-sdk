@@ -53,7 +53,7 @@ async def demo_ui(tmp_path, monkeypatch):
 
 async def open_review(ui, project="Acira Playground"):
     await ui.get_by_role("button", name="Approvals", exact=False).first.click()
-    row = ui.get_by_role("row").filter(has_text=project + " / default")
+    row = ui.locator(".approval-card").filter(has_text=project + " / default")
     await row.get_by_role("button", name="Review operation").wait_for(timeout=15000)
     await row.get_by_role("button", name="Review operation").click()
     await expect(ui.get_by_role("button", name="Approve once", exact=True)).to_be_enabled(timeout=5000)
@@ -81,7 +81,12 @@ async def test_demo_decision_executes_once_and_finishes_without_manual_refresh(d
     if expected_count:
         assert any(e["type"] == "submission_response_observed" for e in events)
     await ui.get_by_role("button", name="Agents", exact=True).click()
-    await expect(ui.get_by_role("row").filter(has_text=run_id)).to_contain_text("ended")
+    previous = ui.locator(".previous-runs")
+    await previous.locator(":scope > summary").click()
+    ended = previous.locator('[data-run-card="' + run_id + '"]')
+    await expect(ended).to_be_visible()
+    await expect(ended).to_contain_text("ended")
+    assert not await ended.get_by_role("button", name="Pause", exact=True).count()
 
 
 @pytest.mark.asyncio

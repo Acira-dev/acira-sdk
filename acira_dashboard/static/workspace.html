@@ -29,6 +29,8 @@
         <button type="button" data-view="Policies">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m12 3 8 3v6c0 4-3 7-8 9-5-2-8-5-8-9V6z"/><path d="m8 12 3 3 5-6"/></svg>Policies
         </button>
+        <details id="more-tools" class="nav-more">
+          <summary>More tools</summary>
         <button type="button" data-view="Activity">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="1"/></svg>Activity
         </button>
@@ -38,6 +40,7 @@
         <button type="button" data-view="Settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="white"/><circle cx="15" cy="17" r="3" fill="white"/></svg>Settings
         </button>
+        </details>
       </nav>
       <div class="sidebar-note">
         <span class="local-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Your computer</span><small
@@ -49,14 +52,13 @@
     <div class="workspace">
       <header>
         <div class="page-heading">
-          <span class="eyebrow">LOCAL WORKSPACE</span>
           <h1 id="page-title">Agents</h1>
           <p id="page-description">Your projects and agents, in one place.</p>
         </div>
         <div class="scope">
-          <label
+          <label data-scoped
             >Project<select id="project" aria-label="Project"></select></label
-          ><label>Agent<select id="agent" aria-label="Agent"></select></label
+          ><label data-scoped>Agent<select id="agent" aria-label="Agent"></select></label
           ><button id="refresh" type="button" aria-label="Refresh" title="Refresh workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 6M4 12l2 6a7 7 0 0 0 12-1"/></svg></button>
         </div>
       </header>

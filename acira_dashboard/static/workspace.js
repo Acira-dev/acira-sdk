@@ -9,6 +9,7 @@ const state = {
   busy: false,
   renderPending: false,
   review: null,
+  disclosures: new Map(),
 };
 function el(tag, text, cls) {
   const node = document.createElement(tag);
@@ -79,7 +80,7 @@ function pill(text) {
         ? "ok"
         : ["Invalid configuration", "Failed to apply", "failed"].includes(status)
           ? "bad"
-          : ["Applying", "pending", "paused", "waiting_for_review"].includes(status)
+          : ["Applying", "pending", "paused", "waiting_for_review", "awaiting review", "waiting for review"].includes(status)
             ? "warn"
             : ""),
   );
@@ -267,6 +268,24 @@ function detail(label, value) {
   box.append(el("summary", label), pretty(value));
   return box;
 }
+// Keep a user's expanded sections open across live updates. This state belongs
+// to the view/scope; it never changes a project's configuration or policy.
+function disclosure(label, key, ...children) {
+  const box = el("details", undefined, "disclosure");
+  const identity = [state.view, state.view === "Agents" ? "all" : state.project, state.view === "Agents" ? "" : state.agent, key].join(":");
+  box.dataset.disclosure = identity;
+  box.open = state.disclosures.get(identity) || false;
+  box.append(el("summary", label), ...children);
+  box.addEventListener("toggle", () => {
+    if (box.isConnected) state.disclosures.set(identity, box.open);
+  });
+  return box;
+}
+function reachableControl(node) {
+  // Chromium can retain layout boxes for content inside a closed disclosure.
+  // Never focus such a control: it may reopen history or strand keyboard focus.
+  return node?.getClientRects().length && !node.closest("details:not([open])");
+}
 function affected(kind) {
   const profile = selected()?.agents.find(
     (agent) => agent.name === state.agent,
@@ -344,10 +363,15 @@ async function render() {
     return;
   }
   state.busy = true;
+  const focusedSection = document.activeElement?.parentElement?.dataset.disclosure;
+  const previousView = $("content").dataset.view;
+  $("content").querySelectorAll("details[data-disclosure]").forEach((node) =>
+    state.disclosures.set(node.dataset.disclosure, node.open),
+  );
   try {
     $("page-title").textContent = state.view;
     $("page-description").textContent = {
-      Agents: "Your projects and agents, in one place.",
+      Agents: "See what’s running. Open a project to manage its agents.",
       Approvals: "A clear view of what your agent wants to do.",
       Policies: "Set the boundaries. Your agents keep them.",
       Activity: "See what was checked, decided, and actually done.",
@@ -357,8 +381,14 @@ async function render() {
     document.querySelectorAll("[data-view]").forEach((node) =>
       node.setAttribute("aria-current", node.dataset.view === state.view ? "page" : "false"),
     );
+    const globalView = ["Agents", "Approvals"].includes(state.view);
+    document.querySelectorAll("[data-scoped]").forEach((node) => { node.hidden = globalView; });
+    document.querySelector(".scope").classList.toggle("global-scope", globalView);
+    document.querySelector("header").classList.toggle("global-view", globalView);
+    $("more-tools").classList.toggle("has-selection", ["Activity", "Backtesting", "Settings"].includes(state.view));
     const content = $("content");
     content.replaceChildren();
+    content.dataset.view = state.view;
     if (!state.projects.length) {
       content.append(
         empty(
@@ -388,6 +418,11 @@ async function render() {
     );
     notice(error.message, true);
   } finally {
+    if (focusedSection && previousView === state.view) {
+      const same = Array.from($("content").querySelectorAll("[data-disclosure]"))
+        .find((node) => node.dataset.disclosure === focusedSection);
+      same?.querySelector("summary")?.focus();
+    }
     state.busy = false;
     if (state.renderPending) {
       state.renderPending = false;
@@ -396,129 +431,132 @@ async function render() {
   }
 }
 
+function runControls(run) {
+  const controls = el("div", undefined, "actions");
+  const runButton = (label, action, operation) => {
+    const node = button(label, action);
+    node.dataset.runId = run.run_id;
+    node.dataset.projectId = run.project.id;
+    node.dataset.runAction = operation;
+    return node;
+  };
+  if (run.capabilities?.pause && !["ended", "failed", "disconnected"].includes(run.state))
+    controls.append(runButton(run.state === "paused" ? "Resume" : "Pause", async () => {
+      await api(`/api/projects/${run.project.id}/runs/${run.run_id}/control`,
+        { desired: run.state === "paused" ? "running" : "paused" });
+      notice("Control requested. The run will acknowledge it at its next guarded boundary.");
+    }, run.state === "paused" ? "resume" : "pause"));
+  controls.append(runButton("Inspect", () => {
+    const body = dialog(run.agent + " · " + run.project.name);
+    body.append(el("p", run.capabilities?.boundary || "Integration capabilities"),
+      detail("Supported actions", run.capabilities?.guarded),
+      detail("Limits to protection", run.capabilities?.limitations),
+      detail("Run details", run));
+  }, "inspect"));
+  return controls;
+}
+function runCard(run) {
+  const card = el("article", undefined, "run-card");
+  card.dataset.runCard = run.run_id;
+  card.dataset.projectId = run.project.id;
+  const title = el("div", undefined, "run-heading");
+  title.append(el("h3", run.agent), el("span", run.project.name, "muted"));
+  const status = el("div", undefined, "run-status");
+  status.append(pill(run.state.replaceAll("_", " ")));
+  if (!run.connected && !["ended", "failed"].includes(run.state))
+    status.append(el("span", "Dashboard disconnected", "muted"));
+  const heading = el("div", undefined, "row");
+  heading.append(title, status);
+  card.append(heading);
+  if (run.error) card.append(el("p", run.error, "error"));
+  const bottom = el("div", undefined, "row run-bottom");
+  bottom.append(el("span", run.last_operation?.state || "No guarded action pending", "muted"), runControls(run));
+  card.append(bottom);
+  return card;
+}
 async function agents(content) {
-  const setup = el("div", undefined, "toolbar");
-  setup.append(el("p", "Run Acira inside your existing projects."), button("Connect a project", connectProjectDialog, "primary"));
-  content.append(setup);
-  const runs = state.projects.flatMap((p) =>
-    p.runs.map((r) => ({ ...r, project: p })),
-  );
-  const metrics = el("div", undefined, "metrics");
-  [
-    [state.projects.length, "Projects"],
-    [
-      runs.filter((r) => !["ended", "failed", "disconnected"].includes(r.state))
-        .length,
-      "Live runs",
-    ],
-    [
-      state.projects.reduce((n, p) => n + p.agents.length, 0),
-      "Agent configurations",
-    ],
-  ].forEach(([n, label]) => {
-    const m = el("div", undefined, "metric");
-    m.append(el("strong", n), el("span", label));
-    metrics.append(m);
-  });
-  content.append(metrics);
-  const cards = el("div", undefined, "cards");
+  const runs = state.projects.flatMap((project) => project.runs.map((run) => ({ ...run, project })));
+  const live = runs.filter((run) => !["ended", "failed"].includes(run.state));
+  const history = runs.filter((run) => ["ended", "failed"].includes(run.state));
+  // Pending reviews remain prominent even when no SDK run is currently connected.
+  const reviewSets = await Promise.allSettled(state.projects.map((project) => api(`/api/projects/${project.id}/reviews`)));
+  const pending = reviewSets.reduce((n, result) => n + (result.status === "fulfilled" ? result.value.reviews.filter((review) => review.state === "pending").length : 0), 0);
+  const unavailable = reviewSets.some((result) => result.status === "rejected");
+  $("review-count").textContent = pending || (unavailable ? "!" : "");
+  if (unavailable) content.append(el("p", "Some review requests could not be loaded. Refresh to try again; the counts below may be incomplete.", "error"));
+  if (pending) {
+    const attention = el("section", undefined, "attention-strip");
+    attention.append(el("div", `${pending} ${pending === 1 ? "action needs" : "actions need"} your review`),
+      button("Open approvals", async () => { state.view = "Approvals"; await render(); }, "primary"));
+    content.append(attention);
+  }
+  const running = el("section", undefined, "running-section");
+  running.setAttribute("aria-label", "Current runs");
+  if (live.length) {
+    running.append(el("h2", "Current runs"));
+    const list = el("div", undefined, "run-list");
+    live.forEach((run) => list.append(runCard(run)));
+    running.append(list);
+  } else {
+    const quiet = el("div", undefined, "quiet-overview");
+    const message = el("div");
+    message.append(el("h2", "No agents running"), el("p", "Start your usual agent command. Its run will appear here automatically.", "muted"));
+    quiet.append(AciraReview.mascot("pill", "overview-companion"), message);
+    running.append(quiet);
+  }
+  content.append(running);
+  const projects = el("section", undefined, "projects-section");
+  const heading = el("div", undefined, "toolbar section-heading");
+  heading.append(el("h2", "Your projects"), button("Connect a project", connectProjectDialog));
+  projects.append(heading);
+  const list = el("div", undefined, "project-list");
   for (const project of state.projects) {
-    const card = el("section", undefined, "card");
-    const folder = el("details", undefined, "project-folder");
-    folder.append(el("summary", "Project folder"), el("p", project.root));
-    card.append(el("h2", project.name), folder);
-    if (project.error) card.append(el("p", project.error));
+    const row = disclosure("", "project-" + project.id);
+    row.classList.add("project-row");
+    const summary = row.querySelector("summary");
+    const name = el("div", undefined, "project-name");
+    name.append(el("h2", project.name), el("span", `${project.agents.length} ${project.agents.length === 1 ? "agent" : "agents"}`, "muted"));
+    const count = live.filter((run) => run.project.id === project.id).length;
+    const issue = project.error || project.agents.find((profile) => profile.error)?.error;
+    summary.append(name, pill(issue ? "Needs attention" : count ? count + (count === 1 ? " current run" : " current runs") : "Ready"));
+    const profiles = el("div", undefined, "project-agents");
     for (const profile of project.agents) {
-      const row = el("div", undefined, "row agent-row");
-      const selectAgent = button(profile.name, async () => {
+      const agent = el("div", undefined, "row agent-row");
+      const choose = button(profile.name, async () => {
         state.project = project.id;
         state.agent = profile.name;
         state.view = "Policies";
         await refresh();
         await render();
       }, "agent-link");
-      selectAgent.dataset.projectId = project.id;
-      selectAgent.dataset.agentName = profile.name;
-      row.append(selectAgent, pill(profile.state));
-      card.append(row);
-      if (profile.error) card.append(el("p", profile.error));
+      choose.dataset.projectId = project.id;
+      choose.dataset.agentName = profile.name;
+      agent.append(choose, pill(profile.state === "Waiting for agent" ? "Configured" : profile.state || "Saved"));
+      profiles.append(agent);
     }
-    cards.append(card);
+    profiles.append(disclosure("Project folder", "folder-" + project.id, el("pre", project.root)));
+    row.append(profiles);
+    list.append(row);
+    // Configuration errors must never be hidden inside a closed project row.
+    const showError = (label, message, key) => {
+      const warning = el("div", undefined, "project-error error");
+      warning.append(el("p", label + ": configuration needs attention."),
+        disclosure("Error details", key, el("pre", message)));
+      list.append(warning);
+    };
+    if (project.error) showError(project.name, project.error, "error-" + project.id);
+    project.agents.filter((profile) => profile.error).forEach((profile) =>
+      showError(project.name + " / " + profile.name, profile.error, "error-" + project.id + "-" + profile.name));
   }
-  content.append(cards);
-  const section = el("section", undefined, "section");
-  section.append(el("h2", "Runs"));
-  if (!runs.length)
-    section.append(
-      empty(
-        "Waiting for your agent",
-        "Start your existing workflow inside protect(). Installing the package alone does not activate enforcement.",
-      ),
-    );
-  else
-    section.append(
-      table(
-        [
-          "Agent / project",
-          "Run",
-          "Run state / dashboard connection",
-          "Last guarded action",
-          "Policy",
-          "Controls",
-        ],
-        runs.map((run) => {
-          const controls = el("div", undefined, "actions");
-          const runButton = (label, action, operation) => {
-            const node = button(label, action);
-            node.dataset.runId = run.run_id;
-            node.dataset.projectId = run.project.id;
-            node.dataset.runAction = operation;
-            return node;
-          };
-          if (
-            run.capabilities?.pause &&
-            !["ended", "failed", "disconnected"].includes(run.state)
-          )
-            controls.append(
-              runButton(run.state === "paused" ? "Resume" : "Pause", async () => {
-                await api(
-                  `/api/projects/${run.project.id}/runs/${run.run_id}/control`,
-                  { desired: run.state === "paused" ? "running" : "paused" },
-                );
-                notice(
-                  "Control requested. The run will acknowledge it at its next guarded boundary.",
-                );
-              }, run.state === "paused" ? "resume" : "pause"),
-            );
-          controls.append(
-            runButton("Inspect", () => {
-              const body = dialog(run.agent + " · " + run.run_id);
-              body.append(
-                el(
-                  "p",
-                  run.capabilities?.boundary || "Integration capabilities",
-                ),
-                detail("Supported actions", run.capabilities?.guarded),
-                detail("Limits to protection", run.capabilities?.limitations),
-                pretty(run),
-              );
-            }, "inspect"),
-          );
-          const runState = el("div");
-          runState.append(pill(run.state + (run.connected ? " · connected" : " · disconnected")));
-          if (run.error) runState.append(el("p", run.error, "muted"));
-          return [
-            run.agent + " / " + run.project.name,
-            run.run_id,
-            runState,
-            run.last_operation?.state || "No guarded action pending",
-            run.revision?.slice(0, 12),
-            controls,
-          ];
-        }),
-      ),
-    );
-  content.append(section);
+  projects.append(list);
+  content.append(projects);
+  if (history.length) {
+    const previous = el("div", undefined, "run-list");
+    history.forEach((run) => previous.append(runCard(run)));
+    const completed = disclosure(`Previous runs (${history.length})`, "previous-runs", previous);
+    completed.classList.add("previous-runs");
+    content.append(completed);
+  }
 }
 
 async function approvals(content) {
@@ -529,38 +567,25 @@ async function approvals(content) {
   }
   const pending = all.filter((r) => r.state === "pending");
   $("review-count").textContent = pending.length || "";
-  content.append(
-    el(
-      "p",
-      "Review requests across all your projects. Each decision applies to the displayed operation.",
-      "muted",
-    ),
-  );
   if (!pending.length) {
-    content.append(
-      empty(
-        "No actions awaiting review",
-        "Your agents can continue under their local policies.",
-      ),
-    );
+    content.append(empty("No actions awaiting review", "Your agents can continue under their local policies."));
     return;
   }
-  content.append(
-    table(
-      ["Project / agent", "Run", "Requested operation", "Expires", "Review"],
-      pending.map((review) => [
-        review.project.name + " / " + review.agent,
-        review.run_id,
-        review.reason,
-        new Date(review.expires_at * 1000).toLocaleTimeString(),
-        (() => {
-          const open = button("Review operation", () => reviewDialog(review), "primary");
-          open.dataset.reviewId = review.review_id;
-          return open;
-        })(),
-      ]),
-    ),
-  );
+  const list = el("div", undefined, "approval-list");
+  for (const review of pending) {
+    const card = el("article", undefined, "approval-card");
+    card.dataset.reviewCard = review.review_id;
+    card.dataset.runId = review.run_id;
+    const facts = el("div");
+    facts.append(el("p", review.project.name + " / " + review.agent, "muted"),
+      el("h2", AciraReview.question(review.classification?.action, review.classification?.target?.text || "")),
+      el("p", review.reason), el("small", "Expires " + new Date(review.expires_at * 1000).toLocaleTimeString(), "muted"));
+    const open = button("Review operation", () => reviewDialog(review), "primary");
+    open.dataset.reviewId = review.review_id;
+    card.append(facts, open);
+    list.append(card);
+  }
+  content.append(list);
 }
 
 async function reviewDialog(review) {
@@ -754,17 +779,24 @@ async function policies(content) {
   actions.append(
     button("Add protection", catalogDialog, "primary"),
     button("Import JSON", importDialog),
+  );
+  const tools = el("div", undefined, "actions");
+  tools.append(
     button("Check policy updates", updatesDialog),
     button("Revision history", revisionDialog),
     button("Agent assignments", assignmentDialog),
     button("Assignments / graph", graphDialog),
   );
+  const more = disclosure("More policy actions", "policy-tools", tools);
+  more.classList.add("policy-tools");
   bar.append(title, actions);
   content.append(bar);
   const profile = selected().agents.find((a) => a.name === state.agent);
   const activation = pill(profile?.state || "Saved");
   activation.id = "policy-activation";
-  content.append(activation);
+  const status = el("div", undefined, "policy-status row");
+  status.append(activation, more);
+  content.append(status);
   if (!data.policies.length) {
     content.append(
       empty(
@@ -1905,7 +1937,7 @@ async function configurationDialog() {
   );
 }
 async function settings(content) {
-  const appearance = el("section", undefined, "appearance-settings");
+  const appearance = el("section", undefined, "settings-group");
   const preference = el("label", "Companions");
   const mode = el("select");
   mode.setAttribute("aria-label", "Companion appearance");
@@ -1914,88 +1946,50 @@ async function settings(content) {
   mode.value = AciraReview.appearance();
   mode.onchange = () => AciraReview.appearance(mode.value);
   preference.append(mode);
-  appearance.append(el("h2", "Appearance"), preference,
-    el("p", "Original Acira companions, kept still by default. Reduced motion is respected. Hiding them keeps every target highlight and action detail.", "muted"));
+  appearance.append(el("h2", "Appearance"), preference);
   content.append(appearance);
-  content.append(
-    el("h2", "Project and local service"),
-    el("p", selected().root, "muted"),
-  );
-  const actions = el("div", undefined, "actions");
-  actions.append(
-    button("Add agent", addAgentDialog, "primary"),
-    button("Secret references", secretDialog),
-    button("Advanced configuration", configurationDialog),
-    button("History retention", retentionDialog),
-    button("Pair capture extension", async () => {
-      const pairing = await api("/api/pairing", {}),
-        body = dialog("Pair Acira Capture");
-      body.append(
-        el(
-          "p",
-          "Open the extension’s connection settings and enter this local address and pairing code. The code expires in two minutes.",
-        ),
-        pretty(pairing),
-        el(
-          "p",
-          "The extension can list destinations and import captures. It cannot approve actions or read secrets.",
-        ),
-      );
-    }),
-  );
-  content.append(
-    actions,
-    el(
-      "p",
-      "History and review images are stored locally. Open History retention to inspect or change this project’s limits.",
-      "muted",
-    ),
-  );
+  const preferences = el("div", undefined, "actions");
+  preferences.append(button("Add agent", addAgentDialog), button("Secret references", secretDialog), button("History retention", retentionDialog));
+  const project = disclosure("Project settings", "project-settings", preferences,
+    el("p", "Agent configurations, secret references, and local storage limits for " + selected().name + ".", "muted"),
+    disclosure("Project folder", "settings-folder", el("pre", selected().root)));
+  project.classList.add("settings-group");
+  content.append(project);
+  const pairingAction = el("div", undefined, "actions");
+  pairingAction.append(button("Pair capture extension", async () => {
+    const pairing = await api("/api/pairing", {}), body = dialog("Pair Acira Capture");
+    body.append(el("p", "Open the extension’s connection settings and enter this local address and pairing code. The code expires in two minutes."),
+      pretty(pairing), el("p", "The extension can list destinations and import captures. It cannot approve actions or read secrets."));
+  }));
   const data = await api("/api/extensions");
-  if (data.extensions.length)
-    content.append(
-      el("h2", "Paired extensions"),
-      table(
-        ["Name", "Paired", "Access"],
-        data.extensions.map((extension) => [
-          extension.name,
-          new Date(extension.created_at * 1000).toLocaleString(),
-          button(
-            "Revoke",
-            async () => {
-              await api("/api/extensions/" + extension.id, undefined, "DELETE");
-              await render();
-            },
-            "danger",
-          ),
-        ]),
-      ),
-    );
+  const extensions = disclosure("Capture extension" + (data.extensions.length ? ` (${data.extensions.length} paired)` : ""), "extensions", pairingAction);
+  extensions.classList.add("settings-group");
+  if (data.extensions.length) {
+    extensions.open = true;
+    extensions.append(table(["Name", "Paired", "Access"], data.extensions.map((extension) => [extension.name,
+      new Date(extension.created_at * 1000).toLocaleString(), button("Revoke", async () => {
+        await api("/api/extensions/" + extension.id, undefined, "DELETE"); await render();
+      }, "danger")] )));
+  }
+  content.append(extensions);
   const grants = await api(base() + "/grants");
-  content.append(el("h2", "Routine grants"));
-  if (!grants.grants.length)
-    content.append(el("p", "No reusable approvals are active."));
-  else
-    content.append(
-      table(
-        ["Run", "Scope", "Expires", "Access"],
-        grants.grants.map((grant) => [
-          grant.run,
-          detail("Exact scope", grant.scope),
-          new Date(grant.expires_at * 1000).toLocaleTimeString(),
-          button(
-            "Revoke grant",
-            async () => {
-              await api(base() + "/grants/" + grant.id, undefined, "DELETE");
-              await render();
-            },
-            "danger",
-          ),
-        ]),
-      ),
-    );
-  content.append(detail("Runtime diagnostics", selected()));
+  const permissions = disclosure("Reusable approvals" + (grants.grants.length ? ` (${grants.grants.length} active)` : ""), "grants");
+  permissions.classList.add("settings-group");
+  if (!grants.grants.length) permissions.append(el("p", "No reusable approvals are active.", "muted"));
+  else {
+    permissions.open = true;
+    permissions.append(table(["Run", "Scope", "Expires", "Access"], grants.grants.map((grant) => [grant.run,
+      detail("Exact scope", grant.scope), new Date(grant.expires_at * 1000).toLocaleTimeString(),
+      button("Revoke grant", async () => { await api(base() + "/grants/" + grant.id, undefined, "DELETE"); await render(); }, "danger")] )));
+  }
+  content.append(permissions);
+  const advancedActions = el("div", undefined, "actions");
+  advancedActions.append(button("Advanced configuration", configurationDialog));
+  const advanced = disclosure("Advanced settings", "advanced-settings", advancedActions, detail("Runtime diagnostics", selected()));
+  advanced.classList.add("settings-group");
+  content.append(advanced);
 }
+
 
 async function boot() {
   try {
@@ -2037,7 +2031,7 @@ setInterval(async () => {
       if (reviewId) {
         const same = Array.from($("content").querySelectorAll("[data-review-id]"))
           .find((node) => node.dataset.reviewId === reviewId);
-        (same || $("refresh")).focus();
+        (reachableControl(same) ? same : $("refresh")).focus();
       }
       return;
     }
@@ -2048,11 +2042,11 @@ setInterval(async () => {
         const same = Array.from($("content").querySelectorAll("[data-run-id]"))
           .find((node) => node.dataset.runId === runId && node.dataset.projectId === projectId && node.dataset.runAction === runAction);
         // A changed control (Resume -> Pause) or ended run must not inherit focus.
-        (same || $("refresh")).focus();
+        (reachableControl(same) ? same : $("refresh")).focus();
       } else if (agentName) {
         const same = Array.from($("content").querySelectorAll("[data-agent-name]"))
           .find((node) => node.dataset.projectId === projectId && node.dataset.agentName === agentName);
-        (same || $("refresh")).focus();
+        (reachableControl(same) ? same : $("refresh")).focus();
       }
     }
   } catch (error) {

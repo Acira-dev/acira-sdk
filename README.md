@@ -144,7 +144,12 @@ Add a named agent with `acira init --agent checkout`, or through Settings.
 Each agent gets separate policy folders by default. You may deliberately configure
 shared folders; the editor displays affected agents before saving.
 
-The dashboard includes Agents, Approvals, Policies, Activity, Backtesting and Settings.
+The dashboard starts with Agents, Approvals and Policies. Agents shows current runs
+and compact project rows; open a project for its agent configurations and folder.
+Previous runs stay under an expandable history section. Pending reviews and
+configuration problems remain visible. Activity, Backtesting and Settings are under
+**More tools**; policy updates, revisions and assignments are under **More policy
+actions**. These sections keep their expanded state during live updates.
 Policy tables show JSON filenames. Hover to see the full path, or click/right-click
 the filename to inspect and copy its location. Keyboard users can press Enter or
 Shift+F10 on the filename; Escape closes the file details.

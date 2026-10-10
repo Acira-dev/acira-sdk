@@ -66,7 +66,7 @@ async def browser_use_ui(tmp_path, monkeypatch):
 
 async def review(ui, project="Acira Browser-use Playground"):
     await ui.get_by_role("button", name="Approvals", exact=False).first.click()
-    row = ui.get_by_role("row").filter(has_text=project + " / default")
+    row = ui.locator(".approval-card").filter(has_text=project + " / default")
     await row.get_by_role("button", name="Review operation").wait_for(timeout=45000)
     await row.get_by_role("button", name="Review operation").click()
     await expect(ui.get_by_role("button", name="Approve once", exact=True)).to_be_enabled()
