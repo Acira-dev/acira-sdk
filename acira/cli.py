@@ -34,6 +34,7 @@ def parser() -> argparse.ArgumentParser:
     demo.add_argument("--port", type=int, default=0, help="Test-drive port; by default choose an available port")
     demo.add_argument("--no-open", action="store_true", help="Print the test-drive address without opening browser tabs")
     demo.add_argument("--adapter", choices=["playwright", "browser-use"], default="playwright", help="Choose scripted Playwright or a local-model browser-use agent")
+    demo.add_argument("--public-sites", action="store_true", help="Try read-only real documentation websites with Playwright")
     demo.add_argument("--model", default="qwen3:4b-instruct", help="Downloaded local Ollama model for browser-use")
     demo.add_argument("--ollama-host", default="http://127.0.0.1:11434", help="Loopback Ollama endpoint for browser-use")
     opened = commands.add_parser("open", help="Open the shared local dashboard")
@@ -101,8 +102,13 @@ def run(argv: list[str] | None = None) -> None:
         if args.command == "demo":
             if not 0 <= args.port <= 65535:
                 raise ValueError("Demo port must be between 0 and 65535")
+            if args.public_sites and args.adapter != "playwright":
+                raise ValueError("The public-websites test drive uses Playwright. Run acira demo --public-sites; the local browser-use demo remains available separately.")
             try:
-                from .demo import main as demo_main
+                if args.public_sites:
+                    from .public_demo import main as demo_main
+                else:
+                    from .demo import main as demo_main
                 if args.adapter == "browser-use":
                     from importlib.util import find_spec
                     if find_spec("browser_use") is None:

@@ -77,6 +77,26 @@ project untouched. `acira demo --directory /your/separate/demo-folder` chooses a
 demo; `acira server stop` separately stops the optional dashboard.
 See the [complete Playwright setup and testing guide](docs/playwright-quickstart.md).
 
+### Try real public websites without accounts
+
+```sh
+acira demo --public-sites
+```
+
+Choose Python documentation, MDN or Playwright documentation. **Browse normally**
+follows a real documentation link. **Try a review** pauses that link until you approve
+or reject it in the shared dashboard, with a screenshot and target highlight.
+**Try a blocked click** demonstrates a policy stopping the same harmless link.
+The test drive verifies navigation, updates automatically, and ends the run.
+
+Each run uses a fresh visible Chromium session. This mode restricts traffic to
+read-only requests on the selected documentation host, disables downloads and
+service workers, and rejects account/payment paths. It deliberately limits site
+selection; it does not ask for credentials, submit forms or use a paid API.
+The example policies demonstrate protection on harmless links and are editable
+separately for each agent. This is scripted Playwright automation through the SDK.
+See [public-website instructions and limitations](docs/public-websites.md).
+
 ## Try a free local browser-use agent
 
 Install the wheel with `[browser-use,playwright]` extras and install Chromium. Start

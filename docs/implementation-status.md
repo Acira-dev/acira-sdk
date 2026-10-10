@@ -308,6 +308,33 @@ dependency audit and the final revision's checks.
 
 These are retained commitments and explicit limits. They are not deleted scope.
 
+## Public documentation test drive
+
+`acira demo --public-sites` adds an installed-wheel Playwright journey on Python,
+MDN and Playwright's real documentation sites. Each website has independent
+browse, review and blocked agent configurations. The UI exposes navigation results,
+pending review guidance, cancellation and automatic run completion. Existing local
+and browser-use journeys remain available.
+
+The runner uses fresh visible Chromium sessions and a read-only network boundary:
+same selected documentation host, GET/HEAD, constrained document paths, no account
+or payment paths, no downloads, service workers or WebSockets. A narrow version
+parameter is allowed for Sphinx static assets; navigation queries remain blocked.
+These are test-drive restrictions, not a new claim of an operating-system sandbox.
+
+Real-site testing exposed hidden duplicate MDN links and Playwright's in-page
+navigation. The runner selects a visible link and verifies both destination URL and
+visible heading. Document responses must succeed when present; an in-page route
+change does not require inventing a document request. Offline real-browser fixtures
+exercise both paths for repeatable CI, plus no-side-effect blocks/rejections,
+duplicate decisions, cancellation, request restrictions and preserved policy edits.
+
+Public-site validation is separate from the existing offline regression matrix;
+public sites can change or become unavailable. No account, transaction, paid model,
+unattended approval default or SDK bypass is used by the interactive journey.
+See [hands-on instructions](public-websites.md). PyPI publication remains gated as
+described above; an installed local wheel is not a public upload.
+
 ## Verification commands
 
 ```sh
