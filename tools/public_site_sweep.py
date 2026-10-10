@@ -203,6 +203,18 @@ async def observe(page):
     body = (await page.locator("body").inner_text(timeout=7000))[:6000]
     return {"title": title, "text_length": len(body), "challenge": bool(CHALLENGE.search(title + "\n" + body))}
 
+async def close_context(context, fence):
+    # Never remove interception from a live, network-enabled page. Background
+    # scripts and pending redirects must remain unable to send mutations while
+    # route tasks drain. Offline mode is per-context and is never restored.
+    await context.set_offline(True)
+    await context.unroute_all(behavior="ignoreErrors")
+    if fence.active_routes:
+        await asyncio.wait(tuple(fence.active_routes), timeout=14)
+    await asyncio.wait_for(context.close(), timeout=12)
+    if fence.active_routes:
+        await asyncio.wait(tuple(fence.active_routes), timeout=2)
+
 async def find_link(page, expected=None, robots=None):
     links = page.locator("a[href]")
     for index in range(min(await links.count(), 120)):
@@ -328,7 +340,7 @@ async def case(browser, site, *, timeout, expected=None, mode="baseline", guard=
             reviewer.decision = "allow" if mode == "approved" else "block"
         stopped = None
         try:
-            await asyncio.wait_for(locator.click(), timeout=max(25, timeout / 1000 + 10))
+            await asyncio.wait_for(locator.click(timeout=timeout), timeout=max(25, timeout / 1000 + 10))
         except AciraActionBlocked as exc:
             stopped = str(exc)[:500]
         except Exception:
@@ -384,12 +396,7 @@ async def case(browser, site, *, timeout, expected=None, mode="baseline", guard=
         result["final_url"] = clean_url(page.url)
         # The context is being destroyed; suppress only abandoned route errors,
         # after all action/effect evidence has been recorded.
-        await context.unroute_all(behavior="ignoreErrors")
-        if fence.active_routes:
-            await asyncio.wait(tuple(fence.active_routes), timeout=14)
-        await asyncio.wait_for(context.close(), timeout=12)
-        if fence.active_routes:
-            await asyncio.wait(tuple(fence.active_routes), timeout=2)
+        await close_context(context, fence)
     return result
 
 async def worker(args):

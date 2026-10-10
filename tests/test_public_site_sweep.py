@@ -8,7 +8,7 @@ from urllib.robotparser import RobotFileParser
 import pytest
 
 pytest.importorskip("playwright.async_api")
-from playwright.async_api import Browser, Route
+from playwright.async_api import Browser, BrowserContext, Route, async_playwright
 _tool = Path(__file__).resolve().parents[1] / "tools" / "public_site_sweep.py"
 _spec = importlib.util.spec_from_file_location("acira_public_site_sweep_tests", _tool)
 sweep = importlib.util.module_from_spec(_spec)
@@ -130,3 +130,53 @@ async def test_sweep_observes_actual_effects_and_fresh_sessions(tmp_path, monkey
     assert all(case["reviews"][0]["capture"] == "ready" for case in row["cases"][3:])
     report = sweep.summary(args.output)
     assert report["site_status"] == {"complete": 1}
+
+
+@pytest.mark.asyncio
+async def test_teardown_keeps_background_mutations_off_the_network(monkeypatch):
+    from aiohttp import web
+    from aiohttp.test_utils import TestServer
+    import asyncio
+
+    received_posts = []
+    async def respond(request):
+        if request.method == "POST":
+            received_posts.append(request.path)
+            return web.Response(text="fixture only")
+        return web.Response(content_type="text/html", text='''<h1>Local fixture</h1>
+            <script>setInterval(() => fetch('/payment', {method:'POST',body:'fixture'})
+                .catch(() => {}), 20);</script>''')
+    app = web.Application()
+    app.router.add_route("*", "/{tail:.*}", respond)
+    original_unroute = BrowserContext.unroute_all
+    async def delayed_unroute(self, **kwargs):
+        await original_unroute(self, **kwargs)
+        # Deliberately hold a live page in the exact former cleanup window.
+        await asyncio.sleep(.3)
+    monkeypatch.setattr(BrowserContext, "unroute_all", delayed_unroute)
+    async with TestServer(app, host="127.0.0.1") as server, async_playwright() as p:
+        browser = await p.chromium.launch()
+        try:
+            for control in (True, False):
+                received_posts.clear()
+                url = str(server.make_url("/"))
+                fence = sweep.Fence("https://fixture.invalid/")
+                # Only this local, inert fixture uses HTTP/loopback. Live site
+                # traffic retains the normal HTTPS/public-URL checks.
+                fence.permits = lambda address, method, navigation: address.startswith(url) and method in {"GET", "HEAD"}
+                context = await sweep.new_context(browser, fence)
+                page = await context.new_page()
+                await page.goto(url)
+                await asyncio.sleep(.15)
+                assert received_posts == []
+                if control:
+                    # Demonstrate that the old cleanup order really leaks a
+                    # background request, using only the inert local endpoint.
+                    await context.unroute_all(behavior="ignoreErrors")
+                    await context.close()
+                    assert received_posts, "Negative control did not exercise the gap"
+                else:
+                    await sweep.close_context(context, fence)
+                    assert received_posts == []
+        finally:
+            await browser.close()

@@ -39,6 +39,8 @@ worker for investigation.
 - HTTP redirects are fetched without automatic continuation. Permitted document
   redirects become new guarded navigations; unsafe and resource redirects stop.
   This fence changes network behavior and is also present in the baseline.
+- Contexts go offline before interception is removed during teardown, so late
+  background requests cannot escape the read-only boundary.
 - Robots rules are checked before page and selected-link navigation. Document
   requests are paced, declared slower rates are honored or skipped, and concurrency
   is limited to two workers for the recorded campaign.
