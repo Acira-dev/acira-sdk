@@ -30,14 +30,6 @@
     image.draggable = false;
     return image;
   }
-  function perchedPill() {
-    const perch = node("span", "acira-mascot target-companion pill-perch");
-    perch.setAttribute("aria-hidden", "true");
-    const still = mascot("pill", "pill-perch-still", "perched"),
-      movement = node("span", "pill-perch-motion");
-    perch.append(still, movement);
-    return perch;
-  }
   function question(action, label) {
     const verbs = { click: "Click", double_click: "Double-click", fill: "Fill", type: "Type into", submit: "Submit", select: "Select", check: "Check", uncheck: "Uncheck", upload: "Upload to", download: "Download", navigation: "Open" };
     const verb = verbs[action];
@@ -73,7 +65,7 @@
   function outline(width, height, rect) {
     const svg = svgElement("svg", { viewBox: `0 0 ${width} ${height}`, "aria-hidden": "true", class: "review-annotation", preserveAspectRatio: "none" });
     // Keep the exact browser bounds separate from the decorative outer ring.
-    // Neither the blue stroke nor its white halo should paint over target text.
+    // Neither the red stroke nor its white halo should paint over target text.
     svg.append(svgElement("rect", { x: rect.x, y: rect.y, width: rect.width, height: rect.height, fill: "none", stroke: "none", class: "target-bounds" }));
     const attributes = { x: rect.x - rect.paddingX, y: rect.y - rect.paddingY,
       width: rect.width + 2 * rect.paddingX, height: rect.height + 2 * rect.paddingY,
@@ -110,17 +102,17 @@
       let focus;
       if (rect) {
         focus = node("figure", "review-focus");
-        const caption = node("figcaption", "target-caption companion-right");
+        const caption = node("figcaption", "target-caption");
         const text = node("div");
         const label = node("span", "target-caption-label", "Browser target");
         const icon = svgElement("svg", { viewBox: "0 0 16 16", "aria-hidden": "true", class: "target-caption-icon" });
         icon.append(svgElement("path", { d: "M6 2H2v4m8-4h4v4M2 10v4h4m8-4v4h-4", fill: "none", stroke: "currentColor", "stroke-width": 1.3, "stroke-linecap": "round", "stroke-linejoin": "round" }));
         label.prepend(icon);
         text.append(label, node("strong", "target-caption-name", targetLabel || "Resolved browser target"));
-        caption.append(perchedPill(), text);
+        caption.append(text);
         const stage = node("div", "review-stage");
         const closeup = picture(image, { x: rect.cropX, y: rect.cropY, width: rect.cropWidth, height: rect.cropHeight }, rect,
-          "review-focus-canvas", "Masked target close-up. The proposed target is outlined in blue.");
+          "review-focus-canvas", "Masked target close-up. The proposed target is outlined in red.");
         closeup.style.maxWidth = rect.cssWidth + "px";
         stage.append(closeup);
         focus.append(caption, stage);
@@ -131,7 +123,7 @@
       overview.open = !rect;
       overview.append(node("summary", "", "Full page screenshot"), picture(image,
         { x: 0, y: 0, width: image.naturalWidth, height: image.naturalHeight }, rect, "review-overview-canvas",
-        rect ? "Full masked browser screenshot with the proposed target outlined in blue." : "Full masked browser screenshot. Target coordinates are unavailable."));
+        rect ? "Full masked browser screenshot with the proposed target outlined in red." : "Full masked browser screenshot. Target coordinates are unavailable."));
       const when = Number.isFinite(artifact.captured_at) ? "Captured " + new Date(artifact.captured_at * 1000).toLocaleTimeString() : "Capture time unavailable";
       const note = node("p", "capture-note", when + " · editable controls masked. Acira rechecks the target before acting.");
       if (focus) focus.append(overview);

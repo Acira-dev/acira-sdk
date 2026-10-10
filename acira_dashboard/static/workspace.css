@@ -103,25 +103,19 @@ dialog canvas { width: 100%; height: auto; border: 1px solid var(--line); border
 .approval-dialog .dialog-heading { position: sticky; top: -26px; margin: -26px -26px 20px; padding: 20px 26px; background: var(--surface); border-bottom: 1px solid var(--line); z-index: 2; }
 .approval-dialog .dialog-heading h2 { font-size: 16px; }
 .review-question .review-target { margin: 0; flex: 1; min-width: 120px; font-size: 23px; letter-spacing: -.5px; }
-.review-companion { width: 34px; height: 34px; }
 .review-focus { margin: 20px 0 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-.target-caption { position: relative; display: flex; align-items: center; gap: 12px; min-height: 92px; padding: 18px 18px 18px 118px; border-bottom: 1px solid var(--line); }
+.target-caption { display: flex; align-items: center; padding: 16px 18px; border-bottom: 1px solid var(--line); }
 .target-caption > div { flex: 1; min-width: 0; }
 .target-caption > div .target-caption-label { display: flex; align-items: center; gap: 7px; color: var(--eyebrow); font-size: 11px; line-height: 1.4; margin-bottom: 7px; }
-.target-caption-icon { width: 14px; height: 14px; flex: 0 0 auto; color: var(--blue); }
+.target-caption-icon { width: 14px; height: 14px; flex: 0 0 auto; color: var(--block); }
 .target-caption > div .target-caption-name { display: block; font-size: 16px; font-weight: 500; line-height: 1.4; letter-spacing: -.25px; overflow-wrap: anywhere; }
-.target-caption.companion-right { padding: 18px 118px 18px 18px; }
-.pill-perch { --pill-width: 84px; --pill-height: 100px; position: absolute; left: 16px; bottom: -23.82px; width: var(--pill-width); height: var(--pill-height); z-index: 1; pointer-events: none; }
-.companion-right .pill-perch { left: auto; right: 16px; }
-.pill-perch-still { display: block; width: 100%; height: 100%; }
-.pill-perch-motion { display: none; position: absolute; inset: 0; width: 100%; height: 100%; background: url('/assets/mascots/pill-perched-swing.png') 0 0 / calc(var(--pill-width) * 24) var(--pill-height) no-repeat; }
-.review-stage { padding: 34px 18px 18px; background: var(--surface-2); }
+.review-stage { padding: 18px; background: var(--surface-2); }
 .review-stage .review-picture { margin: 0 auto; width: 100%; border-radius: 9px; box-shadow: 0 0 0 1px var(--line), 0 2px 6px rgba(20,24,40,.04); overflow: hidden; background: var(--surface); }
 .review-picture { position: relative; }
 dialog .review-picture canvas { display: block; width: 100%; height: auto; border: 0; border-radius: 0; }
 .review-annotation { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
 .target-halo { stroke: white; stroke-width: 3.5; }
-.target-outline { stroke: var(--blue); stroke-width: 1.5; }
+.target-outline { stroke: var(--block); stroke-width: 1.5; }
 .review-overview { margin: 0; padding: 13px 18px; border-top: 1px solid var(--line); }
 .review-overview summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; font-size: 11.5px; }
 .review-overview summary::-webkit-details-marker { display: none; }
@@ -137,17 +131,8 @@ dialog .review-picture canvas { display: block; width: 100%; height: auto; borde
 .appearance-settings select { max-width: 220px; }
 .appearance-settings p { font-size: 12.5px; margin-top: 12px; }
 :root[data-mascots="hidden"] .acira-mascot { display: none; }
-:root[data-mascots="hidden"] .target-caption { min-height: 0; padding: 12px 16px; }
-:root[data-mascots="hidden"] .review-stage { padding-top: 18px; }
-:root[data-mascots="animated"] [data-review-state="pending"] .pill-perch-still { display: none; }
-:root[data-mascots="animated"] [data-review-state="pending"] .pill-perch-motion { display: block; animation: pill-leg-swing 3.2s steps(24) infinite; }
-:root[data-mascots="animated"] [data-review-state="pending"] .review-companion { animation: companion-wait 3.5s ease-in-out infinite; }
-@keyframes companion-wait { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
-@keyframes pill-leg-swing { to { background-position: calc(var(--pill-width) * -24) 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .acira-mascot, .pill-perch-motion { animation: none !important; }
-  :root[data-mascots="animated"] [data-review-state="pending"] .pill-perch-still { display: block; }
-  :root[data-mascots="animated"] [data-review-state="pending"] .pill-perch-motion { display: none; }
+  .acira-mascot { animation: none !important; }
 }
 .review-context { font-size: 11.5px; }
 .review-evidence { background: var(--surface-2); border-radius: 12px; padding: 16px 18px; margin: 18px 0; }

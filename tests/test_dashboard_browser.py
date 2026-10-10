@@ -226,7 +226,7 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     await ui.get_by_role("button", name="Review operation").click()
                     await ui.locator('dialog .review-focus-canvas[data-rendered="true"]').wait_for()
                     await expect(ui.get_by_role("dialog").get_by_role("heading", name="Click “Next”?", exact=True)).to_be_visible()
-                    assert await ui.locator(".review-companion").evaluate("el=>el.complete && el.naturalWidth > 0")
+                    assert await ui.locator("dialog .acira-mascot").count() == 0
                     # Compare the visible overlay with the actual browser target,
                     # including the captured device-pixel scaling. This target is
                     # at the viewport's top-left, so its crop begins at (0, 0).
@@ -256,21 +256,20 @@ async def test_complete_review_journey_in_shared_dashboard(tmp_path, monkeypatch
                     assert float(await ring.get_attribute("y")) < float(await bounds.get_attribute("y"))
                     assert float(await ring.get_attribute("width")) > float(await bounds.get_attribute("width"))
                     assert await ring.evaluate("el=>getComputedStyle(el).strokeWidth") == "1.5px"
-                    perch = ui.locator(".pill-perch")
-                    await expect(perch.locator("img")).to_be_visible()
-                    await expect(perch.locator(".pill-perch-motion")).not_to_be_visible()
-                    assert await perch.locator("img").evaluate("el=>el.complete && el.naturalWidth===196 && el.naturalHeight===232")
-                    perch_box = await perch.bounding_box()
                     caption_box = await ui.locator(".target-caption").bounding_box()
-                    seat = perch_box["y"] + perch_box["height"] * (176.7356952123663 / 232)
-                    assert abs(seat - caption_box["y"] - caption_box["height"]) < 2
-                    assert perch_box["y"] >= caption_box["y"]
-                    assert perch_box["y"] + perch_box["height"] <= frame["y"]
-                    assert await ui.locator(".review-stage .target-outline").evaluate("el=>getComputedStyle(el).stroke") == "rgb(37, 99, 235)"
+                    caption_text = await ui.locator(".target-caption-name").bounding_box()
+                    assert caption_text["x"] >= caption_box["x"] + 16
+                    assert caption_text["x"] + caption_text["width"] <= caption_box["x"] + caption_box["width"] - 16
+                    assert caption_text["y"] + caption_text["height"] < caption_box["y"] + caption_box["height"]
+                    assert frame["y"] >= caption_box["y"] + caption_box["height"] + 16
+                    assert await ring.evaluate("el=>getComputedStyle(el).stroke") == "rgb(185, 28, 28)"
                     assert await ui.locator(".review-stage .target-outline").get_attribute("vector-effect") == "non-scaling-stroke"
+                    assert "outlined in red" in await ui.locator(".review-focus-canvas").get_attribute("aria-label")
                     overview = ui.get_by_text("Full page screenshot", exact=True)
                     await overview.click()
                     await expect(ui.locator(".review-overview-canvas")).to_be_visible()
+                    assert await ui.locator(".review-overview .target-outline").evaluate("el=>getComputedStyle(el).stroke") == "rgb(185, 28, 28)"
+                    assert "outlined in red" in await ui.locator(".review-overview-canvas").get_attribute("aria-label")
                     await overview.click()
                     # The decision controls stay accessible while a long capture
                     # and the technical disclosures remain available above them.
@@ -353,7 +352,7 @@ async def test_payment_preview_preserves_context_and_keeps_evidence_readable(tmp
                 assert frame["width"] <= 640 + 1
                 assert await ui.locator(".review-focus-canvas").evaluate("el=>el.width") == 640 * device_scale
                 await expect(ui.get_by_role("cell", name="Fixture merchant", exact=True)).to_be_visible()
-                # The annotation and avatar live above the masked source, never
+                # The annotation lives above the masked source, never
                 # rasterized into it. All words and masking remain original.
                 crop_x = max(0, min(1280 - 640, target["x"] + target["width"] / 2 - 320))
                 crop_y = max(0, min(720 - 260, target["y"] + target["height"] / 2 - 130))
@@ -363,9 +362,11 @@ async def test_payment_preview_preserves_context_and_keeps_evidence_readable(tmp
                     """(el, pixel)=>Array.from(el.getContext('2d').getImageData(pixel.x,pixel.y,1,1).data)""", masked_pixel
                 ) == [0, 0, 0, 255]
                 text = await ui.locator(".target-caption-name").bounding_box()
-                avatar = await ui.locator(".pill-perch").bounding_box()
-                assert text["x"] + text["width"] <= avatar["x"]
-                assert avatar["y"] + avatar["height"] < frame["y"]
+                caption = await ui.locator(".target-caption").bounding_box()
+                assert text["x"] + text["width"] <= caption["x"] + caption["width"] - 16
+                assert text["y"] + text["height"] < frame["y"]
+                assert await ui.locator("dialog .acira-mascot").count() == 0
+                assert await ui.locator(".review-stage .target-outline").evaluate("el=>getComputedStyle(el).stroke") == "rgb(185, 28, 28)"
                 assert await ui.locator("dialog").evaluate("el=>el.scrollWidth<=el.clientWidth")
                 await ui.get_by_role("button", name="Approve once", exact=True).scroll_into_view_if_needed()
                 if os.environ.get("ACIRA_TEST_ARTIFACTS"):
@@ -480,14 +481,14 @@ async def test_review_preview_does_not_invent_missing_targets(tmp_path, monkeypa
                     await expect(ui.locator(".review-overview-canvas")).to_be_visible()
                     # The original masked black region stays black in the UI.
                     assert await ui.locator(".review-overview-canvas").evaluate("el=>Array.from(el.getContext('2d').getImageData(25,25,1,1).data)") == [0, 0, 0, 255]
-                assert await ui.locator(".review-companion").evaluate("el=>el.complete && el.naturalWidth > 0")
+                assert await ui.locator("dialog .acira-mascot").count() == 0
                 assert not errors
             finally:
                 await browser.close()
 
 
 @pytest.mark.asyncio
-async def test_companion_preferences_keep_evidence_and_respect_reduced_motion(tmp_path, monkeypatch):
+async def test_companion_preferences_keep_approvals_mascot_free(tmp_path, monkeypatch):
     import base64
     import io
     import time
@@ -521,36 +522,47 @@ async def test_companion_preferences_keep_evidence_and_respect_reduced_motion(tm
                 await mode.select_option("hidden")
                 await ui.get_by_role("button", name="Approvals", exact=False).first.click()
                 await ui.get_by_role("button", name="Review operation").click()
-                await expect(ui.locator(".review-companion")).not_to_be_visible()
-                await expect(ui.locator(".pill-perch")).not_to_be_visible()
+                assert await ui.locator("dialog .acira-mascot").count() == 0
                 await expect(ui.locator(".review-stage .target-outline")).to_be_visible()
+                hidden_frame = await ui.locator(".review-focus-canvas").bounding_box()
+                hidden_caption = await ui.locator(".target-caption").bounding_box()
+                preview_gap = hidden_frame["y"] - hidden_caption["y"] - hidden_caption["height"]
                 await expect(ui.get_by_role("dialog").get_by_role("heading", name="Click “Save note”?", exact=True)).to_be_visible()
                 await expect(ui.locator(".review-destination").get_by_text("Destination", exact=True)).to_be_visible()
                 await expect(ui.locator(".review-destination").get_by_text("https://fixture.invalid/notes", exact=True)).to_be_visible()
                 assert journal.review(review["review_id"])["state"] == "pending"
                 await ui.get_by_role("button", name="Close dialog").click()
                 await ui.reload()
+                await ui.get_by_role("button", name="Agents", exact=True).click()
+                await expect(ui.locator(".overview-companion")).not_to_be_visible()
                 await click_control(ui, ui.get_by_role("button", name="Settings", exact=True, include_hidden=True))
                 await expect(mode).to_have_value("hidden")
                 await mode.select_option("animated")
+                await ui.get_by_role("button", name="Agents", exact=True).click()
+                await expect(ui.locator(".overview-companion")).to_be_visible()
+                assert await ui.locator(".overview-companion").evaluate("el=>el.complete && el.naturalWidth > 0")
                 await ui.emulate_media(reduced_motion="reduce")
                 await ui.get_by_role("button", name="Approvals", exact=False).first.click()
                 await ui.get_by_role("button", name="Review operation").click()
-                assert await ui.locator(".review-companion").evaluate("el=>getComputedStyle(el).animationName") == "none"
-                await expect(ui.locator(".pill-perch-still")).to_be_visible()
-                await expect(ui.locator(".pill-perch-motion")).not_to_be_visible()
+                await expect(ui.locator(".review-stage .target-outline")).to_be_visible()
+                assert await ui.locator("dialog .acira-mascot").count() == 0
+                animated_frame = await ui.locator(".review-focus-canvas").bounding_box()
+                animated_caption = await ui.locator(".target-caption").bounding_box()
+                assert abs(animated_frame["width"] - hidden_frame["width"]) < 1
+                assert abs(animated_frame["height"] - hidden_frame["height"]) < 1
+                assert abs(animated_frame["y"] - animated_caption["y"] - animated_caption["height"] - preview_gap) < 1
                 await ui.emulate_media(reduced_motion="no-preference")
-                assert await ui.locator(".review-companion").evaluate("el=>getComputedStyle(el).animationName") == "companion-wait"
-                await expect(ui.locator(".pill-perch-motion")).to_be_visible()
-                assert await ui.locator(".pill-perch-motion").evaluate("el=>getComputedStyle(el).animationName") == "pill-leg-swing"
-                start = await ui.locator(".pill-perch-motion").evaluate("el=>getComputedStyle(el).backgroundPositionX")
-                await ui.wait_for_timeout(500)
-                assert await ui.locator(".pill-perch-motion").evaluate("el=>getComputedStyle(el).backgroundPositionX") != start
+                assert await ui.locator("dialog .acira-mascot").count() == 0
+                moving_frame = await ui.locator(".review-focus-canvas").bounding_box()
+                moving_caption = await ui.locator(".target-caption").bounding_box()
+                assert abs(moving_frame["width"] - hidden_frame["width"]) < 1
+                assert abs(moving_frame["height"] - hidden_frame["height"]) < 1
+                assert abs(moving_frame["y"] - moving_caption["y"] - moving_caption["height"] - preview_gap) < 1
+                assert await ui.locator(".review-stage .target-outline").evaluate("el=>getComputedStyle(el).stroke") == "rgb(185, 28, 28)"
                 journal.decide(review["review_id"], "rejected")
                 await ui.locator("dialog .pill").filter(has_text="rejected").wait_for(timeout=12000)
-                assert await ui.locator(".review-companion").evaluate("el=>getComputedStyle(el).animationName") == "none"
-                await expect(ui.locator(".pill-perch-still")).to_be_visible()
-                await expect(ui.locator(".pill-perch-motion")).not_to_be_visible()
+                assert await ui.locator("dialog .acira-mascot").count() == 0
+                await expect(ui.get_by_role("button", name="Approve once", exact=True)).to_be_disabled()
             finally:
                 await browser.close()
 

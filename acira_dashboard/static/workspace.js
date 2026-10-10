@@ -595,8 +595,7 @@ async function reviewDialog(review) {
   const status = pill(review.state);
   const targetLabel = target?.text || target?.aria_label || target?.id || "";
   const headline = el("div", undefined, "review-question");
-  headline.append(AciraReview.mascot("pill", "review-companion"),
-    el("h3", AciraReview.question(review.classification?.action, targetLabel), "review-target"), status);
+  headline.append(el("h3", AciraReview.question(review.classification?.action, targetLabel), "review-target"), status);
   body.append(headline);
   const evidence = review.evidence || {};
   const context = el("details", undefined, "review-context");
