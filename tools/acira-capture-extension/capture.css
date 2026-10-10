@@ -1,0 +1,363 @@
+#acira-capture-panel {
+  all: initial;
+  position: fixed;
+  z-index: 2147483647;
+  right: 18px;
+  bottom: 18px;
+  width: min(360px, calc(100vw - 28px));
+  box-sizing: border-box;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.97);
+  color: #111113;
+  font: 13px/1.38 "Google Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  box-shadow: 0 20px 54px rgba(15, 23, 42, 0.16), 0 1px 0 rgba(255, 255, 255, 0.88) inset;
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+#acira-capture-panel[hidden],
+.acira-capture-hover[hidden],
+.acira-capture-selected[hidden],
+.acira-capture-label[hidden] {
+  display: none !important;
+}
+
+#acira-capture-panel *,
+#acira-capture-panel *::before,
+#acira-capture-panel *::after {
+  box-sizing: border-box;
+  font: inherit;
+  letter-spacing: 0;
+}
+
+#acira-capture-panel svg,
+.acira-capture-label svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.acira-capture-header,
+.acira-brand,
+.acira-capture-header-actions,
+.acira-capture-toolbar,
+.acira-capture-actions,
+.acira-capture-footer,
+.acira-target-row,
+.acira-section-label,
+.acira-capture-details summary {
+  display: flex;
+  align-items: center;
+}
+
+.acira-capture-header {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.acira-brand {
+  min-width: 0;
+  gap: 10px;
+}
+
+.acira-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 31px;
+  height: 31px;
+  border: 1px solid rgba(17, 17, 19, 0.12);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111113;
+  box-shadow: 0 10px 24px rgba(17, 17, 19, 0.1);
+}
+
+.acira-brand-mark svg {
+  width: 17px !important;
+  height: 17px !important;
+}
+
+.acira-brand-mark img {
+  display: block;
+  width: 17px;
+  height: 21px;
+  object-fit: contain;
+}
+
+.acira-capture-header-actions {
+  gap: 8px;
+}
+
+.acira-capture-kicker {
+  color: #8b8b92;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.acira-capture-title {
+  color: #111113;
+  font: 18px/1.12 "Source Serif 4", "Source Serif Pro", Georgia, ui-serif, serif;
+  font-weight: 500;
+}
+
+#acira-capture-panel .acira-section-label,
+#acira-capture-panel .acira-capture-details summary {
+  font-family: "Source Serif 4", "Source Serif Pro", Georgia, ui-serif, serif;
+}
+
+.acira-capture-guide {
+  padding: 7px 9px;
+  border: 1px solid #ececef;
+  border-radius: 8px;
+  background: #fafafa;
+  color: #6f7178;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.acira-capture-pill,
+.acira-decision {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.acira-capture-pill[data-state="capturing"] {
+  background: #eefaf1;
+  color: #257348;
+}
+
+.acira-capture-pill[data-state="paused"] {
+  background: #f1f2f4;
+  color: #646873;
+}
+
+#acira-capture-panel button {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #dedfe3;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #ffffff;
+  color: #191a1f;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+#acira-capture-panel button:hover:not(:disabled) {
+  background: #f7f7f8;
+  border-color: #cfd1d8;
+}
+
+#acira-capture-panel button:focus-visible {
+  outline: 2px solid #0051ff;
+  outline-offset: 2px;
+}
+
+#acira-capture-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+#acira-capture-panel .acira-primary-button {
+  background: #0051ff;
+  border-color: #0051ff;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(0, 81, 255, 0.18);
+}
+
+#acira-capture-panel .acira-primary-button:hover:not(:disabled) {
+  background: #174cff;
+  border-color: #174cff;
+}
+
+#acira-capture-panel .acira-icon-button {
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+}
+
+.acira-capture-toolbar,
+.acira-capture-footer {
+  gap: 8px;
+}
+
+.acira-capture-toolbar button,
+.acira-capture-footer button {
+  flex: 1;
+}
+
+.acira-capture-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #ececef;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.acira-section-label {
+  gap: 6px;
+  color: #8b8d96;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: none;
+}
+
+#acira-capture-selected-summary,
+.acira-target-name {
+  min-width: 0;
+  color: #191a1f;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acira-empty-state {
+  color: #858894 !important;
+}
+
+.acira-capture-actions {
+  gap: 8px;
+}
+
+.acira-capture-actions button {
+  flex: 1;
+}
+
+.acira-capture-actions button[data-kind="block"] {
+  border-color: #f3d0cd;
+  background: #fff7f7;
+  color: #a3443c;
+}
+
+.acira-capture-actions button[data-kind="ask"] {
+  border-color: #edd8a2;
+  background: #fffaf0;
+  color: #8c651b;
+}
+
+.acira-target-list {
+  display: grid;
+  gap: 6px;
+  max-height: 124px;
+  overflow: auto;
+}
+
+.acira-target-row {
+  gap: 8px;
+  min-height: 34px;
+  padding: 5px 6px;
+  border: 1px solid #eeeeef;
+  border-radius: 8px;
+  background: #fbfbfc;
+}
+
+.acira-target-name {
+  flex: 1;
+}
+
+.acira-decision-block {
+  background: #fff1f1;
+  color: #a3443c;
+}
+
+.acira-decision-ask {
+  background: #fff7df;
+  color: #8c651b;
+}
+
+.acira-capture-details {
+  border: 1px solid #ececef;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.acira-capture-details summary {
+  gap: 7px;
+  cursor: pointer;
+  padding: 8px 10px;
+  color: #5f626b;
+  font-weight: 500;
+}
+
+#acira-capture-facts {
+  max-height: 148px;
+  margin: 0;
+  overflow: auto;
+  padding: 8px 10px 10px;
+  border-top: 1px solid #ececef;
+  color: #5f626b;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.acira-capture-status {
+  min-height: 16px;
+  color: #6f7178;
+  font-size: 12px;
+}
+
+.acira-capture-hover,
+.acira-capture-selected {
+  position: fixed;
+  z-index: 2147483646;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 2px solid #0051ff;
+  border-radius: 7px;
+  background: rgba(0, 81, 255, 0.08);
+  box-shadow: 0 0 0 4px rgba(0, 81, 255, 0.13), 0 8px 30px rgba(0, 81, 255, 0.12);
+}
+
+.acira-capture-selected {
+  z-index: 2147483647;
+  border-color: #e11d48;
+  background: rgba(225, 29, 72, 0.08);
+  box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.13), 0 8px 30px rgba(225, 29, 72, 0.12);
+}
+
+.acira-capture-label {
+  all: initial;
+  position: fixed;
+  z-index: 2147483647;
+  max-width: min(320px, calc(100vw - 24px));
+  box-sizing: border-box;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 7px;
+  background: #0051ff;
+  color: #ffffff;
+  font: 12px/1.35 "Google Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 500;
+  pointer-events: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 10px 26px rgba(0, 81, 255, 0.24);
+}
+
+.acira-capture-label-selected {
+  background: #be123c;
+  box-shadow: 0 10px 26px rgba(190, 18, 60, 0.22);
+}

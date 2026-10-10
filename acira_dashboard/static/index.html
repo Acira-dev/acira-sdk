@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="acira-dashboard-token" content="__ACIRA_DASHBOARD_TOKEN__" />
+    <title>Acira Dashboard</title>
+    <link rel="icon" type="image/png" href="/static/acira-mark.png" />
+    <link rel="apple-touch-icon" href="/static/acira-mark.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div id="acira-progress" class="acira-progress" aria-hidden="true"></div>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <img class="brand-logo" src="/static/acira-mark.png" alt="Acira" />
+          <div class="brand-word">Acira <span class="brand-sub">guard</span></div>
+        </div>
+
+        <div class="workspace">
+          <img class="workspace-logo" src="/static/acira-mark.png" alt="" />
+          <div class="workspace-copy">
+            <p class="workspace-name">Local runtime</p>
+            <p class="workspace-meta">127.0.0.1:8765</p>
+          </div>
+          <svg class="workspace-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m8 9 4-4 4 4M8 15l4 4 4-4" /></svg>
+        </div>
+
+        <nav class="nav">
+          <button class="active" data-view-button="dashboard">
+            <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12 12 3l9 9" /><path d="M5 10v10h14V10" /></svg>
+            <span>Overview</span>
+          </button>
+
+          <div class="nav-section">Set up</div>
+          <button data-view-button="configs">
+            <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z" /></svg>
+            <span>Configs</span>
+          </button>
+          <button data-view-button="skills">
+            <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="7" height="7" rx="1.6" /><rect x="13" y="4" width="7" height="7" rx="1.6" /><rect x="4" y="13" width="7" height="7" rx="1.6" /><rect x="13" y="13" width="7" height="7" rx="1.6" /></svg>
+            <span>Skills</span>
+          </button>
+          <button data-view-button="secrets">
+            <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="15" r="4" /><path d="m21 3-9 9M15 9l3 3" /></svg>
+            <span>Secrets</span>
+          </button>
+
+          <div class="nav-section">Monitor</div>
+          <button data-view-button="sessions">
+            <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2" /><path d="M8 20h8M12 18v2" /></svg>
+            <span>Sessions</span>
+          </button>
+          <button data-view-button="hitl">
+            <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></svg>
+            <span>Reviews</span>
+          </button>
+          <button data-view-button="events">
+            <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" /></svg>
+            <span>Activity</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <span class="foot-status"><span class="dot live"></span> Guard online</span>
+          <span class="foot-version">v1 · local</span>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="topbar">
+          <h1 id="view-title">Overview</h1>
+          <div class="status-line"><span id="live-dot" class="dot"></span><span id="live-label">Connecting</span></div>
+        </div>
+
+        <section id="view-dashboard" class="view grid">
+          <div class="home-hero">
+            <h2 class="home-title">Welcome to Acira guard</h2>
+            <p class="home-sub">Acira sits between your browser AI agent and the web — enforcing your policies and pausing for your approval on risky actions. Get protected in three steps:</p>
+          </div>
+          <div class="getstarted">
+            <button class="getstarted-step" data-goto="configs">
+              <span class="gs-num">1</span>
+              <span class="gs-body"><span class="gs-h">Create a config</span><span class="gs-p">Build the rule bundle your agent runs with, on the visual canvas.</span></span>
+              <svg class="gs-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            </button>
+            <button class="getstarted-step" data-goto="skills">
+              <span class="gs-num">2</span>
+              <span class="gs-body"><span class="gs-h">Add skills</span><span class="gs-p">Drag in built-in protections or capture app-specific rules.</span></span>
+              <svg class="gs-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            </button>
+            <button class="getstarted-step" data-goto="sessions">
+              <span class="gs-num">3</span>
+              <span class="gs-body"><span class="gs-h">Run your agent</span><span class="gs-p">Start your guarded agent from the terminal — it shows up under Sessions.</span></span>
+              <svg class="gs-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            </button>
+          </div>
+          <div class="grid metrics">
+            <button class="metric metric-link" data-metric-view="hitl" data-review-filter-target="pending"><div class="label">Active reviews</div><div id="metric-reviews" class="value">0</div></button>
+            <button class="metric metric-link" data-metric-view="sessions" data-session-filter-target="live"><div class="label">Live sessions</div><div id="metric-sessions" class="value">0</div></button>
+            <button class="metric metric-link" data-metric-view="sessions" data-session-filter-target="paused"><div class="label">Paused</div><div id="metric-paused" class="value">0</div></button>
+            <button class="metric metric-link" data-metric-view="skills" data-skill-tab-target="general"><div class="label">General</div><div id="metric-general" class="value">0</div></button>
+            <button class="metric metric-link" data-metric-view="skills" data-skill-tab-target="specific"><div class="label">Specific</div><div id="metric-specific" class="value">0</div></button>
+            <button class="metric metric-link" data-metric-view="skills" data-skill-tab-target="merged"><div class="label">Merged</div><div id="metric-merged" class="value">0</div></button>
+          </div>
+          <div class="panel">
+            <div class="toolbar"><h2>Needs attention</h2><button class="button" id="refresh-dashboard">Refresh</button></div>
+            <div id="dashboard-error" class="inline-error hidden"></div>
+            <div id="dashboard-events"></div>
+          </div>
+        </section>
+
+        <section id="view-sessions" class="view grid hidden">
+          <div class="section-intro">
+            <span class="section-intro-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2" /><path d="M8 20h8M12 18v2" /></svg></span>
+            <div class="section-intro-copy"><h3>Sessions</h3><p>Live browser agents running through the guard. Select one to watch its actions in real time, pause or resume it, or backtest it against a config.</p></div>
+          </div>
+          <div class="grid two-col">
+            <div class="panel">
+              <div class="toolbar">
+                <h2>Sessions</h2>
+                <div class="row">
+                  <div class="tabs">
+                    <button class="tab active" data-session-filter="live">Live</button>
+                    <button class="tab" data-session-filter="paused">Paused</button>
+                    <button class="tab" data-session-filter="stale">Stale</button>
+                    <button class="tab" data-session-filter="ended">Ended</button>
+                    <button class="tab" data-session-filter="all">All</button>
+                  </div>
+                  <button class="button" id="refresh-sessions">Refresh</button>
+                </div>
+              </div>
+              <div id="session-error" class="inline-error hidden"></div>
+              <div id="session-list" class="list"></div>
+            </div>
+            <div class="panel">
+              <div class="toolbar">
+                <h2>Session detail</h2>
+                <div class="row">
+                  <button class="button warn" id="pause-session">Pause</button>
+                  <button class="button primary" id="resume-session">Resume</button>
+                  <div class="toolbar-divider"></div>
+                  <button class="button" id="run-backtest">Backtest</button>
+                </div>
+              </div>
+              <div id="session-detail" class="empty">Select a session.</div>
+            </div>
+          </div>
+          <div class="panel hidden" id="backtest-panel">
+            <div class="toolbar"><h2>Backtest results</h2><button class="button" id="close-backtest">Close</button></div>
+            <div class="form-grid two backtest-controls">
+              <label class="control-field"><span>Config</span><select id="backtest-config"></select></label>
+              <label class="control-field"><span>Skill selection</span><select id="backtest-skill-mode"><option value="config">Config skills</option><option value="all">All dashboard skills</option></select></label>
+            </div>
+            <div id="backtest-results"></div>
+          </div>
+        </section>
+
+        <section id="view-hitl" class="view grid hidden">
+          <div class="section-intro">
+            <span class="section-intro-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></svg></span>
+            <div class="section-intro-copy"><h3>Reviews</h3><p>When the guard flags a risky action it pauses the agent and asks you here. Allow or block each request — the agent continues based on your decision.</p></div>
+          </div>
+          <div class="review-layout">
+            <div class="panel">
+              <div class="toolbar">
+                <h2>Reviews</h2>
+                <div class="row">
+                  <div class="tabs">
+                    <button class="tab active" data-review-filter="pending">Pending</button>
+                    <button class="tab" data-review-filter="history">History</button>
+                    <button class="tab" data-review-filter="all">All</button>
+                  </div>
+                  <button class="button" id="refresh-reviews">Refresh</button>
+                </div>
+              </div>
+              <div id="review-error" class="inline-error hidden"></div>
+              <div id="review-list" class="list"></div>
+            </div>
+            <div class="panel">
+              <div class="toolbar">
+                <h2>Review detail</h2>
+                <div class="row">
+                  <button class="button danger" id="block-review">Block</button>
+                  <div class="toolbar-divider"></div>
+                  <button class="button primary" id="allow-review">Allow</button>
+                </div>
+              </div>
+              <div id="review-detail" class="empty">Select a review.</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-skills" class="view grid hidden">
+          <div class="toolbar">
+            <div class="tabs">
+              <button id="tab-general" class="tab active">General</button>
+              <button id="tab-specific" class="tab">Specific</button>
+              <button id="tab-merged" class="tab">Merged</button>
+            </div>
+            <button id="refresh-skills" class="button">Refresh</button>
+          </div>
+          <div id="skills-intro" class="section-intro"></div>
+          <div id="skills-general" class="grid two-col">
+            <div class="panel"><h2>General skills</h2><div id="general-list" class="list"></div></div>
+            <div class="panel"><h2>Details</h2><div id="general-detail" class="empty">Select a skill on the left to see the rules it enforces.</div></div>
+          </div>
+          <div id="skills-specific" class="grid two-col hidden">
+            <div class="panel">
+              <div class="toolbar"><h2>Specific skills</h2><button id="new-specific" class="button primary">New / Import</button></div>
+              <div id="specific-list" class="list"></div>
+            </div>
+            <div class="panel">
+              <div class="toolbar">
+                <div class="row">
+                  <h2>Specific skill</h2>
+                  <div class="tabs"><button id="specific-targets-tab" class="tab active">Targets</button><button id="specific-json-tab" class="tab">Advanced JSON</button></div>
+                </div>
+                <div class="row">
+                  <button id="cancel-specific" class="button">Cancel</button>
+                  <button id="save-specific" class="button primary">Save</button>
+                  <div class="toolbar-divider"></div>
+                  <button id="delete-specific" class="button danger">Delete</button>
+                </div>
+              </div>
+              <div class="editor-head"><input id="specific-name" placeholder="skill-name.json" /><div id="specific-state" class="status-line"></div></div>
+              <div id="specific-import-pane" class="import-panel hidden">
+                <h3>Import captured skill JSON</h3>
+                <p class="small">Paste capture-extension JSON here. It is validated with the production specific-skill parser before writing a file.</p>
+                <textarea id="specific-import-editor" spellcheck="false" placeholder="{&#10;  &quot;schema&quot;: &quot;acira.specific_skill.v2&quot;,&#10;  ...&#10;}"></textarea>
+                <div class="row">
+                  <button id="validate-specific" class="button">Validate JSON</button>
+                  <button id="import-specific" class="button primary">Import skill</button>
+                </div>
+              </div>
+              <div id="specific-targets-pane"><div id="specific-gui" class="grid"></div></div>
+              <div id="specific-json-pane" class="hidden"><textarea id="specific-editor" spellcheck="false"></textarea></div>
+            </div>
+          </div>
+          <div id="skills-merged" class="grid two-col hidden">
+            <div class="panel">
+              <div class="toolbar"><h2>Merged skills</h2><button id="new-merged" class="button">New</button></div>
+              <div id="merged-list" class="list"></div>
+            </div>
+            <div class="panel">
+              <div class="toolbar">
+                <div class="row">
+                  <h2>Merged skill</h2>
+                  <div class="tabs"><button id="merged-components-tab" class="tab active">Components</button><button id="merged-json-tab" class="tab">Advanced JSON</button></div>
+                </div>
+                <div class="row">
+                  <button id="save-merged" class="button primary">Save</button>
+                  <div class="toolbar-divider"></div>
+                  <button id="delete-merged" class="button danger">Delete</button>
+                </div>
+              </div>
+              <div class="editor-head"><input id="merged-name" placeholder="merged-name.json" /><div id="merged-state" class="status-line"></div></div>
+              <div id="merged-components-pane">
+                <div class="grid two-col">
+                  <div>
+                    <h3>Skills in this bundle</h3>
+                    <div id="merged-components" class="list"></div>
+                  </div>
+                  <div>
+                    <h3>Add a skill to the bundle</h3>
+                    <input id="merged-skill-search" class="graph-search" placeholder="Search skills to add" />
+                    <div id="merged-picker" class="component-picker"></div>
+                  </div>
+                </div>
+                <div id="merged-compiled" class="compiled-view"></div>
+              </div>
+              <div id="merged-json-pane" class="hidden"><textarea id="merged-editor" spellcheck="false"></textarea></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-configs" class="view config-stage hidden">
+          <!-- Floating top bar -->
+          <div class="stage-bar">
+            <div class="stage-bar-left">
+              <button id="config-switcher" class="stage-config-btn" type="button">
+                <svg class="stage-config-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z" /></svg>
+                <span>Configs</span>
+                <svg class="stage-config-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
+              </button>
+              <input id="config-name" class="stage-name-input" placeholder="No config open" />
+              <div id="config-state" class="status-line"></div>
+            </div>
+            <div class="stage-bar-right">
+              <div class="tabs"><button id="config-graph-tab" class="tab active">Graph</button><button id="config-json-tab" class="tab">Advanced JSON</button></div>
+              <button id="auto-layout-graph" class="button stage-graph-only">Auto arrange</button>
+              <button id="duplicate-config" class="button">Duplicate</button>
+              <button id="save-config" class="button primary">Save</button>
+              <div class="toolbar-divider"></div>
+              <button id="delete-config" class="button danger">Delete</button>
+            </div>
+          </div>
+
+          <!-- Config switcher popover -->
+          <div id="config-pop" class="stage-pop hidden">
+            <div class="stage-pop-head">
+              <h3>Configs</h3>
+              <div class="row">
+                <button id="new-config" class="button primary">New</button>
+                <button id="refresh-configs" class="button">Refresh</button>
+              </div>
+            </div>
+            <div id="config-list" class="list"></div>
+          </div>
+
+          <!-- Canvas layer + floating panels -->
+          <div id="config-graph-pane" class="stage-graph-layer">
+            <div id="config-graph" class="graph" aria-label="Config graph canvas"></div>
+            <aside class="stage-panel stage-library">
+              <div class="stage-panel-head">
+                <h3>Resource library</h3>
+                <button class="stage-collapse" data-collapse="library" type="button" aria-label="Collapse panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button>
+              </div>
+              <div class="stage-panel-body">
+                <p class="small">Drag a resource onto the canvas, or press Add.</p>
+                <input id="graph-skill-search" class="graph-search" placeholder="Search skills and secrets" />
+                <div id="graph-skill-library"></div>
+              </div>
+            </aside>
+            <aside class="stage-panel stage-inspector">
+              <div class="stage-panel-head">
+                <h3>Inspector</h3>
+                <button class="stage-collapse" data-collapse="inspector" type="button" aria-label="Collapse panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg></button>
+              </div>
+              <div class="stage-panel-body"><div id="graph-inspector"></div></div>
+            </aside>
+            <button id="save-config-graph" class="hidden" type="button"></button>
+          </div>
+
+          <!-- Advanced JSON overlay -->
+          <div id="config-json-pane" class="stage-json hidden"><textarea id="config-editor" spellcheck="false"></textarea></div>
+        </section>
+
+        <section id="view-secrets" class="view grid hidden">
+          <div class="section-intro">
+            <span class="section-intro-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="15" r="4" /><path d="m21 3-9 9M15 9l3 3" /></svg></span>
+            <div class="section-intro-copy"><h3>Secrets</h3><p>Local secret values — passwords, API keys — the guard can review before filling on your behalf. Create a secrets config, add records, then link it to a config from the graph. Values stay on this machine and are never committed.</p></div>
+          </div>
+          <div id="secret-config-index" class="panel">
+            <div class="toolbar">
+              <h2>Secrets configs</h2>
+              <div class="row">
+                <input id="secret-config-name" placeholder="name.secrets.local.json" />
+                <button id="new-secret-config" class="button primary">New config</button>
+                <button id="refresh-secrets" class="button">Refresh</button>
+              </div>
+            </div>
+            <div id="secret-error" class="inline-error hidden"></div>
+            <div id="secret-config-list" class="list"></div>
+          </div>
+          <div id="secret-config-detail" class="panel hidden">
+            <div class="toolbar">
+              <div class="row">
+                <button id="back-secrets" class="button">← Back</button>
+                <h2>Secrets manager config</h2>
+                <div class="tabs"><button id="secret-settings-tab" class="tab active">Settings</button><button id="secret-json-tab" class="tab">Advanced JSON</button></div>
+              </div>
+              <div class="row">
+                <button id="save-secret-config" class="button primary">Save config</button>
+                <div class="toolbar-divider"></div>
+                <button id="delete-secret-config" class="button danger">Delete config</button>
+              </div>
+            </div>
+            <div id="secret-config-state" class="status-line secret-state-bar"></div>
+            <div id="secret-settings-pane">
+              <div id="secret-readonly-banner" class="read-only-banner hidden">
+                <div>This is a read-only template. Create a local secrets config to add or edit secrets.</div>
+                <button id="copy-secret-config" class="button primary">Create editable local copy</button>
+              </div>
+              <div class="secret-summary">
+                <label class="kv"><span class="label">Config status</span><div class="value"><input id="secret-config-enabled" type="checkbox" /> Enabled</div></label>
+                <label class="kv"><span class="label">Default fill decision</span><select id="secret-default-decision"><option value="ask">Ask before fill</option><option value="block">Block fill</option><option value="allow">Allow fill</option></select></label>
+                <div class="kv"><div class="label">Existing records</div><div id="secret-record-count" class="value">0</div></div>
+              </div>
+              <div class="secret-workspace">
+                <section class="secret-section">
+                  <div class="toolbar">
+                    <div>
+                      <h2>Existing secrets</h2>
+                      <div id="secret-record-helper" class="small">Values stay hidden. Select a record to edit metadata or replace its value.</div>
+                    </div>
+                    <button id="new-secret-record" class="button primary">Add secret</button>
+                  </div>
+                  <div id="secret-record-list" class="secret-records-list"></div>
+                </section>
+                <section class="secret-section secret-editor">
+                  <div class="toolbar">
+                    <div>
+                      <h2 id="secret-editor-title">Add secret</h2>
+                      <div id="secret-editor-help" class="small">Create a new local secret record.</div>
+                    </div>
+                    <button id="delete-secret" class="button danger">Delete selected</button>
+                  </div>
+                  <div class="form-grid two">
+                    <label class="control-field"><span>Secret ID</span><input id="secret-id" placeholder="admin-password" /></label>
+                    <label class="control-field"><span>Label</span><input id="secret-label" placeholder="Admin password" /></label>
+                  </div>
+                  <label class="control-field"><span>Plaintext value</span><input id="secret-value" type="password" placeholder="Required for new secrets; blank keeps existing value" /></label>
+                  <div class="form-grid two">
+                    <label class="control-field"><span>Classification</span><input id="secret-classification" placeholder="password, api_key, token" /></label>
+                    <label class="control-field"><span>Fill decision</span><select id="secret-decision"><option value="ask">Ask before fill</option><option value="allow">Allow fill</option><option value="block">Block fill</option></select></label>
+                  </div>
+                  <div class="row">
+                    <button id="save-secret" class="button primary">Save secret</button>
+                    <button id="clear-secret-form" class="button">Clear</button>
+                  </div>
+                </section>
+              </div>
+            </div>
+            <div id="secret-json-pane" class="hidden advanced-panel"><textarea id="secret-config-editor" spellcheck="false" style="min-height:180px"></textarea></div>
+          </div>
+        </section>
+
+        <section id="view-events" class="view grid hidden">
+          <div class="section-intro">
+            <span class="section-intro-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10" /></svg></span>
+            <div class="section-intro-copy"><h3>Activity</h3><p>A live log of everything the guard sees — sessions, decisions, and policy hits. Filter or search to trace exactly what happened and when.</p></div>
+          </div>
+          <div class="panel">
+            <div class="toolbar">
+              <h2>Activity</h2>
+              <div class="row">
+                <select id="event-filter"><option value="">All</option><option value="hitl_review_pending">Reviews</option><option value="review_decision">Decisions</option><option value="session_paused">Paused</option></select>
+                <input id="event-search" placeholder="Filter events…" />
+                <button id="refresh-events" class="button">Refresh</button>
+              </div>
+            </div>
+            <div id="event-list"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <div id="notification-stack" class="notification-stack" aria-live="polite"></div>
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Confirm modal -->
+    <div id="confirm-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+      <div class="modal">
+        <h2 id="confirm-modal-title" class="modal-title"></h2>
+        <p id="confirm-modal-body" class="modal-body"></p>
+        <div class="modal-actions">
+          <button id="confirm-modal-cancel" class="button">Cancel</button>
+          <button id="confirm-modal-ok" class="button danger">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
+

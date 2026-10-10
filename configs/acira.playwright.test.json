@@ -1,0 +1,38 @@
+{
+  "schema": "acira.config.v1",
+  "name": "Acira Playwright Test",
+  "enabled": true,
+  "dashboard": {
+    "connect": false
+  },
+  "terminal_review": true,
+  "terminal_log": true,
+  "terminal_log_read_only": false,
+  "default_review_decision": "allow",
+  "probe_timeout": 1.0,
+  "runtime_js": {
+    "mode": "hybrid_strict",
+    "unknown": "ask",
+    "log_snippet_chars": 180
+  },
+  "hitl_freeze_mode": "off",
+  "adapters": {
+    "playwright": {
+      "enabled": true,
+      "hitl_freeze_mode": "off"
+    }
+  },
+  "blocked_retry_policy": {
+    "same_target_limit": 2,
+    "on_exceed": "compact_block"
+  },
+  "general_skill_preflight": {
+    "enabled": false
+  },
+  "agent_js": {
+    "block_arbitrary": false
+  },
+  "specific_skills": [],
+  "general_skills": {},
+  "audit": { "mode": "volatile" }
+}

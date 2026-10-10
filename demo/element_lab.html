@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acira Extension Element Lab</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #f6f7f9;
+      --surface: #ffffff;
+      --surface-muted: #eef2f6;
+      --ink: #18202a;
+      --muted: #637083;
+      --line: #d8dee7;
+      --brand: #0b6bcb;
+      --brand-strong: #064b95;
+      --accent: #17835b;
+      --danger: #bd2c2c;
+      --focus: #f3b43f;
+      --shadow: 0 10px 28px rgba(24, 32, 42, 0.08);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    a {
+      color: var(--brand);
+      font-weight: 650;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button,
+    [role="button"],
+    summary,
+    label,
+    input,
+    select,
+    textarea {
+      touch-action: manipulation;
+    }
+
+    button:focus-visible,
+    a:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    summary:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+    }
+
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 24px;
+      border-right: 1px solid var(--line);
+      background: #111827;
+      color: #f8fafc;
+      overflow-y: auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .brand img {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: #ffffff;
+      object-fit: contain;
+      padding: 6px;
+    }
+
+    .brand-name {
+      display: block;
+      font-size: 1.04rem;
+      font-weight: 760;
+      line-height: 1.1;
+    }
+
+    .brand-subtitle {
+      display: block;
+      margin-top: 3px;
+      color: #bac5d4;
+      font-size: 0.8rem;
+    }
+
+    nav {
+      display: grid;
+      gap: 8px;
+    }
+
+    nav a {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 38px;
+      padding: 9px 10px;
+      border-radius: 7px;
+      color: #e7edf5;
+      text-decoration: none;
+      font-weight: 620;
+    }
+
+    nav a:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    nav span {
+      color: #9ca9ba;
+      font-size: 0.78rem;
+    }
+
+    main {
+      min-width: 0;
+      padding: 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.65rem, 2.2vw, 2.35rem);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .intro {
+      max-width: 780px;
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+      min-height: 34px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid #b9decf;
+      background: #eaf8f2;
+      color: #0f6849;
+      font-weight: 720;
+      font-size: 0.86rem;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      grid-column: span 6;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel.wide {
+      grid-column: 1 / -1;
+    }
+
+    .panel-header {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfe;
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: 0;
+    }
+
+    .panel-header p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.4;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .field label,
+    .field legend,
+    .control-label {
+      color: #354052;
+      font-size: 0.82rem;
+      font-weight: 720;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+    select,
+    textarea {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid #cbd3df;
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--ink);
+      padding: 9px 11px;
+    }
+
+    textarea {
+      min-height: 96px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    input[readonly],
+    input:disabled,
+    select:disabled,
+    textarea:disabled {
+      color: #718096;
+      background: #eef1f5;
+      cursor: not-allowed;
+    }
+
+    input[type="color"] {
+      width: 56px;
+      height: 40px;
+      padding: 2px;
+      border: 1px solid #cbd3df;
+      border-radius: 7px;
+      background: #ffffff;
+      cursor: pointer;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--brand);
+    }
+
+    fieldset {
+      margin: 0;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    fieldset legend {
+      padding: 0 5px;
+    }
+
+    .choice-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .choice {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 30px;
+      color: #2f3a4a;
+    }
+
+    .choice input {
+      width: 17px;
+      height: 17px;
+      accent-color: var(--brand);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      min-height: 48px;
+      padding: 10px 0;
+      border-bottom: 1px solid #edf0f5;
+    }
+
+    .toggle-row:last-child {
+      border-bottom: 0;
+    }
+
+    .toggle-copy {
+      min-width: 0;
+    }
+
+    .toggle-copy strong {
+      display: block;
+      color: #293445;
+      font-size: 0.9rem;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-flex;
+      flex: 0 0 auto;
+      width: 48px;
+      height: 28px;
+    }
+
+    .switch input {
+      position: absolute;
+      opacity: 0;
+      inset: 0;
+      cursor: pointer;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #b8c1cf;
+      transition: background 150ms ease;
+    }
+
+    .slider::after {
+      content: "";
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      background: #ffffff;
+      box-shadow: 0 1px 4px rgba(17, 24, 39, 0.25);
+      transition: transform 150ms ease;
+    }
+
+    .switch input:checked + .slider {
+      background: var(--accent);
+    }
+
+    .switch input:checked + .slider::after {
+      transform: translateX(20px);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 9px 14px;
+      border: 1px solid #cbd3df;
+      border-radius: 7px;
+      background: #ffffff;
+      color: #243042;
+      font-weight: 730;
+      cursor: pointer;
+    }
+
+    .button:hover {
+      border-color: #9eaabd;
+      background: #f8fafc;
+    }
+
+    .button.primary {
+      border-color: var(--brand);
+      background: var(--brand);
+      color: #ffffff;
+    }
+
+    .button.primary:hover {
+      border-color: var(--brand-strong);
+      background: var(--brand-strong);
+    }
+
+    .button.danger {
+      border-color: #efb4b4;
+      color: var(--danger);
+      background: #fff7f7;
+    }
+
+    .button:disabled {
+      border-color: #d7dde6;
+      background: #eef1f5;
+      color: #7b8798;
+      cursor: not-allowed;
+    }
+
+    .segmented {
+      display: inline-grid;
+      grid-template-columns: repeat(3, minmax(82px, 1fr));
+      gap: 0;
+      border: 1px solid #cbd3df;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .segmented button {
+      min-height: 38px;
+      border: 0;
+      border-right: 1px solid #cbd3df;
+      background: #ffffff;
+      color: #354052;
+      font-weight: 720;
+      cursor: pointer;
+    }
+
+    .segmented button:last-child {
+      border-right: 0;
+    }
+
+    .segmented button[aria-pressed="true"] {
+      background: #e7f1fc;
+      color: var(--brand-strong);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+    }
+
+    .tab {
+      min-height: 38px;
+      padding: 8px 12px;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 740;
+      cursor: pointer;
+    }
+
+    .tab[aria-selected="true"] {
+      color: var(--brand-strong);
+      border-bottom-color: var(--brand);
+    }
+
+    .tab-panel {
+      min-height: 72px;
+      color: #354052;
+      line-height: 1.45;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    details + details {
+      margin-top: 10px;
+    }
+
+    summary {
+      min-height: 42px;
+      padding: 11px 13px;
+      font-weight: 740;
+      cursor: pointer;
+      background: #f8fafc;
+    }
+
+    details p {
+      margin: 0;
+      padding: 12px 13px 14px;
+      color: #455166;
+      line-height: 1.45;
+      border-top: 1px solid var(--line);
+    }
+
+    .upload-zone {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border: 1px dashed #9daabd;
+      border-radius: 8px;
+      background: #fbfcfe;
+    }
+
+    .drop-zone {
+      min-height: 88px;
+      display: grid;
+      place-items: center;
+      padding: 14px;
+      border: 1px dashed #a9b6c8;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .drop-zone.drag-over {
+      border-color: var(--brand);
+      background: #eaf3ff;
+      color: var(--brand-strong);
+    }
+
+    .draggable-token {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      min-height: 34px;
+      padding: 7px 11px;
+      border: 1px solid #bad3ee;
+      border-radius: 999px;
+      background: #e7f1fc;
+      color: var(--brand-strong);
+      font-weight: 750;
+      cursor: grab;
+    }
+
+    .editable {
+      min-height: 74px;
+      padding: 10px 11px;
+      border: 1px solid #cbd3df;
+      border-radius: 7px;
+      background: #ffffff;
+      line-height: 1.45;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    th {
+      color: #354052;
+      background: #f8fafc;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .tag {
+      display: inline-flex;
+      min-height: 24px;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #edf5ff;
+      color: var(--brand-strong);
+      font-size: 0.77rem;
+      font-weight: 760;
+    }
+
+    .tag.warning {
+      background: #fff7e7;
+      color: #8c5a00;
+    }
+
+    .tag.danger {
+      background: #fff0f0;
+      color: var(--danger);
+    }
+
+    .event-log {
+      display: grid;
+      gap: 8px;
+      max-height: 260px;
+      overflow: auto;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0f172a;
+      color: #e5edf8;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
+
+    .event-log div {
+      word-break: break-word;
+    }
+
+    .toast-region {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      display: grid;
+      gap: 8px;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    .toast {
+      width: min(340px, calc(100vw - 36px));
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid #bad3ee;
+      background: #ffffff;
+      color: #243042;
+      box-shadow: 0 12px 30px rgba(17, 24, 39, 0.18);
+      font-size: 0.9rem;
+    }
+
+    dialog {
+      width: min(440px, calc(100vw - 32px));
+      border: 0;
+      border-radius: 9px;
+      padding: 0;
+      box-shadow: 0 24px 60px rgba(17, 24, 39, 0.3);
+    }
+
+    dialog::backdrop {
+      background: rgba(17, 24, 39, 0.52);
+    }
+
+    .dialog-body {
+      padding: 18px;
+    }
+
+    .dialog-body h3 {
+      margin: 0 0 8px;
+      font-size: 1.08rem;
+    }
+
+    .dialog-body p {
+      margin: 0 0 16px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .meter-row {
+      display: grid;
+      gap: 8px;
+    }
+
+    progress,
+    meter {
+      width: 100%;
+      height: 16px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 960px) {
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        position: static;
+        height: auto;
+      }
+
+      nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .panel {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 620px) {
+      main {
+        padding: 18px 14px;
+      }
+
+      aside {
+        padding: 18px 14px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      nav,
+      .field-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .segmented {
+        width: 100%;
+        grid-template-columns: 1fr;
+      }
+
+      .segmented button {
+        border-right: 0;
+        border-bottom: 1px solid #cbd3df;
+      }
+
+      .segmented button:last-child {
+        border-bottom: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside>
+      <div class="brand">
+        <img src="../tools/acira-capture-extension/assets/acira-logo.svg" alt="Acira">
+        <div>
+          <span class="brand-name">Acira Element Lab</span>
+          <span class="brand-subtitle">Chrome extension fixture</span>
+        </div>
+      </div>
+      <nav aria-label="Element sections">
+        <a href="#text-fields" data-acira-testid="nav-text-fields">Text fields <span>12</span></a>
+        <a href="#choice-controls" data-acira-testid="nav-choice-controls">Choices <span>10</span></a>
+        <a href="#buttons-actions" data-acira-testid="nav-buttons-actions">Buttons <span>9</span></a>
+        <a href="#interactive-widgets" data-acira-testid="nav-widgets">Widgets <span>8</span></a>
+        <a href="#data-and-links" data-acira-testid="nav-data-links">Data <span>6</span></a>
+        <a href="#event-output" data-acira-testid="nav-event-log">Event log <span>Live</span></a>
+      </nav>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <div>
+          <h1>Extension interaction test page</h1>
+          <p class="intro">A standalone fixture with common form controls, buttons, links, tabs, dialogs, editable content, upload controls, and state changes for Acira capture testing.</p>
+        </div>
+        <div class="status-pill" role="status" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          Ready to test
+        </div>
+      </div>
+
+      <div class="grid">
+        <section class="panel wide" id="text-fields" aria-labelledby="text-fields-title">
+          <div class="panel-header">
+            <h2 id="text-fields-title">Text, number, date, and file inputs</h2>
+            <p>Each field has a label, an ID, a name, and a data-acira-testid attribute.</p>
+          </div>
+          <div class="panel-body">
+            <form id="profile-form" data-acira-testid="profile-form">
+              <div class="field-grid">
+                <div class="field">
+                  <label for="full-name">Full name</label>
+                  <input id="full-name" name="fullName" data-acira-testid="input-full-name" type="text" autocomplete="name" placeholder="Avery Stone">
+                </div>
+                <div class="field">
+                  <label for="email">Email address</label>
+                  <input id="email" name="email" data-acira-testid="input-email" type="email" autocomplete="email" placeholder="avery@example.com">
+                </div>
+                <div class="field">
+                  <label for="password">Password</label>
+                  <input id="password" name="password" data-acira-testid="input-password" type="password" autocomplete="new-password" placeholder="Enter password">
+                </div>
+                <div class="field">
+                  <label for="phone">Phone number</label>
+                  <input id="phone" name="phone" data-acira-testid="input-phone" type="tel" autocomplete="tel" placeholder="+1 555 0142">
+                </div>
+                <div class="field">
+                  <label for="company-url">Company URL</label>
+                  <input id="company-url" name="companyUrl" data-acira-testid="input-company-url" type="url" placeholder="https://example.com">
+                </div>
+                <div class="field">
+                  <label for="search-query">Search query</label>
+                  <input id="search-query" name="searchQuery" data-acira-testid="input-search-query" type="search" placeholder="Find a control">
+                </div>
+                <div class="field">
+                  <label for="quantity">Seat count</label>
+                  <input id="quantity" name="quantity" data-acira-testid="input-seat-count" type="number" min="1" max="99" step="1" value="4">
+                </div>
+                <div class="field">
+                  <label for="appointment-date">Appointment date</label>
+                  <input id="appointment-date" name="appointmentDate" data-acira-testid="input-date" type="date" value="2026-06-24">
+                </div>
+                <div class="field">
+                  <label for="appointment-time">Appointment time</label>
+                  <input id="appointment-time" name="appointmentTime" data-acira-testid="input-time" type="time" value="14:30">
+                </div>
+                <div class="field">
+                  <label for="theme-color">Theme color</label>
+                  <input id="theme-color" name="themeColor" data-acira-testid="input-color" type="color" value="#0b6bcb">
+                </div>
+                <div class="field full">
+                  <label for="message">Multiline notes</label>
+                  <textarea id="message" name="message" data-acira-testid="textarea-message" placeholder="Type a longer message here."></textarea>
+                </div>
+                <div class="field">
+                  <label for="readonly-token">Readonly token</label>
+                  <input id="readonly-token" name="readonlyToken" data-acira-testid="input-readonly-token" type="text" value="ACIRA-READONLY-001" readonly>
+                </div>
+                <div class="field">
+                  <label for="disabled-input">Disabled field</label>
+                  <input id="disabled-input" name="disabledInput" data-acira-testid="input-disabled" type="text" value="Not editable" disabled>
+                </div>
+                <div class="field full">
+                  <div class="upload-zone">
+                    <label for="document-upload">Upload document</label>
+                    <input id="document-upload" name="documentUpload" data-acira-testid="input-file-upload" type="file" accept=".pdf,.png,.jpg,.jpeg,.txt">
+                    <span class="hint">Accepts PDF, image, and text files for extension file-control detection.</span>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="panel" id="choice-controls" aria-labelledby="choice-controls-title">
+          <div class="panel-header">
+            <h2 id="choice-controls-title">Radio buttons, checkboxes, selects, and toggles</h2>
+            <p>Small controls with different states and grouping patterns.</p>
+          </div>
+          <div class="panel-body">
+            <div class="field-grid">
+              <fieldset class="field full">
+                <legend>Plan type</legend>
+                <div class="choice-list">
+                  <label class="choice" for="plan-free">
+                    <input id="plan-free" name="planType" data-acira-testid="radio-plan-free" type="radio" value="free">
+                    Free
+                  </label>
+                  <label class="choice" for="plan-pro">
+                    <input id="plan-pro" name="planType" data-acira-testid="radio-plan-pro" type="radio" value="pro" checked>
+                    Pro
+                  </label>
+                  <label class="choice" for="plan-enterprise">
+                    <input id="plan-enterprise" name="planType" data-acira-testid="radio-plan-enterprise" type="radio" value="enterprise">
+                    Enterprise
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset class="field full">
+                <legend>Notification channels</legend>
+                <div class="choice-list">
+                  <label class="choice" for="notify-email">
+                    <input id="notify-email" name="notifications" data-acira-testid="checkbox-notify-email" type="checkbox" value="email" checked>
+                    Email
+                  </label>
+                  <label class="choice" for="notify-sms">
+                    <input id="notify-sms" name="notifications" data-acira-testid="checkbox-notify-sms" type="checkbox" value="sms">
+                    SMS
+                  </label>
+                  <label class="choice" for="notify-push">
+                    <input id="notify-push" name="notifications" data-acira-testid="checkbox-notify-push" type="checkbox" value="push">
+                    Push
+                  </label>
+                  <label class="choice" for="notify-disabled">
+                    <input id="notify-disabled" name="notifications" data-acira-testid="checkbox-notify-disabled" type="checkbox" value="disabled" disabled>
+                    Disabled checkbox
+                  </label>
+                </div>
+              </fieldset>
+
+              <div class="field">
+                <label for="country">Country</label>
+                <select id="country" name="country" data-acira-testid="select-country">
+                  <option value="">Choose country</option>
+                  <option value="us">United States</option>
+                  <option value="lb">Lebanon</option>
+                  <option value="gb">United Kingdom</option>
+                  <option value="jp">Japan</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="team-members">Team members</label>
+                <select id="team-members" name="teamMembers" data-acira-testid="select-team-members" multiple size="4">
+                  <option value="mira">Mira</option>
+                  <option value="nolan">Nolan</option>
+                  <option value="sana">Sana</option>
+                  <option value="yousef">Yousef</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="toggle-row">
+              <div class="toggle-copy">
+                <strong>Require approval</strong>
+                <span class="hint">Tests custom switch behavior.</span>
+              </div>
+              <label class="switch" for="approval-toggle">
+                <input id="approval-toggle" name="approvalToggle" data-acira-testid="toggle-require-approval" type="checkbox" checked>
+                <span class="slider" aria-hidden="true"></span>
+                <span class="sr-only">Require approval</span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-copy">
+                <strong>Silent mode</strong>
+                <span class="hint">A second switch starts off.</span>
+              </div>
+              <label class="switch" for="silent-mode-toggle">
+                <input id="silent-mode-toggle" name="silentModeToggle" data-acira-testid="toggle-silent-mode" type="checkbox">
+                <span class="slider" aria-hidden="true"></span>
+                <span class="sr-only">Silent mode</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="buttons-actions" aria-labelledby="buttons-actions-title">
+          <div class="panel-header">
+            <h2 id="buttons-actions-title">Buttons and action targets</h2>
+            <p>Primary, secondary, destructive, disabled, icon-like, reset, and submit actions.</p>
+          </div>
+          <div class="panel-body">
+            <div class="button-row">
+              <button class="button primary" id="save-button" data-acira-testid="button-save" type="button">Save changes</button>
+              <button class="button" id="preview-button" data-acira-testid="button-preview" type="button">Preview</button>
+              <button class="button danger" id="delete-button" data-acira-testid="button-delete" type="button">Delete workspace</button>
+              <button class="button" id="open-dialog-button" data-acira-testid="button-open-dialog" type="button">Open dialog</button>
+              <button class="button" id="copy-button" data-acira-testid="button-copy" type="button">Copy token</button>
+              <button class="button" id="reset-button" data-acira-testid="button-reset" type="reset" form="profile-form">Reset form</button>
+              <button class="button" id="submit-button" data-acira-testid="button-submit" type="submit" form="profile-form">Submit form</button>
+              <button class="button" id="disabled-button" data-acira-testid="button-disabled" type="button" disabled>Disabled button</button>
+              <button class="button" id="tiny-icon-button" data-acira-testid="button-icon-only" type="button" aria-label="Refresh activity">Refresh</button>
+            </div>
+
+            <div class="field" style="margin-top: 18px;">
+              <span class="control-label">Segmented control</span>
+              <div class="segmented" role="group" aria-label="Priority">
+                <button type="button" data-acira-testid="segment-low" aria-pressed="false">Low</button>
+                <button type="button" data-acira-testid="segment-normal" aria-pressed="true">Normal</button>
+                <button type="button" data-acira-testid="segment-high" aria-pressed="false">High</button>
+              </div>
+            </div>
+
+            <div class="field" style="margin-top: 18px;">
+              <label for="confidence-range">Confidence threshold: <output id="confidence-output" for="confidence-range">72</output>%</label>
+              <input id="confidence-range" name="confidenceRange" data-acira-testid="slider-confidence" type="range" min="0" max="100" step="1" value="72">
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="interactive-widgets" aria-labelledby="interactive-widgets-title">
+          <div class="panel-header">
+            <h2 id="interactive-widgets-title">Tabs, accordion, dialog, editable text, and drag target</h2>
+            <p>Useful for extension overlays and dynamic DOM behavior.</p>
+          </div>
+          <div class="panel-body">
+            <div class="tabs" role="tablist" aria-label="Test tabs">
+              <button class="tab" id="tab-overview" role="tab" aria-selected="true" aria-controls="panel-overview" data-acira-testid="tab-overview" type="button">Overview</button>
+              <button class="tab" id="tab-policy" role="tab" aria-selected="false" aria-controls="panel-policy" data-acira-testid="tab-policy" type="button">Policy</button>
+              <button class="tab" id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history" data-acira-testid="tab-history" type="button">History</button>
+            </div>
+            <div id="panel-overview" class="tab-panel" role="tabpanel" aria-labelledby="tab-overview">Overview panel content with a <a href="#data-and-links" data-acira-testid="link-inline-data">jump link</a> inside the active tab.</div>
+            <div id="panel-policy" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-policy">Policy panel content. Use this to test tab selection and hidden content.</div>
+            <div id="panel-history" class="tab-panel hidden" role="tabpanel" aria-labelledby="tab-history">History panel content. This appears only after selecting the History tab.</div>
+
+            <div style="margin-top: 16px;">
+              <details data-acira-testid="details-basic">
+                <summary>Expandable details section</summary>
+                <p>This native details element is useful for testing disclosure controls and summary clicks.</p>
+              </details>
+              <details data-acira-testid="details-second">
+                <summary>Another collapsed section</summary>
+                <p>This section starts collapsed and has a separate target fingerprint.</p>
+              </details>
+            </div>
+
+            <div class="field" style="margin-top: 16px;">
+              <label for="editable-notes">Editable content area</label>
+              <div id="editable-notes" class="editable" data-acira-testid="contenteditable-notes" contenteditable="true" role="textbox" aria-multiline="true">Edit this rich text style area.</div>
+            </div>
+
+            <div class="field" style="margin-top: 16px;">
+              <span class="control-label">Drag and drop</span>
+              <span id="draggable-token" class="draggable-token" data-acira-testid="draggable-token" draggable="true">Drag me</span>
+              <div id="drop-zone" class="drop-zone" data-acira-testid="drop-zone">Drop token here</div>
+            </div>
+
+            <div class="meter-row" style="margin-top: 16px;">
+              <label for="progress-demo">Progress</label>
+              <progress id="progress-demo" data-acira-testid="progress-demo" value="42" max="100">42%</progress>
+              <label for="meter-demo">Risk meter</label>
+              <meter id="meter-demo" data-acira-testid="meter-demo" min="0" low="35" high="75" optimum="20" max="100" value="58">58</meter>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="data-and-links" aria-labelledby="data-links-title">
+          <div class="panel-header">
+            <h2 id="data-links-title">Links, menu, table, and selection targets</h2>
+            <p>Mixed clickable content and repeated row actions.</p>
+          </div>
+          <div class="panel-body">
+            <div class="button-row" style="margin-bottom: 16px;">
+              <a href="#text-fields" data-acira-testid="link-back-to-fields">Back to fields</a>
+              <a href="https://example.com/" target="_blank" rel="noreferrer" data-acira-testid="link-external-example">External example</a>
+              <button class="button" id="menu-button" type="button" data-acira-testid="button-menu" aria-haspopup="menu" aria-expanded="false">Open menu</button>
+            </div>
+
+            <div id="menu-popover" role="menu" class="hidden" aria-label="Action menu">
+              <button class="button" role="menuitem" type="button" data-acira-testid="menuitem-archive">Archive</button>
+              <button class="button" role="menuitem" type="button" data-acira-testid="menuitem-share">Share</button>
+              <button class="button danger" role="menuitem" type="button" data-acira-testid="menuitem-remove">Remove</button>
+            </div>
+
+            <div style="overflow-x: auto; margin-top: 12px;">
+              <table aria-label="Sample records" data-acira-testid="table-records">
+                <thead>
+                  <tr>
+                    <th scope="col">Record</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Owner</th>
+                    <th scope="col">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Checkout capture</td>
+                    <td><span class="tag">Ready</span></td>
+                    <td>QA Team</td>
+                    <td><button class="button" type="button" data-acira-testid="row-action-checkout">Open</button></td>
+                  </tr>
+                  <tr>
+                    <td>Danger button block</td>
+                    <td><span class="tag warning">Review</span></td>
+                    <td>Policy Team</td>
+                    <td><button class="button" type="button" data-acira-testid="row-action-danger">Review</button></td>
+                  </tr>
+                  <tr>
+                    <td>Delete account</td>
+                    <td><span class="tag danger">Blocked</span></td>
+                    <td>Security Team</td>
+                    <td><button class="button danger" type="button" data-acira-testid="row-action-delete">Delete</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel wide" id="event-output" aria-labelledby="event-output-title">
+          <div class="panel-header">
+            <h2 id="event-output-title">Live event output</h2>
+            <p>Recent clicks, input changes, form submits, tab switches, and drag events appear here.</p>
+          </div>
+          <div class="panel-body">
+            <div class="button-row" style="margin-bottom: 12px;">
+              <button class="button" id="clear-log-button" type="button" data-acira-testid="button-clear-log">Clear log</button>
+              <button class="button" id="add-dynamic-button" type="button" data-acira-testid="button-add-dynamic">Add dynamic button</button>
+            </div>
+            <div id="dynamic-area" class="button-row" style="margin-bottom: 12px;" aria-live="polite"></div>
+            <div id="event-log" class="event-log" data-acira-testid="event-log" role="log" aria-live="polite"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="confirm-dialog" data-acira-testid="dialog-confirm">
+    <div class="dialog-body">
+      <h3>Confirm test action</h3>
+      <p>This modal dialog tests focus handling, overlays, cancel actions, and confirm actions.</p>
+      <div class="button-row">
+        <button class="button primary" id="dialog-confirm-button" data-acira-testid="dialog-confirm-button" type="button">Confirm</button>
+        <button class="button" id="dialog-cancel-button" data-acira-testid="dialog-cancel-button" type="button">Cancel</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    const log = document.getElementById("event-log");
+    const toastRegion = document.getElementById("toast-region");
+    const form = document.getElementById("profile-form");
+    const confidenceRange = document.getElementById("confidence-range");
+    const confidenceOutput = document.getElementById("confidence-output");
+    const dialog = document.getElementById("confirm-dialog");
+    const menuButton = document.getElementById("menu-button");
+    const menuPopover = document.getElementById("menu-popover");
+    const dropZone = document.getElementById("drop-zone");
+    const draggableToken = document.getElementById("draggable-token");
+    const dynamicArea = document.getElementById("dynamic-area");
+
+    function now() {
+      return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    function describeElement(element) {
+      if (!element) return "unknown";
+      const testId = element.getAttribute("data-acira-testid");
+      const id = element.id ? "#" + element.id : "";
+      const label = element.getAttribute("aria-label") || element.textContent.trim().replace(/\s+/g, " ").slice(0, 48);
+      return testId || id || label || element.tagName.toLowerCase();
+    }
+
+    function addLog(message) {
+      const item = document.createElement("div");
+      item.textContent = "[" + now() + "] " + message;
+      log.prepend(item);
+    }
+
+    function showToast(message) {
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      toast.textContent = message;
+      toastRegion.appendChild(toast);
+      window.setTimeout(() => toast.remove(), 2600);
+    }
+
+    document.addEventListener("click", (event) => {
+      const target = event.target.closest("button, a, summary, [role='button'], [role='menuitem']");
+      if (!target) return;
+      addLog("click: " + describeElement(target));
+    });
+
+    document.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return;
+      const value = target.type === "checkbox" || target.type === "radio" ? target.checked : target.value;
+      addLog("change: " + describeElement(target) + " = " + value);
+    });
+
+    document.addEventListener("input", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+      if (target.type === "range") {
+        confidenceOutput.value = target.value;
+      }
+      addLog("input: " + describeElement(target) + " = " + target.value);
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      addLog("submit: profile-form");
+      showToast("Profile form submitted");
+    });
+
+    document.getElementById("save-button").addEventListener("click", () => showToast("Saved test changes"));
+    document.getElementById("preview-button").addEventListener("click", () => showToast("Preview action triggered"));
+    document.getElementById("delete-button").addEventListener("click", () => showToast("Delete action clicked"));
+    document.getElementById("copy-button").addEventListener("click", async () => {
+      const text = document.getElementById("readonly-token").value;
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast("Copied token to clipboard");
+      } catch {
+        showToast("Copy attempted: " + text);
+      }
+    });
+    document.getElementById("tiny-icon-button").addEventListener("click", () => showToast("Activity refreshed"));
+
+    document.getElementById("open-dialog-button").addEventListener("click", () => {
+      if (typeof dialog.showModal === "function") {
+        dialog.showModal();
+      } else {
+        dialog.setAttribute("open", "");
+      }
+    });
+    document.getElementById("dialog-confirm-button").addEventListener("click", () => {
+      addLog("dialog: confirm");
+      showToast("Dialog confirmed");
+      dialog.close();
+    });
+    document.getElementById("dialog-cancel-button").addEventListener("click", () => {
+      addLog("dialog: cancel");
+      dialog.close();
+    });
+
+    document.querySelectorAll(".segmented button").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".segmented button").forEach((item) => item.setAttribute("aria-pressed", "false"));
+        button.setAttribute("aria-pressed", "true");
+        addLog("segment: " + button.textContent.trim());
+      });
+    });
+
+    document.querySelectorAll("[role='tab']").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll("[role='tab']").forEach((item) => item.setAttribute("aria-selected", "false"));
+        document.querySelectorAll("[role='tabpanel']").forEach((panel) => panel.classList.add("hidden"));
+        tab.setAttribute("aria-selected", "true");
+        document.getElementById(tab.getAttribute("aria-controls")).classList.remove("hidden");
+        addLog("tab: " + tab.textContent.trim());
+      });
+    });
+
+    menuButton.addEventListener("click", () => {
+      const expanded = menuButton.getAttribute("aria-expanded") === "true";
+      menuButton.setAttribute("aria-expanded", String(!expanded));
+      menuPopover.classList.toggle("hidden", expanded);
+    });
+
+    document.getElementById("clear-log-button").addEventListener("click", () => {
+      log.innerHTML = "";
+      addLog("log cleared");
+    });
+
+    document.getElementById("add-dynamic-button").addEventListener("click", () => {
+      const number = dynamicArea.children.length + 1;
+      const button = document.createElement("button");
+      button.className = "button";
+      button.type = "button";
+      button.id = "dynamic-button-" + number;
+      button.setAttribute("data-acira-testid", "button-dynamic-" + number);
+      button.textContent = "Dynamic button " + number;
+      button.addEventListener("click", () => showToast("Dynamic button " + number + " clicked"));
+      dynamicArea.appendChild(button);
+      addLog("dynamic: created button " + number);
+    });
+
+    draggableToken.addEventListener("dragstart", (event) => {
+      event.dataTransfer.setData("text/plain", "Acira draggable token");
+      addLog("dragstart: draggable-token");
+    });
+
+    dropZone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      dropZone.classList.add("drag-over");
+    });
+
+    dropZone.addEventListener("dragleave", () => {
+      dropZone.classList.remove("drag-over");
+    });
+
+    dropZone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      dropZone.classList.remove("drag-over");
+      dropZone.textContent = "Dropped: " + event.dataTransfer.getData("text/plain");
+      addLog("drop: drop-zone");
+    });
+
+    document.querySelectorAll("input, select, textarea, button, a, summary, [contenteditable='true']").forEach((element) => {
+      element.addEventListener("focus", () => addLog("focus: " + describeElement(element)));
+    });
+
+    addLog("page ready");
+  </script>
+</body>
+</html>

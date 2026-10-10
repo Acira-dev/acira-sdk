@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Acira · Local workspace</title>
+    <link rel="icon" href="/assets/acira-mark.png" />
+    <link rel="stylesheet" href="/assets/workspace.css" />
+    <script src="/assets/workspace.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#content">Skip to content</a>
+    <aside>
+      <a class="brand" href="/"
+        ><img src="/assets/acira-mark.png" alt="" /><strong>Acira</strong
+        ><span>LOCAL</span></a
+      >
+      <nav aria-label="Workspace">
+        <button type="button" data-view="Agents" aria-current="page">
+          Agents
+        </button>
+        <button type="button" data-view="Approvals">
+          Approvals <span id="review-count"></span>
+        </button>
+        <button type="button" data-view="Policies">Policies</button>
+        <button type="button" data-view="Activity">Activity</button>
+        <button type="button" data-view="Backtesting">Backtesting</button>
+        <button type="button" data-view="Settings">Settings</button>
+      </nav>
+      <div class="sidebar-note">
+        <span class="dot"></span> Your computer<br /><small
+          >Policies stay in your projects.<br />Enforcement stays in your
+          agents.</small
+        >
+      </div>
+    </aside>
+    <div class="workspace">
+      <header>
+        <div>
+          <span class="eyebrow">LOCAL WORKSPACE</span>
+          <h1 id="page-title">Agents</h1>
+        </div>
+        <div class="scope">
+          <label
+            >Project<select id="project" aria-label="Project"></select></label
+          ><label>Agent<select id="agent" aria-label="Agent"></select></label
+          ><button id="refresh" type="button">Refresh</button>
+        </div>
+      </header>
+      <div id="notice" role="status" aria-live="polite" hidden></div>
+      <main id="content" tabindex="-1">
+        <div class="empty">Connecting to your local workspace…</div>
+      </main>
+      <footer>
+        Local policies · Human review · Action history
+        <span id="connection">Connecting</span>
+      </footer>
+    </div>
+    <dialog id="dialog" aria-labelledby="dialog-title">
+      <div class="dialog-heading">
+        <h2 id="dialog-title"></h2>
+        <button type="button" id="dialog-close" aria-label="Close dialog">
+          Close
+        </button>
+      </div>
+      <div id="dialog-content"></div>
+    </dialog>
+  </body>
+</html>

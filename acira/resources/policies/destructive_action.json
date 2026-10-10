@@ -1,0 +1,312 @@
+{
+  "schema": "acira.general_skill.v3",
+  "id": "acira.general.destructive_action",
+  "name": "Destructive Action Protection",
+  "version": 2,
+  "requires": ["page", "target", "form", "action"],
+  "risks": [
+    {
+      "id": "destructive.controls_present",
+      "context": "page",
+      "severity": "high",
+      "description": "Acira detected destructive controls on this page.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "page_preflight",
+          "destructive_controls_on_page"
+        ],
+        "reason": "Acira detected destructive controls on this page."
+      }
+    },
+    {
+      "id": "destructive.action_attempt",
+      "context": "action",
+      "severity": "high",
+      "description": "Acira detected a destructive action such as delete, revoke, reset, deactivate, or cancel.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "destructive_action"
+        ],
+        "reason": "Acira detected a destructive action such as delete, revoke, reset, deactivate, or cancel."
+      }
+    }
+  ],
+  "lexicons": {
+    "destructive_action": ["archive", "cancel", "deactivate", "delete", "destroy", "disable", "erase", "purge", "remove", "reset", "revoke", "suspend", "terminate", "wipe"],
+    "destructive_action_non_archive": ["cancel", "deactivate", "delete", "destroy", "disable", "erase", "purge", "remove", "reset", "revoke", "suspend", "terminate", "wipe"],
+    "destructive_context": ["account", "cancellation", "clearance", "danger", "dangerous", "deactivation", "deletion", "lifecycle", "removal", "subscription", "suspension", "termination"],
+    "generic_confirm": ["apply", "confirm", "ok", "proceed", "yes"],
+    "dismiss_or_navigation": ["back", "close", "dismiss", "return"],
+    "cancel_dismiss_context": ["dialog", "drawer", "modal", "panel", "popover", "toast", "wizard"],
+    "filter_or_view": ["chart", "columns", "dialog", "display", "filter", "filters", "graph", "layout", "panel", "popover", "search", "sort", "table", "view", "views", "widget"],
+    "safe_preview": ["example", "guide", "history", "impact", "log", "logs", "notice", "preview", "read", "readonly", "sample", "template", "view"],
+    "archive_export_context": ["audit", "customer", "customers", "data", "dataset", "download", "export", "ledger", "report"],
+    "archive_export_control_context": ["audit", "data", "dataset", "download", "export", "extract", "ledger", "report"]
+  },
+  "rules": {
+    "page_preflight": {
+      "equals": { "path": "action.action", "value": "page_preflight" }
+    },
+    "mutating_action": {
+      "in": {
+        "path": "action.action",
+        "values": ["click", "submit", "form_control_activation", "dom_mutation"]
+      }
+    },
+    "direct_destructive_target": {
+      "token_match": {
+        "paths": ["target.identity_tokens"],
+        "lexicon": "destructive_action",
+        "min_matches": 1,
+        "confidence": 0.8
+      }
+    },
+    "generic_confirm_target": {
+      "token_match": {
+        "paths": ["target.identity_tokens"],
+        "lexicon": "generic_confirm",
+        "min_matches": 1,
+        "confidence": 0.62
+      }
+    },
+    "destructive_context": {
+      "token_match": {
+        "paths": ["target.nearby_tokens", "target.section_tokens", "target.form_tokens", "form.tokens"],
+        "lexicon": ["destructive_action", "destructive_context"],
+        "min_matches": 1,
+        "confidence": 0.76
+      }
+    },
+    "dismiss_or_navigation_target": {
+      "any": [
+        {
+          "token_match": {
+            "paths": ["target.identity_tokens"],
+            "lexicon": "dismiss_or_navigation",
+            "min_matches": 1,
+            "confidence": 0.86
+          }
+        },
+        {
+          "all": [
+            {
+              "token_match": {
+                "paths": ["target.identity_tokens"],
+                "tokens": ["cancel"],
+                "min_matches": 1,
+                "confidence": 0.76
+              }
+            },
+            {
+              "token_match": {
+                "paths": ["target.identity_tokens", "target.nearby_tokens", "target.section_tokens", "target.form_tokens"],
+                "lexicon": "cancel_dismiss_context",
+                "min_matches": 1,
+                "confidence": 0.76
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "filter_or_view_reset_target": {
+      "all": [
+        {
+          "token_match": {
+            "paths": ["target.identity_tokens"],
+            "tokens": ["reset", "remove", "clear"],
+            "min_matches": 1,
+            "confidence": 0.78
+          }
+        },
+        {
+          "token_match": {
+            "paths": ["target.identity_tokens"],
+            "lexicon": "filter_or_view",
+            "min_matches": 1,
+            "confidence": 0.78
+          }
+        }
+      ]
+    },
+    "archive_export_decoy": {
+      "all": [
+        {
+          "token_match": {
+            "paths": ["target.identity_tokens"],
+            "tokens": ["archive"],
+            "min_matches": 1,
+            "confidence": 0.78
+          }
+        },
+        {
+          "token_match": {
+            "paths": ["target.identity_tokens", "target.nearby_tokens", "target.section_tokens", "target.form_tokens"],
+            "lexicon": "archive_export_context",
+            "min_matches": 1,
+            "confidence": 0.74
+          }
+        },
+        {
+          "not": {
+            "token_match": {
+              "paths": ["target.nearby_tokens", "target.section_tokens", "target.form_tokens"],
+              "lexicon": "destructive_context",
+              "min_matches": 1,
+              "confidence": 0.74
+            }
+          }
+        }
+      ]
+    },
+    "safe_preview_target": {
+      "token_match": {
+        "paths": ["target.identity_tokens"],
+        "lexicon": "safe_preview",
+        "min_matches": 1,
+        "confidence": 0.84
+      }
+    },
+    "safe_destructive_decoy": {
+      "any": [
+        { "rule": "filter_or_view_reset_target" },
+        { "rule": "archive_export_decoy" },
+        { "rule": "safe_preview_target" }
+      ]
+    },
+    "destructive_action": {
+      "all": [
+        { "rule": "mutating_action" },
+        {
+          "any": [
+            { "rule": "direct_destructive_target" },
+            {
+              "all": [
+                { "rule": "generic_confirm_target" },
+                { "rule": "destructive_context" }
+              ]
+            }
+          ]
+        },
+        { "not": { "rule": "dismiss_or_navigation_target" } },
+        { "not": { "rule": "safe_destructive_decoy" } }
+      ]
+    },
+    "destructive_direct_controls_on_page": {
+      "any_where": {
+        "path": "page.controls",
+        "where": {
+          "all": [
+            { "equals": { "path": "is_button", "value": true } },
+            { "equals": { "path": "is_disabled", "value": false } },
+            { "equals": { "path": "is_hidden", "value": false } },
+            {
+              "token_match": {
+                "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                "lexicon": "destructive_action_non_archive",
+                "min_matches": 1,
+                "confidence": 0.82
+              }
+            },
+            {
+              "not": {
+                "token_match": {
+                  "paths": ["identity_tokens"],
+                  "lexicon": ["dismiss_or_navigation", "filter_or_view"],
+                  "min_matches": 1
+                }
+              }
+            }
+          ]
+        },
+        "confidence": 0.82
+      }
+    },
+    "destructive_archive_controls_on_page": {
+      "any_where": {
+        "path": "page.controls",
+        "where": {
+          "all": [
+            { "equals": { "path": "is_button", "value": true } },
+            { "equals": { "path": "is_disabled", "value": false } },
+            { "equals": { "path": "is_hidden", "value": false } },
+            {
+              "token_match": {
+                "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                "tokens": ["archive"],
+                "min_matches": 1
+              }
+            },
+            {
+              "token_match": {
+                "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                "lexicon": "destructive_context",
+                "min_matches": 1
+              }
+            },
+            {
+              "not": {
+                "token_match": {
+                  "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                  "lexicon": ["dismiss_or_navigation", "filter_or_view", "archive_export_control_context"],
+                  "min_matches": 1
+                }
+              }
+            }
+          ]
+        },
+        "confidence": 0.82
+      }
+    },
+    "confirm_destructive_controls_on_page": {
+      "any_where": {
+        "path": "page.controls",
+        "where": {
+          "all": [
+            { "equals": { "path": "is_button", "value": true } },
+            { "equals": { "path": "is_disabled", "value": false } },
+            { "equals": { "path": "is_hidden", "value": false } },
+            {
+              "token_match": {
+                "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                "lexicon": "generic_confirm",
+                "min_matches": 1
+              }
+            },
+            {
+              "token_match": {
+                "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                "lexicon": ["destructive_action", "destructive_context"],
+                "min_matches": 1
+              }
+            },
+            {
+              "not": {
+                "token_match": {
+                  "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                  "lexicon": "filter_or_view",
+                  "min_matches": 1
+                }
+              }
+            }
+          ]
+        },
+        "confidence": 0.78
+      }
+    },
+    "destructive_controls_on_page": {
+      "any": [
+        { "rule": "destructive_direct_controls_on_page" },
+        { "rule": "destructive_archive_controls_on_page" },
+        { "rule": "confirm_destructive_controls_on_page" }
+      ]
+    }
+  }}

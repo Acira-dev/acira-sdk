@@ -1,0 +1,84 @@
+{
+  "schema": "acira.config.v1",
+  "name": "Acira Production Guard with Dashboard",
+  "agent_name": "acira-production-guard",
+  "enabled": true,
+  "dashboard": {
+    "connect": true,
+    "review_timeout_seconds": 3600
+  },
+  "terminal_review": true,
+  "terminal_log": true,
+  "terminal_log_read_only": false,
+  "default_review_decision": "block",
+  "probe_timeout": 1.0,
+  "runtime_js": {
+    "mode": "hybrid_strict",
+    "unknown": "ask",
+    "log_snippet_chars": 180
+  },
+  "hitl_freeze_mode": "strict",
+  "adapters": {
+    "browser_use": {
+      "enabled": true,
+      "trusted_helpers": [
+        "overlay",
+        "setup_overlay"
+      ],
+      "hitl_freeze_mode": "strict"
+    }
+  },
+  "blocked_retry_policy": {
+    "same_target_limit": 2,
+    "on_exceed": "compact_block"
+  },
+  "general_skill_preflight": {
+    "enabled": true,
+    "quiet_ms": 750,
+    "max_wait_ms": 5000,
+    "on_error": "block_mutating_until_action_probe"
+  },
+  "agent_js": {
+    "block_arbitrary": true
+  },
+  "specific_skills": [],
+  "general_skills": {
+    "acira.general.checkout": {
+      "path": "../skills/general/checkout.json",
+      "risks": {
+        "checkout.page_detected": "allow",
+        "checkout.payment_flow_detected": "allow",
+        "checkout.payment_fields_present": "allow",
+        "checkout.payment_submit_present": "allow",
+        "checkout.card_data_entry": "ask",
+        "checkout.card_expiry_entry": "ask",
+        "checkout.card_cvv_entry": "ask",
+        "checkout.cardholder_name_entry": "ask",
+        "checkout.payment_form_input": "allow",
+        "checkout.payment_submit_attempt": "ask"
+      }
+    },
+    "acira.general.credential_sensitive_input": {
+      "path": "../skills/general/credential_sensitive_input.json",
+      "risks": {
+        "credential.sensitive_fields_present": "allow",
+        "credential.sensitive_input_entry": "ask"
+      }
+    },
+    "acira.general.destructive_action": {
+      "path": "../skills/general/destructive_action.json",
+      "risks": {
+        "destructive.controls_present": "allow",
+        "destructive.action_attempt": "block"
+      }
+    },
+    "acira.general.download_export": {
+      "path": "../skills/general/download_export.json",
+      "risks": {
+        "download.export_controls_present": "allow",
+        "download.export_attempt": "ask"
+      }
+    }
+  },
+  "audit": { "mode": "volatile" }
+}

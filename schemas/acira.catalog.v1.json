@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Acira policy catalog",
+  "type": "object",
+  "required": [
+    "schema",
+    "policies"
+  ],
+  "properties": {
+    "schema": {
+      "const": "acira.catalog.v1"
+    },
+    "policies": {
+      "type": "object",
+      "maxProperties": 1000,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "url",
+          "sha256"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "pattern": "^https://"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

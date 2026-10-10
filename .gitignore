@@ -1,0 +1,52 @@
+# Python environment and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest_tmp/
+
+# Packaging / editable-install artifacts
+*.egg-info/
+build/
+dist/
+
+# Acira project-local dashboard discovery (contains a loopback auth token)
+.acira/
+
+# browser-use local state
+.browser-use/
+.browser-use-smoke/
+
+# Acira runtime output
+local-runtime/
+runtime/
+logs/
+*.log
+cdp_logs.txt
+Store.txt
+
+# Local secrets
+*.secrets.local.json
+*.secrets.private.json
+acira.secrets.json
+
+# Per-project secret values (plaintext .env files — never commit)
+*.secrets.env
+
+# Editor and OS metadata
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local environment secrets
+.env
+.env.*
+!.env.example
+
+# Local AI-agent workspaces and per-machine permissions
+.agents/
+.claude/settings.local.json
+.codex-scratch/
+.codex-temp/

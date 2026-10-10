@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Acira local project",
+  "type": "object",
+  "required": [
+    "schema",
+    "name",
+    "agents"
+  ],
+  "properties": {
+    "schema": {
+      "const": "acira.project.v1"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "dashboard": {
+      "type": "object",
+      "properties": {
+        "connect": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "agents": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "adapter",
+          "policies"
+        ],
+        "properties": {
+          "adapter": {
+            "enum": [
+              "playwright",
+              "browser_use"
+            ]
+          },
+          "policies": {
+            "type": "object",
+            "required": [
+              "general",
+              "specific"
+            ],
+            "properties": {
+              "general": {
+                "type": "string",
+                "minLength": 1
+              },
+              "specific": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "guard": {
+            "type": "object"
+          },
+          "disabled_policies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "decisions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "enum": [
+                  "allow",
+                  "ask",
+                  "block"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "properties": {
+        "audit_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650
+        },
+        "image_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650
+        },
+        "audit_bytes": {
+          "type": "integer",
+          "minimum": 1048576,
+          "maximum": 107374182400
+        },
+        "image_bytes": {
+          "type": "integer",
+          "minimum": 1048576,
+          "maximum": 107374182400
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,636 @@
+{
+  "schema": "acira.general_skill.v3",
+  "id": "acira.general.checkout",
+  "name": "Checkout And Payment Protection",
+  "version": 2,
+  "requires": ["page", "target", "form", "action", "value"],
+  "risks": [
+    {
+      "id": "checkout.page_detected",
+      "context": "page",
+      "severity": "medium",
+      "description": "Acira detected a checkout or payment-like page.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "page_preflight",
+          "checkout_preflight"
+        ],
+        "reason": "Acira detected a checkout or payment-like page."
+      }
+    },
+    {
+      "id": "checkout.payment_flow_detected",
+      "context": "page",
+      "severity": "medium",
+      "description": "Acira detected a checkout or payment-like flow.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "page_preflight",
+          "checkout_preflight"
+        ],
+        "reason": "Acira detected a checkout or payment-like flow."
+      }
+    },
+    {
+      "id": "checkout.payment_fields_present",
+      "context": "page",
+      "severity": "high",
+      "description": "Acira detected payment-card-like fields on this page.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "page_preflight",
+          "payment_fields_on_page"
+        ],
+        "reason": "Acira detected payment-card-like fields on this page."
+      }
+    },
+    {
+      "id": "checkout.payment_submit_present",
+      "context": "page",
+      "severity": "high",
+      "description": "Acira detected payment or order submit controls on this page.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "page_preflight",
+          "payment_submit_on_page"
+        ],
+        "reason": "Acira detected payment or order submit controls on this page."
+      }
+    },
+    {
+      "id": "checkout.card_data_entry",
+      "context": "action",
+      "severity": "high",
+      "description": "Acira detected card-like data entry on a checkout or payment-like page.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "checkout_page",
+          "form_input_action",
+          "card_field"
+        ],
+        "suppress_when": [
+          "safe_preview",
+          "payment_field_decoy"
+        ],
+        "confidence_from": "card_field",
+        "reason": "Acira detected card-like data entry on a checkout or payment-like page."
+      }
+    },
+    {
+      "id": "checkout.card_expiry_entry",
+      "context": "action",
+      "severity": "high",
+      "description": "Acira detected payment card expiry entry on a checkout or payment-like page.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "checkout_page",
+          "field_interaction_action",
+          "expiry_field"
+        ],
+        "suppress_when": [
+          "safe_preview",
+          "payment_field_decoy"
+        ],
+        "confidence_from": "expiry_field",
+        "reason": "Acira detected payment card expiry entry on a checkout or payment-like page."
+      }
+    },
+    {
+      "id": "checkout.card_cvv_entry",
+      "context": "action",
+      "severity": "high",
+      "description": "Acira detected payment card security-code entry on a checkout or payment-like page.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "checkout_page",
+          "form_input_action",
+          "cvv_field"
+        ],
+        "suppress_when": [
+          "safe_preview",
+          "payment_field_decoy"
+        ],
+        "confidence_from": "cvv_field",
+        "reason": "Acira detected payment card security-code entry on a checkout or payment-like page."
+      }
+    },
+    {
+      "id": "checkout.cardholder_name_entry",
+      "context": "action",
+      "severity": "medium",
+      "description": "Acira detected cardholder name entry on a checkout or payment-like page.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "checkout_page",
+          "form_input_action",
+          "cardholder_name_field"
+        ],
+        "suppress_when": [
+          "safe_preview",
+          "payment_field_decoy"
+        ],
+        "confidence_from": "cardholder_name_field",
+        "reason": "Acira detected cardholder name entry on a checkout or payment-like page."
+      }
+    },
+    {
+      "id": "checkout.payment_form_input",
+      "context": "action",
+      "severity": "medium",
+      "description": "Acira detected text entry into a payment form on a checkout or payment-like page.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "checkout_page",
+          "field_interaction_action",
+          "payment_form_input"
+        ],
+        "suppress_when": [
+          "safe_preview",
+          "payment_field_decoy"
+        ],
+        "confidence_from": "payment_form_input",
+        "reason": "Acira detected text entry into a payment form on a checkout or payment-like page."
+      }
+    },
+    {
+      "id": "checkout.payment_submit_attempt",
+      "context": "action",
+      "severity": "high",
+      "description": "Acira detected a payment or checkout submit action.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "checkout_page",
+          "payment_submit"
+        ],
+        "suppress_when": [
+          "safe_preview"
+        ],
+        "confidence_from": "payment_submit",
+        "reason": "Acira detected a payment or checkout submit action."
+      }
+    }
+  ],
+  "lexicons": {
+    "checkout_context": ["billing", "cart", "checkout", "funding", "funds", "instrument", "order", "pay", "payment", "purchase", "settlement", "shipping", "total"],
+    "card_field": ["card", "cardnumber", "cc", "credit", "debit", "pan"],
+    "cvv_field": ["cvv", "cvc"],
+    "security_code": ["security", "code"],
+    "expiry_field": ["exp", "expiry", "expiration", "month", "year"],
+    "cardholder_name": ["cardholder", "holder", "name"],
+    "payment_action": ["authorize", "buy", "capture", "checkout", "complete", "funding", "funds", "order", "pay", "payment", "place", "purchase", "settlement"],
+    "generic_commit": ["approve", "commit", "confirm", "continue", "done", "finalize", "finish", "go", "next", "submit"],
+    "explicit_value_decoy": ["coupon", "discount", "gift", "loyalty", "promo", "voucher"],
+    "payment_field_negative": ["2fa", "api", "authentication", "coupon", "credential", "gift", "invoice", "key", "last", "last4", "lastfour", "login", "lookup", "loyalty", "masked", "mfa", "one", "otp", "passcode", "password", "promo", "receipt", "search", "secret", "stored", "time", "token", "value", "voucher"],
+    "safe_preview": ["estimate", "example", "guide", "help", "preview", "projection", "quote", "sample", "template", "view"],
+    "non_transactional_page": ["disabled", "docs", "documentation", "estimate", "example", "guide", "help", "invoice", "lookup", "preview", "projection", "quote", "receipt", "sample", "search", "template", "training", "unavailable"]
+  },
+  "rules": {
+    "page_preflight": {
+      "equals": { "path": "action.action", "value": "page_preflight" }
+    },
+    "form_input_action": {
+      "equals": { "path": "action.action", "value": "form_input" }
+    },
+    "field_interaction_action": {
+      "in": { "path": "action.action", "values": ["form_input", "select"] }
+    },
+    "click_or_submit_action": {
+      "in": { "path": "action.action", "values": ["click", "submit", "form_control_activation"] }
+    },
+    "checkout_context": {
+      "all": [
+        {
+          "token_match": {
+            "paths": ["page.title_tokens", "page.control_tokens", "form.tokens", "target.section_tokens", "target.form_tokens", "target.nearby_tokens"],
+            "lexicon": "checkout_context",
+            "min_matches": 2,
+            "confidence": 0.74
+          }
+        },
+        { "not": { "rule": "non_transactional_page_context" } }
+      ]
+    },
+    "active_payment_area": {
+      "any": [
+        { "rule": "payment_fields_on_page" },
+        { "rule": "payment_submit_on_page" }
+      ]
+    },
+    "target_payment_area": {
+      "any": [
+        { "rule": "active_payment_area" },
+        {
+          "token_match": {
+            "paths": ["target.section_tokens", "target.form_tokens", "target.nearby_tokens", "form.tokens"],
+            "lexicon": "checkout_context",
+            "min_matches": 2,
+            "confidence": 0.74
+          }
+        }
+      ]
+    },
+    "checkout_page": {
+      "any": [
+        { "rule": "checkout_context" },
+        {
+          "all": [
+            {
+              "token_match": {
+                "paths": ["page.url_tokens"],
+                "lexicon": "checkout_context",
+                "min_matches": 1,
+                "confidence": 0.66
+              }
+            },
+            { "rule": "active_payment_area" }
+          ]
+        },
+        { "rule": "payment_fields_on_page" },
+        { "rule": "payment_submit_on_page" },
+        { "rule": "card_field" },
+        { "rule": "expiry_field" },
+        { "rule": "cvv_field" },
+        { "rule": "cardholder_name_field" },
+        { "rule": "payment_submit" }
+      ]
+    },
+    "trusted_payment_attribute": {
+      "any": [
+        { "starts_with": { "path": "target.attributes.autocomplete", "values": ["cc-"] } },
+        { "in": { "path": "target.attributes.autocomplete", "values": ["cardnumber", "card-number"] } }
+      ]
+    },
+    "trusted_payment_context": {
+      "token_match": {
+        "paths": ["target.identity_tokens", "target.nearby_tokens", "target.section_tokens", "target.form_tokens"],
+        "lexicon": "checkout_context",
+        "min_matches": 1,
+        "confidence": 0.72
+      }
+    },
+    "card_value_shape": {
+      "all": [
+        { "contains_any": { "path": "value.classes", "values": ["long_numeric"], "confidence": 0.82 } },
+        { "number_between": { "path": "value.length", "min": 13, "max": 23 } }
+      ]
+    },
+    "card_field": {
+      "any": [
+        { "in": { "path": "target.attributes.autocomplete", "values": ["cc-number", "cardnumber", "card-number"] } },
+        { "rule": "card_value_shape" },
+        {
+          "all": [
+            {
+              "token_match": {
+                "paths": ["target.identity_tokens", "target.nearby_tokens"],
+                "lexicon": "card_field",
+                "min_matches": 1,
+                "confidence": 0.78
+              }
+            },
+            { "not": { "rule": "payment_field_decoy" } }
+          ]
+        }
+      ]
+    },
+    "expiry_field": {
+      "any": [
+        { "starts_with": { "path": "target.attributes.autocomplete", "values": ["cc-exp"] } },
+        {
+          "all": [
+            {
+              "token_match": {
+                "paths": ["target.identity_tokens", "target.nearby_tokens"],
+                "lexicon": "expiry_field",
+                "min_matches": 1,
+                "confidence": 0.78
+              }
+            },
+            { "not": { "rule": "payment_field_decoy" } }
+          ]
+        }
+      ]
+    },
+    "cvv_field": {
+      "any": [
+        { "in": { "path": "target.attributes.autocomplete", "values": ["cc-csc"] } },
+        {
+          "token_match": {
+            "paths": ["target.identity_tokens", "target.nearby_tokens"],
+            "lexicon": "cvv_field",
+            "min_matches": 1,
+            "confidence": 0.82
+          }
+        },
+        {
+          "token_match": {
+            "paths": ["target.identity_tokens", "target.nearby_tokens"],
+            "lexicon": "security_code",
+            "min_matches": 2,
+            "confidence": 0.78
+          }
+        }
+      ]
+    },
+    "cardholder_name_field": {
+      "any": [
+        { "in": { "path": "target.attributes.autocomplete", "values": ["cc-name"] } },
+        {
+          "token_match": {
+            "paths": ["target.identity_tokens", "target.nearby_tokens"],
+            "lexicon": "cardholder_name",
+            "min_matches": 2,
+            "confidence": 0.72
+          }
+        }
+      ]
+    },
+    "payment_form_input": {
+      "any": [
+        { "rule": "card_field" },
+        { "rule": "expiry_field" },
+        { "rule": "cvv_field" },
+        { "rule": "cardholder_name_field" },
+        {
+          "all": [
+            {
+              "token_match": {
+                "paths": ["target.identity_tokens", "target.nearby_tokens", "target.section_tokens", "target.form_tokens"],
+                "lexicon": ["card_field", "expiry_field", "cvv_field", "cardholder_name"],
+                "min_matches": 1,
+                "confidence": 0.72
+              }
+            },
+            { "not": { "rule": "payment_field_decoy" } }
+          ]
+        }
+      ]
+    },
+    "payment_submit": {
+      "all": [
+        { "rule": "click_or_submit_action" },
+        {
+          "any": [
+            {
+              "token_match": {
+                "paths": ["target.identity_tokens", "target.nearby_tokens", "target.section_tokens", "target.form_tokens"],
+                "lexicon": "payment_action",
+                "min_matches": 1,
+                "confidence": 0.74
+              }
+            },
+            {
+              "all": [
+                {
+                  "token_match": {
+                    "paths": ["target.identity_tokens"],
+                    "lexicon": "generic_commit",
+                    "min_matches": 1,
+                    "confidence": 0.62
+                  }
+                },
+                { "rule": "target_payment_area" }
+              ]
+            }
+          ]
+        },
+        { "not": { "rule": "target_safe_preview" } },
+        { "not": { "rule": "navigation_link" } }
+      ]
+    },
+    "navigation_link": {
+      "all": [
+        { "equals": { "path": "target.tag", "value": "a" } },
+        { "not": { "equals": { "path": "target.is_submit", "value": true } } }
+      ]
+    },
+    "payment_fields_on_page": {
+      "count_where": {
+        "path": "page.controls",
+        "min": 1,
+        "where": {
+          "all": [
+            { "in": { "path": "tag", "values": ["input", "select", "textarea"] } },
+            { "equals": { "path": "is_form_control", "value": true } },
+            { "equals": { "path": "is_disabled", "value": false } },
+            { "equals": { "path": "is_hidden", "value": false } },
+            {
+              "any": [
+                { "starts_with": { "path": "attributes.autocomplete", "values": ["cc-"] } },
+                { "in": { "path": "attributes.autocomplete", "values": ["cardnumber", "card-number"] } },
+                {
+                  "token_match": {
+                    "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                    "lexicon": ["card_field", "expiry_field", "cvv_field", "cardholder_name"],
+                    "min_matches": 1
+                  }
+                }
+              ]
+            },
+            {
+              "not": {
+                "token_match": {
+                  "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                  "lexicon": "payment_field_negative",
+                  "min_matches": 1
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "payment_submit_on_page": {
+      "any_where": {
+        "path": "page.controls",
+        "where": {
+          "all": [
+            { "equals": { "path": "is_button", "value": true } },
+            { "equals": { "path": "is_disabled", "value": false } },
+            { "equals": { "path": "is_hidden", "value": false } },
+            {
+              "token_match": {
+                "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                "lexicon": "payment_action",
+                "min_matches": 1,
+                "confidence": 0.84
+              }
+            },
+            {
+              "not": {
+                "token_match": {
+                  "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                  "lexicon": "safe_preview",
+                  "min_matches": 1
+                }
+              }
+            }
+          ]
+        },
+        "confidence": 0.84
+      }
+    },
+    "payment_field_decoy": {
+      "all": [
+        { "not": { "rule": "trusted_payment_attribute" } },
+        {
+          "any": [
+            {
+              "token_match": {
+                "paths": ["target.identity_tokens"],
+                "lexicon": "explicit_value_decoy",
+                "min_matches": 1,
+                "confidence": 0.9
+              }
+            },
+            {
+              "all": [
+                {
+                  "token_match": {
+                    "paths": ["target.identity_tokens"],
+                    "tokens": ["credit", "code"],
+                    "min_matches": 2,
+                    "confidence": 0.9
+                  }
+                },
+                { "not": { "rule": "trusted_payment_context" } }
+              ]
+            },
+            {
+              "all": [
+                {
+                  "token_match": {
+                    "paths": ["target.identity_tokens"],
+                    "tokens": ["stored", "value"],
+                    "min_matches": 1,
+                    "confidence": 0.82
+                  }
+                },
+                { "not": { "rule": "trusted_payment_context" } }
+              ]
+            },
+            {
+              "all": [
+                {
+                  "token_match": {
+                    "paths": ["target.nearby_tokens", "target.section_tokens"],
+                    "lexicon": "payment_field_negative",
+                    "min_matches": 1,
+                    "confidence": 0.78
+                  }
+                },
+                {
+                  "not": {
+                    "token_match": {
+                      "paths": ["target.identity_tokens"],
+                      "lexicon": ["card_field", "expiry_field", "cvv_field", "cardholder_name"],
+                      "min_matches": 1,
+                      "confidence": 0.72
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "checkout_preflight": {
+      "any": [
+        { "rule": "checkout_page" },
+        { "rule": "payment_fields_on_page" },
+        { "rule": "payment_submit_on_page" }
+      ]
+    },
+    "target_safe_preview": {
+      "any": [
+        {
+          "token_match": {
+            "paths": ["target.identity_tokens"],
+            "lexicon": "safe_preview",
+            "min_matches": 1,
+            "confidence": 0.9
+          }
+        },
+        {
+          "all": [
+            {
+              "token_match": {
+                "paths": ["target.identity_tokens"],
+                "tokens": ["review"],
+                "min_matches": 1,
+                "confidence": 0.9
+              }
+            },
+            {
+              "not": {
+                "token_match": {
+                  "paths": ["target.identity_tokens"],
+                  "lexicon": "payment_action",
+                  "min_matches": 1,
+                  "confidence": 0.74
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "safe_preview": {
+      "rule": "target_safe_preview"
+    },
+    "non_transactional_page_context": {
+      "all": [
+        {
+          "token_match": {
+            "paths": ["page.title_tokens", "page.control_tokens"],
+            "lexicon": "non_transactional_page",
+            "min_matches": 1,
+            "confidence": 0.84
+          }
+        },
+        { "not": { "rule": "payment_fields_on_page" } },
+        { "not": { "rule": "payment_submit_on_page" } }
+      ]
+    }
+  }}

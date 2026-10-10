@@ -1,0 +1,131 @@
+name: SDK release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Build and verify, or publish after protected-environment approval"
+        type: choice
+        options: [none, testpypi, pypi]
+        default: none
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build twine
+      - run: python -m build --outdir dist
+      - run: python -m twine check dist/*.whl dist/*.tar.gz
+      - run: python tools/prepare_release.py dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-distributions
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: acira-release-bundle
+          path: dist/
+          if-no-files-found: error
+
+  verify:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      ANONYMIZED_TELEMETRY: "false"
+      BROWSER_USE_CLOUD_SYNC: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+      - run: python -m pip install "./dist/acira-0.1.0-py3-none-any.whl[dev,playwright,browser-use]"
+      - run: python -m playwright install --with-deps chromium
+      - run: python tools/configure_ci_chromium.py
+      - name: Test the installed distribution outside the checkout
+        working-directory: ${{ runner.temp }}
+        env:
+          ACIRA_TEST_INSTALLED: "1"
+        run: python -m pytest -q "${{ github.workspace }}/tests" --import-mode=importlib --basetemp="${{ runner.temp }}/acira-pytest"
+      - run: python tools/verify_wheel.py dist/acira-0.1.0-py3-none-any.whl
+      - run: node --check acira_dashboard/static/workspace.js
+      - run: node --check tools/acira-capture-extension/background.js
+      - run: node --check tools/acira-capture-extension/content.js
+      - run: node --check tools/acira-capture-extension/connection.js
+
+  dependency-audit:
+    if: inputs.publish != 'none'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install "./dist/acira-0.1.0-py3-none-any.whl[playwright,browser-use]" pip-audit
+      - name: Require no known dependency advisories before publication
+        run: python -m pip_audit --format json --output dependency-audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-audit
+          path: dependency-audit.json
+          if-no-files-found: warn
+
+  publish-testpypi:
+    if: inputs.publish == 'testpypi' && github.ref == 'refs/heads/main'
+    needs: [build, verify, dependency-audit]
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    if: inputs.publish == 'pypi' && github.ref == 'refs/heads/main'
+    needs: [build, verify, dependency-audit]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1

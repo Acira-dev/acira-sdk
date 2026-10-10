@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Acira Capture",
+  "version": "0.1.2",
+  "description": "Capture Acira specific skill target fingerprints from a logged-in web app.",
+  "permissions": ["activeTab", "clipboardWrite", "scripting", "storage"],
+  "optional_host_permissions": ["http://127.0.0.1/*"],
+  "options_page": "connection.html",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/acira-logo.svg"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "action": {
+    "default_title": "Acira Capture"
+  }
+}

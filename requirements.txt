@@ -1,0 +1,8 @@
+aiohttp==3.14.3
+browser-use==0.13.11
+cryptography==50.0.2
+google-cloud-aiplatform==1.145.0
+httpx==0.28.1
+playwright==1.60.0
+regex==2026.9.29
+websockets==15.0.1

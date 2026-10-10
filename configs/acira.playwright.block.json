@@ -1,0 +1,35 @@
+{
+  "schema": "acira.config.v1",
+  "name": "Acira Block Test",
+  "enabled": true,
+  "dashboard": {
+    "connect": false
+  },
+  "terminal_review": false,
+  "terminal_log": true,
+  "default_review_decision": "block",
+  "probe_timeout": 1.0,
+  "runtime_js": {
+    "mode": "hybrid_strict",
+    "unknown": "ask"
+  },
+  "hitl_freeze_mode": "off",
+  "adapters": {
+    "playwright": {
+      "enabled": true
+    }
+  },
+  "blocked_retry_policy": {
+    "same_target_limit": 2,
+    "on_exceed": "compact_block"
+  },
+  "general_skill_preflight": {
+    "enabled": false
+  },
+  "agent_js": {
+    "block_arbitrary": false
+  },
+  "specific_skills": [],
+  "general_skills": {},
+  "audit": { "mode": "volatile" }
+}

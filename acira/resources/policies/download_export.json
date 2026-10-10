@@ -1,0 +1,180 @@
+{
+  "schema": "acira.general_skill.v3",
+  "id": "acira.general.download_export",
+  "name": "Download And Export Protection",
+  "version": 2,
+  "requires": ["page", "target", "form", "action"],
+  "risks": [
+    {
+      "id": "download.export_controls_present",
+      "context": "page",
+      "severity": "medium",
+      "description": "Acira detected download or export controls on this page.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "page_preflight",
+          "export_controls_on_page"
+        ],
+        "reason": "Acira detected download or export controls on this page."
+      }
+    },
+    {
+      "id": "download.export_attempt",
+      "context": "action",
+      "severity": "medium",
+      "description": "Acira detected a download or export-like action.",
+      "decisions": [
+        "allow",        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "export_download"
+        ],
+        "reason": "Acira detected a download or export-like action."
+      }
+    }
+  ],
+  "lexicons": {
+    "export_action": ["csv", "download", "dump", "export", "extract", "json", "ndjson", "parquet", "pdf", "raw", "report", "spreadsheet", "xlsx"],
+    "export_strong": ["csv", "dump", "export", "extract", "json", "ndjson", "parquet", "raw", "spreadsheet", "xlsx"],
+    "data_context": ["audit", "bulk", "customer", "customers", "data", "dataset", "ledger", "list", "records", "table"],
+    "generic_download": ["download", "get"],
+    "safe_preview": ["example", "guide", "help", "open", "preview", "sample", "template", "view"]
+  },
+  "rules": {
+    "page_preflight": {
+      "equals": { "path": "action.action", "value": "page_preflight" }
+    },
+    "click_or_submit_action": {
+      "in": {
+        "path": "action.action",
+        "values": ["click", "submit", "form_control_activation"]
+      }
+    },
+    "strong_export_target": {
+      "token_match": {
+        "paths": ["target.identity_tokens"],
+        "lexicon": "export_strong",
+        "min_matches": 1,
+        "confidence": 0.78
+      }
+    },
+    "generic_download_target": {
+      "token_match": {
+        "paths": ["target.identity_tokens"],
+        "lexicon": "generic_download",
+        "min_matches": 1,
+        "confidence": 0.62
+      }
+    },
+    "data_context": {
+      "token_match": {
+        "paths": ["target.identity_tokens", "target.nearby_tokens", "target.section_tokens", "target.form_tokens", "form.tokens"],
+        "lexicon": "data_context",
+        "min_matches": 1,
+        "confidence": 0.72
+      }
+    },
+    "safe_preview_target": {
+      "token_match": {
+        "paths": ["target.identity_tokens"],
+        "lexicon": "safe_preview",
+        "min_matches": 1,
+        "confidence": 0.9
+      }
+    },
+    "export_download": {
+      "all": [
+        { "rule": "click_or_submit_action" },
+        {
+          "any": [
+            { "rule": "strong_export_target" },
+            {
+              "all": [
+                { "rule": "generic_download_target" },
+                { "rule": "data_context" }
+              ]
+            }
+          ]
+        },
+        { "not": { "rule": "safe_preview_target" } }
+      ]
+    },
+    "strong_export_controls_on_page": {
+      "any_where": {
+        "path": "page.controls",
+        "where": {
+          "all": [
+            { "equals": { "path": "is_button", "value": true } },
+            { "equals": { "path": "is_disabled", "value": false } },
+            { "equals": { "path": "is_hidden", "value": false } },
+            {
+              "token_match": {
+                "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                "lexicon": "export_strong",
+                "min_matches": 1,
+                "confidence": 0.82
+              }
+            },
+            {
+              "not": {
+                "token_match": {
+                  "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                  "lexicon": "safe_preview",
+                  "min_matches": 1
+                }
+              }
+            }
+          ]
+        },
+        "confidence": 0.82
+      }
+    },
+    "generic_export_controls_on_page": {
+      "any_where": {
+        "path": "page.controls",
+        "where": {
+          "all": [
+            { "equals": { "path": "is_button", "value": true } },
+            { "equals": { "path": "is_disabled", "value": false } },
+            { "equals": { "path": "is_hidden", "value": false } },
+            {
+              "token_match": {
+                "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                "lexicon": "generic_download",
+                "min_matches": 1
+              }
+            },
+            {
+              "token_match": {
+                "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                "lexicon": "data_context",
+                "min_matches": 1
+              }
+            },
+            {
+              "not": {
+                "token_match": {
+                  "paths": ["identity_tokens", "nearby_tokens", "section_tokens", "form_tokens"],
+                  "lexicon": "safe_preview",
+                  "min_matches": 1
+                }
+              }
+            }
+          ]
+        },
+        "confidence": 0.76
+      }
+    },
+    "export_controls_on_page": {
+      "any": [
+        { "rule": "strong_export_controls_on_page" },
+        { "rule": "generic_export_controls_on_page" }
+      ]
+    }
+  }}

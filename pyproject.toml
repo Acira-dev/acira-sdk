@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acira"
+version = "0.1.0"
+description = "Open-source security and governance layer for AI browser agents."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "aiohttp==3.14.3",
+    "cryptography==50.0.2",
+    "httpx==0.28.1",
+    "websockets>=15.0.1,<17",
+    "pillow==12.3.0",
+    "regex==2026.9.29",
+]
+
+# Real terminal command, even before publishing. `pip install -e .` makes `acira`
+# resolve like a published console script while the local source stays editable.
+[project.optional-dependencies]
+playwright = ["playwright==1.60.0"]
+browser-use = ["browser-use==0.13.11"]
+vertex = ["google-cloud-aiplatform==1.145.0"]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+]
+
+[project.urls]
+Source = "https://github.com/Acira-dev/acira-sdk"
+Issues = "https://github.com/Acira-dev/acira-sdk/issues"
+
+[project.scripts]
+acira = "acira.__main__:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["error::DeprecationWarning:acira"]
+# conftest chooses a unique repo-local tmp base unless --basetemp is explicit.
+# This avoids Windows temp ACL failures and collisions between concurrent runs.
+
+[tool.setuptools.packages.find]
+include = ["acira*", "acira_cdp_proxy*", "acira_dashboard*"]
+
+[tool.setuptools.package-data]
+acira = ["resources/*.json", "resources/policies/*.json"]
+# Ship the dashboard's static UI assets with the package.
+acira_cdp_proxy = ["resources/semantic_profiles/*.json"]
+acira_dashboard = ["static/*", "static/**/*"]

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Acira Capture · Connection</title>
+    <link rel="stylesheet" href="connection.css" />
+    <script src="connection.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <h1>Connect Acira Capture</h1>
+      <p>
+        In the dashboard, open Settings → Pair capture extension. Offline JSON
+        export is always available.
+      </p>
+      <form id="pair">
+        <label
+          >Local dashboard address<input
+            id="url"
+            placeholder="http://127.0.0.1:8765"
+            required /></label
+        ><label
+          >Pairing code<input id="code" autocomplete="off" required /></label
+        ><button type="submit">Pair dashboard</button>
+      </form>
+      <section>
+        <h2>Capture destination</h2>
+        <p>Every direct save goes to this project and agent.</p>
+        <label>Project<select id="project" aria-label="Project"></select></label
+        ><label>Agent<select id="agent" aria-label="Agent"></select></label
+        ><button id="save" type="button">Save destination</button
+        ><button id="disconnect" type="button">Disconnect</button>
+      </section>
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+  </body>
+</html>

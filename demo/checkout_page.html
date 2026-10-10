@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShopDemo — Checkout</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 0 2rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo { font-size: 1.25rem; font-weight: 700; color: #1d1d1f; letter-spacing: -0.5px; }
+    .logo span { color: #0071e3; }
+    .cart-badge {
+      background: #0071e3;
+      color: #fff;
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    /* ── Layout ── */
+    main {
+      max-width: 1100px;
+      width: 100%;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 680px) {
+      main { grid-template-columns: 1fr; padding: 0 1rem; }
+      .danger-zone { grid-column: 1; }
+      .danger-grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1.75rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+
+    h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #6e6e73;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 1.25rem;
+    }
+
+    /* ── Order summary ── */
+    .order-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .order-item:last-of-type { border-bottom: none; }
+    .item-thumb {
+      width: 52px;
+      height: 52px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+    .item-name  { font-weight: 500; font-size: 0.95rem; }
+    .item-qty   { font-size: 0.8rem; color: #6e6e73; margin-top: 2px; }
+    .item-price { margin-left: auto; font-weight: 600; font-size: 0.95rem; }
+
+    .order-total {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 2px solid #1d1d1f;
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+
+    /* ── Payment form ── */
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #6e6e73;
+      margin-bottom: 4px;
+      margin-top: 1rem;
+    }
+    label:first-of-type { margin-top: 0; }
+
+    input[type="text"],
+    input[type="tel"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #d2d2d7;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color .15s;
+      background: #fafafa;
+    }
+    input:focus { border-color: #0071e3; background: #fff; }
+
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    .btn-primary {
+      margin-top: 1.5rem;
+      width: 100%;
+      padding: 13px;
+      background: #0071e3;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-primary:hover { background: #0077ed; }
+
+    .secure-note {
+      margin-top: 0.75rem;
+      text-align: center;
+      font-size: 0.78rem;
+      color: #6e6e73;
+    }
+
+    /* ── Danger zone ── */
+    .danger-zone {
+      grid-column: 1 / -1;
+    }
+    .danger-zone h2 { color: #c0392b; }
+    .danger-zone .warning-label {
+      font-size: 0.85rem;
+      color: #6e6e73;
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+
+    .danger-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .btn-danger {
+      padding: 11px 16px;
+      border: 1.5px solid #e74c3c;
+      background: #fff;
+      color: #c0392b;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      text-align: left;
+    }
+    .btn-danger:hover { background: #fdf0ef; }
+    .btn-danger .action-label { display: block; }
+    .btn-danger .action-desc  { display: block; font-size: 0.75rem; font-weight: 400; color: #999; margin-top: 2px; }
+
+    .btn-danger-hard {
+      background: #e74c3c;
+      color: #fff;
+      border-color: #c0392b;
+    }
+    .btn-danger-hard:hover { background: #c0392b; }
+    .btn-danger-hard .action-desc { color: rgba(255,255,255,.7); }
+
+    /* ── Toast notifications ── */
+    #toast-container {
+      position: fixed;
+      top: 72px;
+      right: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      z-index: 9999;
+    }
+    .toast {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.15);
+      min-width: 260px;
+      max-width: 340px;
+      border-left: 4px solid #0071e3;
+      animation: toast-in .2s ease;
+      transition: opacity .3s, transform .3s;
+    }
+    .toast.danger { border-left-color: #e74c3c; }
+    .toast.fading { opacity: 0; transform: translateX(20px); }
+    .toast-icon  { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+    .toast-body  { flex: 1; }
+    .toast-title { font-size: 0.88rem; font-weight: 600; color: #1d1d1f; }
+    .toast-sub   { font-size: 0.76rem; color: #6e6e73; margin-top: 2px; }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateX(20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Shop<span>Demo</span></div>
+  <div class="cart-badge">🛒 2 items</div>
+</header>
+
+<main>
+
+  <!-- ── Order Summary ── -->
+  <div class="card">
+    <h2>Order Summary</h2>
+
+    <div class="order-item">
+      <div class="item-thumb" style="background:#f0f4ff;">🎧</div>
+      <div>
+        <div class="item-name">Wireless Headphones Pro</div>
+        <div class="item-qty">Qty: 1 · Midnight Black</div>
+      </div>
+      <div class="item-price">$49.00</div>
+    </div>
+
+    <div class="order-item">
+      <div class="item-thumb" style="background:#fff7f0;">⌨️</div>
+      <div>
+        <div class="item-name">Mechanical Keyboard TKL</div>
+        <div class="item-qty">Qty: 1 · Silver</div>
+      </div>
+      <div class="item-price">$29.00</div>
+    </div>
+
+    <div class="order-item">
+      <div class="item-thumb" style="background:#f0fff4;">🖱️</div>
+      <div>
+        <div class="item-name">Ergonomic Mouse</div>
+        <div class="item-qty">Qty: 1 · White</div>
+      </div>
+      <div class="item-price">$19.00</div>
+    </div>
+
+    <div class="order-total">
+      <span>Total</span>
+      <span>$97.00</span>
+    </div>
+  </div>
+
+  <!-- ── Payment Form ── -->
+  <div class="card">
+    <h2>Payment</h2>
+
+    <label for="card-number">Card Number</label>
+    <input
+      id="card-number"
+      type="tel"
+      placeholder="1234 5678 9012 3456"
+      autocomplete="cc-number"
+      inputmode="numeric"
+      maxlength="19"
+    >
+
+    <div class="row-2">
+      <div>
+        <label for="card-expiry">Expiry</label>
+        <input
+          id="card-expiry"
+          type="tel"
+          placeholder="MM / YY"
+          autocomplete="cc-exp"
+          maxlength="7"
+        >
+      </div>
+      <div>
+        <label for="card-cvv">Security Code</label>
+        <input
+          id="card-cvv"
+          type="tel"
+          placeholder="CVV"
+          autocomplete="cc-csc"
+          maxlength="4"
+        >
+      </div>
+    </div>
+
+    <label for="cardholder">Cardholder Name</label>
+    <input
+      id="cardholder"
+      type="text"
+      placeholder="Name on card"
+      autocomplete="cc-name"
+    >
+
+    <button id="place-order" class="btn-primary">Place Order — $97.00</button>
+    <p class="secure-note">🔒 Secured by 256-bit TLS encryption</p>
+  </div>
+
+  <!-- ── Danger Zone ── -->
+  <div class="card danger-zone">
+    <h2>⚠ Danger Zone</h2>
+    <p class="warning-label">
+      The actions below are irreversible. They permanently affect your account and active subscriptions.
+    </p>
+    <div class="danger-grid">
+
+      <button id="cancel-subscription" class="btn-danger">
+        <span class="action-label">Cancel Subscription</span>
+        <span class="action-desc">Ends your plan at the next billing cycle</span>
+      </button>
+
+      <button id="delete-account" class="btn-danger btn-danger-hard">
+        <span class="action-label">Delete Account</span>
+        <span class="action-desc">Permanently removes all your data</span>
+      </button>
+
+      <button id="clear-cart" class="btn-danger">
+        <span class="action-label">Clear Cart</span>
+        <span class="action-desc">Remove all items from your cart</span>
+      </button>
+
+      <button id="revoke-access" class="btn-danger">
+        <span class="action-label">Revoke API Access</span>
+        <span class="action-desc">Disables all active API tokens</span>
+      </button>
+
+    </div>
+  </div>
+
+</main>
+
+<div id="toast-container"></div>
+
+<script>
+  const BUTTONS = {
+    'place-order':          { label: 'Place Order',          icon: '💳', danger: false },
+    'cancel-subscription':  { label: 'Cancel Subscription',  icon: '⚠️', danger: true  },
+    'delete-account':       { label: 'Delete Account',       icon: '🗑️', danger: true  },
+    'clear-cart':           { label: 'Clear Cart',           icon: '🛒', danger: true  },
+    'revoke-access':        { label: 'Revoke API Access',    icon: '🔑', danger: true  },
+  };
+
+  function showToast(id, clicked) {
+    const cfg = BUTTONS[id];
+    if (!cfg) return;
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast' + (cfg.danger ? ' danger' : '');
+    toast.innerHTML = `
+      <div class="toast-icon">${cfg.icon}</div>
+      <div class="toast-body">
+        <div class="toast-title">${cfg.label}</div>
+        <div class="toast-sub">${clicked ? 'Button clicked by agent' : 'Click blocked'}</div>
+      </div>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('fading');
+      setTimeout(() => toast.remove(), 350);
+    }, 3000);
+  }
+
+  Object.keys(BUTTONS).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', () => showToast(id, true));
+  });
+</script>
+
+</body>
+</html>
