@@ -11,6 +11,15 @@ Acira enforces policies inside the SDK. Its optional browser dashboard manages s
 projects and agents on the same computer and operating-system account. Project files
 remain the policy authority; stopping the dashboard does not stop enforcement.
 
+**Start with your own project.** Install Acira in its Python environment, run
+`acira init`, add the SDK to your existing entry point, then run your agent normally.
+Open `acira open` whenever you want the dashboard. A demo, model download and separate
+sample project are not part of this setup.
+
+Follow the [step-by-step existing-project setup](docs/quickstart.md), or the
+[Playwright](docs/playwright-quickstart.md) and
+[browser-use](docs/browser-use-quickstart.md) integration guides.
+
 This checkout contains the SDK/shared-dashboard implementation. See
 [implementation and release status](docs/implementation-status.md) for verified behavior
 and remaining release gates. Do not infer full adapter coverage from package installation.
@@ -21,7 +30,15 @@ Python 3.11 or newer is required. Until publication access for the `acira` distr
 has been verified, install this checkout or its built wheel rather than an unrelated
 package with the same name.
 
-From this checkout, in your chosen environment:
+Activate the environment that runs your existing agent. If Playwright or browser-use
+is already installed, install the base SDK wheel there:
+
+```sh
+python -m pip install "/absolute/path/to/acira-0.1.0-py3-none-any.whl"
+```
+
+If you also need Playwright, install the wheel with `[playwright]`. From this checkout,
+the equivalent installation is:
 
 ```sh
 python -m pip install ".[playwright]"
@@ -43,81 +60,16 @@ acira doctor
 The wizard selects an integration, policy folders, starter protections and automatic
 dashboard connection. It shows the integration snippet; it does not rewrite your
 application or install browsers. If your environment needs Chromium, install it
-explicitly with `python -m playwright install chromium`.
+explicitly with `python -m playwright install chromium`. Reuse your existing browser
+setup when it is compatible with the supported integration. Framework versions tested
+for this release are Playwright 1.60.0 and browser-use 0.13.11; `acira doctor` reports
+your installed versions and configured capabilities.
 
 For a reproducible setup:
 
 ```sh
 acira init --yes --adapter playwright --policies payment,credentials,destructive-actions,downloads
 ```
-
-## Try the complete free Playwright journey
-
-After installing the `playwright` extra and Chromium:
-
-```sh
-acira demo
-```
-
-This opens a local test drive and the shared dashboard, using visible Chromium,
-fake local payment/draft data and no model, paid API or API key. Approve or reject
-in the dashboard; the test drive updates automatically and the one-operation run
-ends after its observed result. Approval alone is not reported as execution success.
-Cancellation and blocked deletion produce no automated request. Two project folders
-have independent policies and reviews in the same dashboard.
-
-Normal demo browser windows close three seconds after the result. Select **Keep this
-run active after its result** before starting to test live policy changes; that
-explicit mode stays active for up to ten minutes. Real agents may continue to further
-operations after a review; their runs end when their `protect()` context exits.
-
-The demo creates separate projects in Acira's private user state, leaving your current
-project untouched. `acira demo --directory /your/separate/demo-folder` chooses a location;
-`--no-open` prints the address and `--port` reuses a test-drive port. Ctrl-C stops the
-demo; `acira server stop` separately stops the optional dashboard.
-See the [complete Playwright setup and testing guide](docs/playwright-quickstart.md).
-
-### Try real public websites without accounts
-
-```sh
-acira demo --public-sites
-```
-
-Choose Python documentation, MDN or Playwright documentation. **Browse normally**
-follows a real documentation link. **Try a review** pauses that link until you approve
-or reject it in the shared dashboard, with a screenshot and target highlight.
-**Try a blocked click** demonstrates a policy stopping the same harmless link.
-The test drive verifies navigation, updates automatically, and ends the run.
-
-Each run uses a fresh visible Chromium session. This mode restricts traffic to
-read-only requests on the selected documentation host, disables downloads and
-service workers, and rejects account/payment paths. It deliberately limits site
-selection; it does not ask for credentials, submit forms or use a paid API.
-The example policies demonstrate protection on harmless links and are editable
-separately for each agent. This is scripted Playwright automation through the SDK.
-See [public-website instructions and limitations](docs/public-websites.md).
-
-## Try a free local browser-use agent
-
-Install the wheel with `[browser-use,playwright]` extras and install Chromium. Start
-Ollama in local-only mode and download the non-thinking local model:
-
-```sh
-# In one terminal; use your platform's environment-variable syntax.
-OLLAMA_NO_CLOUD=1 ollama serve
-# In another terminal:
-ollama pull qwen3:4b-instruct
-acira demo --adapter browser-use
-```
-
-This journey uses a real browser-use `Agent` with `ChatOllama`, visible Chromium,
-local fake-data pages and the same Acira dashboard. The model requests a predefined
-business operation; Acira reviews its exact request, observes the result and ends
-the run automatically. It never substitutes scripted success or a paid model when
-local inference fails. The demo verifies downloaded weights and a loopback endpoint.
-The existing SDK still supports normal browser-use actions within its documented
-protection boundary. See the [browser-use setup and testing guide](docs/browser-use-quickstart.md)
-for platform setup, integration, cancellation, model limitations and troubleshooting.
 
 ## Protect an existing Playwright workflow
 
@@ -131,13 +83,17 @@ async def main():
         async with async_playwright() as p:
             guard.patch_playwright(p)
             browser = await p.chromium.launch(headless=False)
-            page = await browser.new_page()
-            await page.goto("https://example.com")
-            # Your existing supported browser workflow goes here.
-            await browser.close()
+            try:
+                await run_existing_workflow(browser)
+            finally:
+                await browser.close()
 
 asyncio.run(main())
 ```
+
+`run_existing_workflow(browser)` is your application's existing function. Keep its
+actual URLs and supported operations, or place your current browser code inside
+the protection context. Patch before your launch or CDP connection.
 
 Playwright automation itself needs no model provider or API key. `headless=False`
 keeps Chromium visible while your workflow runs; keep the browser open while you
@@ -285,6 +241,74 @@ acira server stop
 `sync` is a diagnostic rescan/retention operation; normal policy updates are automatic.
 The local service uses your existing file permissions. Read-only folders produce
 errors rather than repeated permission prompts. No external telemetry is enabled.
+
+## Optional: try the complete free Playwright journey
+
+After installing the `playwright` extra and Chromium:
+
+```sh
+acira demo
+```
+
+This opens a local test drive and the shared dashboard, using visible Chromium,
+fake local payment/draft data and no model, paid API or API key. Approve or reject
+in the dashboard; the test drive updates automatically and the one-operation run
+ends after its observed result. Approval alone is not reported as execution success.
+Cancellation and blocked deletion produce no automated request. Two project folders
+have independent policies and reviews in the same dashboard.
+
+Normal demo browser windows close three seconds after the result. Select **Keep this
+run active after its result** before starting to test live policy changes; that
+explicit mode stays active for up to ten minutes. Real agents may continue to further
+operations after a review; their runs end when their `protect()` context exits.
+
+The demo creates separate projects in Acira's private user state, leaving your current
+project untouched. `acira demo --directory /your/separate/demo-folder` chooses a location;
+`--no-open` prints the address and `--port` reuses a test-drive port. Ctrl-C stops the
+demo; `acira server stop` separately stops the optional dashboard.
+See the [complete Playwright setup and testing guide](docs/playwright-quickstart.md).
+
+### Try real public websites without accounts
+
+```sh
+acira demo --public-sites
+```
+
+Choose Python documentation, MDN or Playwright documentation. **Browse normally**
+follows a real documentation link. **Try a review** pauses that link until you approve
+or reject it in the shared dashboard, with a screenshot and target highlight.
+**Try a blocked click** demonstrates a policy stopping the same harmless link.
+The test drive verifies navigation, updates automatically, and ends the run.
+
+Each run uses a fresh visible Chromium session. This mode restricts traffic to
+read-only requests on the selected documentation host, disables downloads and
+service workers, and rejects account/payment paths. It deliberately limits site
+selection; it does not ask for credentials, submit forms or use a paid API.
+The example policies demonstrate protection on harmless links and are editable
+separately for each agent. This is scripted Playwright automation through the SDK.
+See [public-website instructions and limitations](docs/public-websites.md).
+
+## Optional: try a free local browser-use agent
+
+Install the wheel with `[browser-use,playwright]` extras and install Chromium. Start
+Ollama in local-only mode and download the non-thinking local model:
+
+```sh
+# In one terminal; use your platform's environment-variable syntax.
+OLLAMA_NO_CLOUD=1 ollama serve
+# In another terminal:
+ollama pull qwen3:4b-instruct
+acira demo --adapter browser-use
+```
+
+This journey uses a real browser-use `Agent` with `ChatOllama`, visible Chromium,
+local fake-data pages and the same Acira dashboard. The model requests a predefined
+business operation; Acira reviews its exact request, observes the result and ends
+the run automatically. It never substitutes scripted success or a paid model when
+local inference fails. The demo verifies downloaded weights and a loopback endpoint.
+The existing SDK still supports normal browser-use actions within its documented
+protection boundary. See the [browser-use setup and testing guide](docs/browser-use-quickstart.md)
+for platform setup, integration, cancellation, model limitations and troubleshooting.
 
 ## Development and release verification
 

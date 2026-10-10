@@ -18,6 +18,50 @@ from acira.service import Service
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("project_count,width", [(0, 390), (2, 1440)])
+async def test_connect_project_guide_does_not_create_projects_or_start_runs(tmp_path, monkeypatch, project_count, width):
+    from acira.local import Registry
+
+    monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
+    projects = [initialize(tmp_path / name, selected=[]) for name in ("Orders", "Support")[:project_count]]
+    documents = [project.path.read_bytes() for project in projects]
+    service = Service()
+    async with TestServer(service.app(), host="127.0.0.1") as server:
+        service.port = server.port
+        async with ClientSession(headers={"Authorization": "Bearer " + service.admin_key}) as client:
+            response = await client.post(server.make_url("/api/ticket"), json={})
+            ticket = (await response.json())["ticket"]
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            ui = await browser.new_page(viewport={"width": width, "height": 1000})
+            try:
+                await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
+                connect = ui.get_by_role("button", name="Connect a project", exact=True)
+                await connect.wait_for()
+                writes = []
+                ui.on("request", lambda request: writes.append(request.url) if request.method not in {"GET", "HEAD"} else None)
+                await connect.focus()
+                await connect.press("Enter")
+                modal = ui.get_by_role("dialog", name="Connect your project")
+                await expect(modal).to_be_visible()
+                assert await modal.get_by_role("button", name="Close dialog").evaluate("el=>el===document.activeElement")
+                await expect(modal.get_by_text("acira init --adapter playwright", exact=True)).to_be_visible()
+                optional = modal.locator("details")
+                assert not await optional.locator("pre").is_visible()
+                await modal.get_by_role("combobox", name="Setup framework").select_option("browser_use")
+                await expect(modal.get_by_text("acira init --adapter browser_use", exact=True)).to_be_visible()
+                assert "existing browser settings and model" in await modal.text_content()
+                assert await ui.evaluate("document.body.scrollWidth <= window.innerWidth")
+                await modal.get_by_role("button", name="Close dialog").click()
+                assert len(Registry().projects()) == project_count
+                assert [project.path.read_bytes() for project in projects] == documents
+                assert all(not Journal(project.root).runs() for project in projects)
+                assert not writes
+            finally:
+                await browser.close()
+
+
+@pytest.mark.asyncio
 async def test_navigation_during_a_view_load_is_not_dropped(tmp_path, monkeypatch):
     monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
     initialize(tmp_path / "Orders", selected=["credentials"], dashboard=False)

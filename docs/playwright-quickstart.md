@@ -1,4 +1,8 @@
-# Playwright: setup and verification from start to finish
+# Connect your existing Playwright workflow
+
+Start with your actual project, browser configuration and entry point. The
+[general setup guide](quickstart.md) covers environment activation and installation.
+The bundled test drive is optional and appears after the integration steps below.
 
 ## Install the release build
 
@@ -7,14 +11,64 @@ install the Acira wheel provided with this checkout:
 
 ```sh
 python -m pip install "/absolute/path/acira-0.1.0-py3-none-any.whl[playwright]"
-python -m playwright install chromium
 ```
 
-Only the Playwright extra is needed. No browser-use model, paid API or cloud account
-is used by the test drive. The base SDK carries its policies and dashboard assets;
-it does not silently download Chromium or rewrite application code.
+If Playwright is already installed, the base wheel without `[playwright]` is
+sufficient to install the SDK; verify your framework version against the tested
+versions. Reuse your existing Chromium setup. Install a browser only if needed with
+`python -m playwright install chromium`. Acira does not silently download browsers.
+Playwright automation needs no model, paid API or cloud account.
 
-## Run the bundled journey
+## Use Acira in your existing project
+
+Inside that project, with your intended environment active:
+
+```sh
+acira init --yes --adapter playwright --policies payment,credentials,destructive-actions,downloads
+acira doctor
+acira policy validate
+```
+
+Wrap your actual asynchronous workflow:
+
+```python
+import asyncio
+from acira import protect
+from playwright.async_api import async_playwright
+
+async def main():
+    async with protect() as guard:
+        async with async_playwright() as p:
+            guard.patch_playwright(p)
+            browser = await p.chromium.launch(headless=False)
+            try:
+                await run_existing_workflow(browser)
+            finally:
+                await browser.close()
+
+asyncio.run(main())
+```
+
+`run_existing_workflow(browser)` denotes your application's existing function.
+Keep its actual URLs, supported operations and desired browser launch/connect
+options. Patch before launching or connecting to the browser.
+
+Protection begins through this integration, not package installation alone. Relative
+policy paths are anchored to `acira.json`. When launching elsewhere, pass
+`protect(project="/absolute/project", agent="name")`.
+
+For critical submissions use `guard.submit(...)` with the actual complete request
+payload, destination and required verifiable facts. The demo is a runnable example;
+[protection contracts](protection.md) describe supported actions and limits. Unknown
+scripts, forced pointer actions and unsupported browser/API modes fail closed.
+
+Run your agent first, then `acira open`: it connects automatically without restart.
+Normally keep ACIRA_HOME unset so projects and virtual environments share one user
+service. The dashboard is optional for enforcement. For file-only operation use
+`protect(dashboard=False)` and an interactive terminal/external reviewer; unattended
+review requests never default to approval.
+
+## Optional: run the bundled journey
 
 ```sh
 acira demo
@@ -44,7 +98,7 @@ Waiting without a decision blocks the action after five minutes.
 Manual human clicks on Chromium controls are outside the SDK automation boundary;
 use the test-drive and Acira review buttons for these checks.
 
-## Two agents and live policy changes
+## Optional test drive: two agents and live policy changes
 
 Start payment and draft reviews together. The research agent types a fake note in
 another Chromium window. Approve the research draft: its counter increments and
@@ -62,51 +116,6 @@ Policy changes invalidate existing reviews and cause reevaluation. Invalid exter
 JSON blocks affected mutations until repaired. Revision history and rollback are
 available; rollback creates a new revision. Shared policy edits display their scope.
 
-## Use Acira in your existing project
-
-Inside that project, with your intended environment active:
-
-```sh
-acira init --yes --adapter playwright --policies payment,credentials,destructive-actions,downloads
-acira doctor
-acira policy validate
-```
-
-Wrap your actual asynchronous workflow:
-
-```python
-import asyncio
-from acira import protect
-from playwright.async_api import async_playwright
-
-async def main():
-    async with protect() as guard:
-        async with async_playwright() as p:
-            guard.patch_playwright(p)
-            browser = await p.chromium.launch(headless=False)
-            page = await browser.new_page()
-            await page.goto("https://example.com")
-            # Your supported Page, Locator, Frame and ElementHandle operations.
-            await browser.close()
-
-asyncio.run(main())
-```
-
-Protection begins through this integration, not package installation alone. Relative
-policy paths are anchored to `acira.json`. When launching elsewhere, pass
-`protect(project="/absolute/project", agent="name")`.
-
-For critical submissions use `guard.submit(...)` with the actual complete request
-payload, destination and required verifiable facts. The demo is a runnable example;
-[protection contracts](protection.md) describe supported actions and limits. Unknown
-scripts, forced pointer actions and unsupported browser/API modes fail closed.
-
-Run your agent first, then `acira open`: it connects automatically without restart.
-Normally keep ACIRA_HOME unset so projects and virtual environments share one user
-service. The dashboard is optional for enforcement. For file-only operation use
-`protect(dashboard=False)` and an interactive terminal/external reviewer; unattended
-review requests never default to approval.
-
 ## Explore the remaining workflow
 
 - **Policies:** bundled catalog, JSON imports, per-agent assignments, custom/shared
@@ -122,9 +131,10 @@ review requests never default to approval.
 
 ## Stop and repair
 
-Normal resolved demo runs end themselves. Cancel a pending run or end an explicitly
-held run through the test drive. Ctrl-C closes the demo and its running browsers.
-The dashboard service continues until `acira server stop`.
+Stop your application using its normal shutdown. Its Acira run ends when the
+`protect()` context exits. The dashboard service continues until `acira server stop`.
+In the optional test drive, resolved runs end themselves; cancel or end held runs
+through that test drive, or use Ctrl-C to stop the demo and its browsers.
 
 ```sh
 acira status

@@ -20,7 +20,7 @@ def output(value):
 def parser() -> argparse.ArgumentParser:
     cli = argparse.ArgumentParser(prog="acira", description="Local policies, human review, and action history for your existing browser agent.")
     commands = cli.add_subparsers(dest="command", required=True)
-    init = commands.add_parser("init", help="Initialize project policies and agent configuration")
+    init = commands.add_parser("init", help="Connect your existing project: configure policies and show SDK integration steps")
     init.add_argument("--project", default=".")
     init.add_argument("--agent", default="default")
     init.add_argument("--adapter", choices=["playwright", "browser_use"])
@@ -29,7 +29,7 @@ def parser() -> argparse.ArgumentParser:
     init.add_argument("--policies", help="Comma-separated bundled policy names, or none")
     init.add_argument("--no-dashboard", action="store_true")
     init.add_argument("--yes", action="store_true", help="Use defaults without interactive questions")
-    demo = commands.add_parser("demo", help="Try visible Playwright or a free local-model browser-use agent")
+    demo = commands.add_parser("demo", help="Optional separate test drive; not required to integrate Acira")
     demo.add_argument("--directory", help="Separate demo project folder; defaults to Acira's private user state")
     demo.add_argument("--port", type=int, default=0, help="Test-drive port; by default choose an available port")
     demo.add_argument("--no-open", action="store_true", help="Print the test-drive address without opening browser tabs")
@@ -91,13 +91,25 @@ def run(argv: list[str] | None = None) -> None:
                 connect = prompt("Automatically connect to your trusted local dashboard? yes/no", "yes").lower() in {"y", "yes"}
             project = initialize(root, agent=args.agent, adapter=adapter, general=general, specific=specific,
                                  selected=[] if selected == "none" else [name.strip() for name in selected.split(",")], dashboard=connect)
-            print(f"Ready: {project.path}\nAdd the following inside your existing async entry point:")
-            print(f"\nfrom acira import protect\n\nasync with protect(project={str(project.root)!r}, agent={args.agent!r}) as guard:")
-            if adapter == "playwright":
-                print("    async with async_playwright() as p:\n        guard.patch_playwright(p)\n        # Launch Chromium and run your existing workflow here.")
+            # Initialization is idempotent: guidance must describe the persisted
+            # agent, including when an existing profile differs from the flags.
+            profile = project.snapshot(args.agent).profile
+            print(f"Configured: {project.path}\n\n1. Add Acira to your existing async entry point ({profile['adapter']}):")
+            print("\nfrom acira import protect")
+            if profile["adapter"] == "playwright":
+                print("from playwright.async_api import async_playwright")
+            print(f"\nasync with protect(project={str(project.root)!r}, agent={args.agent!r}) as guard:")
+            if profile["adapter"] == "playwright":
+                print("    async with async_playwright() as p:\n        guard.patch_playwright(p)\n        # Keep your Chromium launch/connect and existing workflow here.\n        ...")
             else:
-                print("    # Construct and run your existing browser-use agent here.")
-            print("\nVerify: acira doctor\nOptional dashboard: acira open\nLocal enforcement works without the dashboard.")
+                print("    # Create BrowserSession and Agent here using your existing\n    # browser settings and model, then await agent.run().\n    ...")
+            print(f"\n2. In a terminal opened at {project.root}, verify configuration:")
+            print(f"acira doctor --agent {args.agent}\nacira policy validate --agent {args.agent}")
+            print("\n3. Start your agent using its usual command. Protection begins when this code runs.")
+            print("\n4. Optional dashboard (now or later): acira open\nInspect Agents, Approvals and Activity for your project's real run.")
+            if not project.document().get("dashboard", {}).get("connect", False):
+                print("This project has automatic dashboard connection disabled. Use protect(..., dashboard=True) to connect a run.")
+            print("\nYour existing browser/model can be reused. Setup does not launch a browser, download models, or run a demo.\nOptional separate test drive: acira demo")
             return
         if args.command == "demo":
             if not 0 <= args.port <= 65535:

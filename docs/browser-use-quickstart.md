@@ -1,28 +1,83 @@
-# Browser-use with a free local model: setup and verification
+# Connect your existing browser-use agent
 
 Acira's browser-use integration uses the same local policy files, shared dashboard,
-approval binding and history as Playwright. The bundled demonstration runs a real
-browser-use Agent with Ollama. No model API key, paid provider, Browserbase account
-or cloud browser is needed. Local inference uses your computer's memory and compute.
+approval binding and history as Playwright. Start with the browser and model your
+agent already uses; the SDK does not require a separate demo or an Ollama download.
+The [general setup guide](quickstart.md) covers installing into your existing
+environment. Optional free local-model setup and test-drive instructions follow
+the real-project integration below.
 
 ## Install outside the repository
 
-Use Python 3.11+ and a separate project environment. Before public publication,
+Use Python 3.11+ and activate your existing project environment. For the private preview,
 install the release wheel provided with this checkout:
 
 ```sh
-python -m venv .venv
+# Create a .venv only if your project does not already have an environment.
+# python -m venv .venv
 # macOS/Linux:
 source .venv/bin/activate
 # Windows PowerShell instead:
 # .\.venv\Scripts\Activate.ps1
-python -m pip install "/absolute/path/acira-0.1.0-py3-none-any.whl[browser-use,playwright]"
-python -m playwright install chromium
+python -m pip install "/absolute/path/acira-0.1.0-py3-none-any.whl"
 ```
 
-The Playwright dependency supplies Chromium to this demo; browser-use controls
-the agent's browser through its BrowserSession. The SDK does not silently install
-browsers, download model weights or rewrite application code.
+If browser-use is missing, install the wheel with `[browser-use]`. This release
+is tested with browser-use 0.13.11; check your version with `acira doctor` after
+initializing. Keep your existing Chromium executable/session options. The SDK
+does not silently install browsers, download models or rewrite application code.
+
+## Integrate your existing browser-use agent
+
+Inside its project and environment:
+
+```sh
+acira init --yes --adapter browser_use --policies payment,credentials,destructive-actions,downloads
+acira doctor
+acira policy validate
+```
+
+Keep your existing model, task and Chromium settings. Create and run the session
+inside the protection context in your existing async entry point:
+
+```python
+from acira import protect
+from browser_use import Agent, BrowserSession
+
+async with protect() as guard:
+    browser = BrowserSession(**your_existing_browser_options)
+    try:
+        agent = Agent(
+            task=your_existing_task,
+            llm=your_existing_llm,
+            browser_session=browser,
+        )
+        await agent.run()
+    finally:
+        await browser.kill()
+```
+
+The `your_existing_*` names are your application's values. Acira adds no model
+provider requirement or model download to this integration. Use the actual project
+and agent snippet printed by initialization when launching from elsewhere.
+
+Use your existing browser executable/session setup as appropriate. Acira protection
+starts through this integration, not installation alone. For critical submissions,
+register a business tool using `guard.submit(session, exact_node, destination=...,
+values=actual_complete_payload, facts=required_facts)`. Its supported JSON/form request
+contract binds the reviewed values and destination. `guard.fill_fields(session,
+[(exact_node, text), ...])` declares a bounded text operation; it excludes submission.
+The packaged `acira.browser_use_demo` is a runnable reference. The
+[protection contracts](protection.md) state action, browser, frame and payload limits.
+
+Keep sensitive values out of task prompts and model logging. Acira redacts its
+artifacts; your application's provider calls and framework logs need their own
+privacy choices. The model must never become the reviewer for its own request.
+
+## Optional: set up a free local model
+
+This section is for users who want a local provider. Existing configured providers
+do not need this setup. Local inference uses your computer's memory and compute.
 
 Install [Ollama from its official distribution](https://ollama.com/download).
 Start its server with cloud features disabled. In macOS/Linux:
@@ -54,7 +109,46 @@ on the computer; a small model is not a guarantee of correct plans on arbitrary 
 Use a downloaded local model supported by ChatOllama; this demo refuses cloud model
 references and non-loopback inference URLs.
 
-## Run the complete journey
+### Optional local-model integration example
+
+Configure the free local provider explicitly and construct the session and agent
+inside the protection context:
+
+```python
+import asyncio
+import os
+os.environ["ANONYMIZED_TELEMETRY"] = "false"
+os.environ["BROWSER_USE_CLOUD_SYNC"] = "false"
+os.environ["BROWSER_USE_VERSION_CHECK"] = "false"
+from acira import protect
+from browser_use import Agent, BrowserSession, ChatOllama
+from playwright.async_api import async_playwright
+
+async def main():
+    async with protect() as guard, async_playwright() as p:
+        browser = BrowserSession(headless=False, use_cloud=False,
+                                 executable_path=p.chromium.executable_path)
+        try:
+            agent = Agent(
+                task="Open https://example.com and summarize it without changing data.",
+                llm=ChatOllama(model="qwen3:4b-instruct", host="http://127.0.0.1:11434"),
+                browser_session=browser,
+                use_vision=False,
+                use_judge=False,
+                enable_planning=False,
+            )
+            await agent.run(max_steps=10)
+        finally:
+            await browser.kill()
+
+asyncio.run(main())
+```
+
+## Optional: run the separate test drive
+
+This example uses Playwright only to locate its installed Chromium. For this
+optional example, install `[browser-use,playwright]` extras and run
+`python -m playwright install chromium` if that browser build is missing.
 
 ```sh
 acira demo --adapter browser-use
@@ -100,7 +194,7 @@ Manual human clicks in Chromium are outside SDK enforcement. Approval permits an
 attempt; it does not itself establish success. An ambiguous outcome remains unknown
 and is not retried. An unattended request never silently approves.
 
-## Multiple projects, policies and dashboard timing
+## Optional test drive: multiple projects and live policies
 
 Start payment and draft review together. The research agent fills a text area with
 a fake note and requests a separately bound save. Resolving its review does not
@@ -118,63 +212,11 @@ without a restart. Keep `ACIRA_HOME` unset normally so virtual environments shar
 one account-wide service. File-only enforcement and recording work without that
 server. The optional dashboard provides management, not every allow/block decision.
 
-## Integrate your existing browser-use agent
-
-Inside its project and environment:
-
-```sh
-acira init --yes --adapter browser_use --policies payment,credentials,destructive-actions,downloads
-acira doctor
-acira policy validate
-```
-
-Configure the free local provider explicitly and construct the session and agent
-inside the protection context:
-
-```python
-import asyncio
-import os
-os.environ["ANONYMIZED_TELEMETRY"] = "false"
-os.environ["BROWSER_USE_CLOUD_SYNC"] = "false"
-os.environ["BROWSER_USE_VERSION_CHECK"] = "false"
-from acira import protect
-from browser_use import Agent, BrowserSession, ChatOllama
-from playwright.async_api import async_playwright
-
-async def main():
-    async with protect() as guard, async_playwright() as p:
-        browser = BrowserSession(headless=False, use_cloud=False,
-                                 executable_path=p.chromium.executable_path)
-        try:
-            agent = Agent(
-                task="Open https://example.com and summarize it without changing data.",
-                llm=ChatOllama(model="qwen3:4b-instruct", host="http://127.0.0.1:11434"),
-                browser_session=browser,
-                use_vision=False,
-                use_judge=False,
-                enable_planning=False,
-            )
-            await agent.run(max_steps=10)
-        finally:
-            await browser.kill()
-
-asyncio.run(main())
-```
-
-Use your existing browser executable/session setup as appropriate. Acira protection
-starts through this integration, not installation alone. For critical submissions,
-register a business tool using `guard.submit(session, exact_node, destination=...,
-values=actual_complete_payload, facts=required_facts)`. Its supported JSON/form request
-contract binds the reviewed values and destination. `guard.fill_fields(session,
-[(exact_node, text), ...])` declares a bounded text operation; it excludes submission.
-The packaged `acira.browser_use_demo` is a runnable reference. The
-[protection contracts](protection.md) state action, browser, frame and payload limits.
-
-Keep sensitive values out of task prompts and model logging. Acira redacts its
-artifacts; your application's provider calls and framework logs need their own
-privacy choices. The model must never become the reviewer for its own request.
-
 ## Diagnose and stop
+
+For your real project, use its normal shutdown and inspect the SDK run with
+`acira status`. Local-model and test-drive troubleshooting below applies only
+when you chose those options.
 
 ```sh
 acira status

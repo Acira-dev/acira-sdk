@@ -144,6 +144,41 @@ function dialog(title) {
   $("dialog-close").focus();
   return $("dialog-content");
 }
+function connectProjectDialog() {
+  const body = dialog("Connect your project");
+  body.append(el("p", "Use the Python environment that already runs your agent. Install the Acira SDK there, then follow these steps in your project folder."));
+  const label = el("label", "Your browser framework"),
+    integration = el("select");
+  integration.setAttribute("aria-label", "Setup framework");
+  integration.append(option("playwright", "Playwright"), option("browser_use", "browser-use"));
+  label.append(integration);
+  const steps = el("div", undefined, "section");
+  function showSteps() {
+    const adapter = integration.value;
+    steps.replaceChildren();
+    steps.append(
+      el("h3", "1. Initialize in your project folder"),
+      el("pre", "acira init --adapter " + adapter),
+      el("p", "Choose your policies and automatic dashboard connection. Acira creates its configuration and policy files in this folder."),
+      el("h3", "2. Add Acira to your existing async workflow"),
+      el("pre", adapter === "playwright"
+        ? "from acira import protect\nfrom playwright.async_api import async_playwright\n\nasync with protect() as guard:\n    async with async_playwright() as p:\n        guard.patch_playwright(p)\n        # Your existing Chromium launch/connect and workflow.\n        ..."
+        : "from acira import protect\n\nasync with protect() as guard:\n    # Create your BrowserSession and Agent here with your\n    # existing browser settings and model; await agent.run().\n    ..."),
+      el("p", "Use the exact project and agent snippet printed by acira init. For Playwright, patch before launching or connecting. For browser-use, create and run the session inside protect()."),
+      el("h3", "3. Verify, then start your agent as usual"),
+      el("pre", "acira doctor\nacira policy validate"),
+      el("p", "Run your usual entry point. Configuration checks alone do not start or protect an agent. Named agents use --agent followed by their name for these checks."),
+      el("h3", "4. Inspect your real run here"),
+      el("p", "With automatic connection enabled, your project and run appear in Agents. Use Approvals for reviews, Policies for configuration and Activity for outcomes. You can open this dashboard later with acira open."),
+    );
+    const optional = el("details");
+    optional.append(el("summary", "Optional separate test drive"), el("pre", adapter === "playwright" ? "acira demo" : "acira demo --adapter browser-use"), el("p", "The test drive creates separate sample projects. It is optional; your existing browser and model can be reused for your own workflow."));
+    steps.append(optional);
+  }
+  integration.onchange = showSteps;
+  body.append(label, steps);
+  showSteps();
+}
 $("dialog-close").onclick = () => $("dialog").close();
 $("dialog").addEventListener("close", () => { state.review = null; });
 function detail(label, value) {
@@ -249,6 +284,7 @@ async function render() {
           "Connect your first project",
           "Run acira init inside an existing browser-agent project, then start it with the Acira SDK. It will appear here automatically.",
         ),
+        button("Connect a project", connectProjectDialog, "primary"),
       );
       return;
     }
@@ -280,6 +316,9 @@ async function render() {
 }
 
 async function agents(content) {
+  const setup = el("div", undefined, "toolbar");
+  setup.append(el("p", "Run Acira inside your existing projects."), button("Connect a project", connectProjectDialog, "primary"));
+  content.append(setup);
   const runs = state.projects.flatMap((p) =>
     p.runs.map((r) => ({ ...r, project: p })),
   );
