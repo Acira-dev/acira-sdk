@@ -3,7 +3,10 @@
 The original 393-host dataset and 17-host follow-up remain unchanged. A failure is
 evidence to investigate, not permission to disable protections or force a click.
 The separate repair campaign repeats all 200 originally incomplete hosts plus
-Python, MDN and Jest controls using a freshly built, installed SDK wheel.
+Python, MDN and Jest controls using freshly built, installed SDK wheels. The
+repair evidence distinguishes the initial phase from the continuation after an
+unresponsive baseline renderer stalled a worker. Repeated hosts remain separate
+from the original distinct-host count.
 
 ## Reproducible issues corrected
 
@@ -16,6 +19,8 @@ Python, MDN and Jest controls using a freshly built, installed SDK wheel.
 | A client router maps a link's href to another public path. | Record the baseline landing and require protected runs to match it exactly. Fixtures cover matching and divergent client routes; the divergent route remains a failure. The network allowlist is unchanged. |
 | Exceptions or early returns omit dispatch/review evidence. | Collect evidence in finalization. A real browser fixture performs a guarded approved click and then throws; its failure retains the dispatch, approved review and final URL. |
 | Handler removal races in-flight response callbacks. | Go offline, stop new test fetches, drain/cancel bounded callbacks, remove handlers and destroy the context. The existing negative control proves that the old online teardown window could send a POST to an inert local fixture; the fixed path sends none. |
+| External cancellation of a native trial leaves an unresolved Playwright future. | Use native timeout options and a shared scan deadline. An obstructed-link fixture verifies zero clicks and zero unhandled-future reports after cleanup. |
+| An unresponsive renderer blocks the rest of a worker's catalog. | A per-case watchdog retires the isolated context and records the timeout. A stalled inert renderer fixture verifies that the following case still works. An attempt with an uncertain result is never retried. |
 | Every missing screenshot gets the same vague message. | The SDK emits fixed reason codes for unavailable geometry/targets, unstable pages, scan/image limits, timeout and unbounded sensitive visual effects. Tests check reason accuracy and ensure browser exceptions containing fake secrets never leave the runtime. |
 
 Readiness follows Playwright's native [actionability checks](https://playwright.dev/python/docs/actionability).

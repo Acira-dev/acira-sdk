@@ -224,6 +224,91 @@ async def test_teardown_keeps_background_mutations_off_the_network(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_scan_budget_uses_native_timeouts_without_abandoned_trial_futures():
+    import asyncio
+    import gc
+    from acira.adapters.playwright_boundary import trusted
+    loop=asyncio.get_running_loop()
+    previous=loop.get_exception_handler()
+    errors=[]
+    loop.set_exception_handler(lambda loop,context: errors.append(context.get('message','unknown')))
+    try:
+        async with async_playwright() as p:
+            browser=await p.chromium.launch()
+            try:
+                context=await browser.new_context()
+                page=await context.new_page()
+                await page.route('**/*',lambda route:route.fulfill(content_type='text/html',body='''
+                    <a href="/about">About public content</a>
+                    <div style="position:fixed;inset:0;background:white;z-index:10"></div>
+                    <script>window.clicks=0;document.addEventListener('click',()=>window.clicks++)</script>'''))
+                await page.goto('https://fixture.invalid/')
+                link,diagnostics=await sweep.ready_link(page,budget_seconds=.15)
+                assert link is None and diagnostics['scan_budget']==1
+                assert await trusted(page,'evaluate','window.clicks')==0
+                assert page.url=='https://fixture.invalid/'
+                await context.close()
+                del page,context
+                gc.collect()
+                await asyncio.sleep(.1)
+            finally:
+                await browser.close()
+        assert not errors
+    finally:
+        loop.set_exception_handler(previous)
+
+
+@pytest.mark.asyncio
+async def test_case_watchdog_retires_stalled_renderer_and_keeps_next_case_usable(monkeypatch):
+    from acira.adapters.playwright_boundary import trusted
+    saved_observe=sweep.observe
+    async def stalled_read(page):
+        await trusted(page,'evaluate','() => { while(true) {} }')
+    async def fixture(route):
+        await route.fulfill(content_type='text/html',body='<h1>Public local fixture</h1><a href="/about">About</a>')
+    monkeypatch.setattr(sweep.Fence,'_route',lambda self,route:fixture(route))
+    monkeypatch.setattr(sweep,'observe',stalled_read)
+    async with async_playwright() as p:
+        browser=await p.chromium.launch()
+        try:
+            result=await sweep.bounded_case(browser,{'url':'https://fixture.invalid/'},timeout=2000,case_timeout=.3)
+            assert result['status']=='case_timeout'
+            assert browser.contexts==[]
+            monkeypatch.setattr(sweep,'observe',saved_observe)
+            result=await sweep.bounded_case(browser,{'url':'https://fixture.invalid/'},timeout=2000,case_timeout=5)
+            assert result['status']=='verified'
+            assert result['final_url']=='https://fixture.invalid/about'
+            assert browser.contexts==[]
+        finally:
+            await browser.close()
+
+
+@pytest.mark.asyncio
+async def test_case_watchdog_stops_if_context_cleanup_fails(monkeypatch):
+    import asyncio
+    saved_observe=sweep.observe
+    async def slow_read(page):
+        await asyncio.sleep(.5)
+        return await saved_observe(page)
+    async def broken_cleanup(context,fence):
+        raise RuntimeError('Local fixture cleanup failure')
+    async def fixture(route):
+        await route.fulfill(content_type='text/html',body='<h1>Public local fixture</h1><a href="/about">About</a>')
+    monkeypatch.setattr(sweep.Fence,'_route',lambda self,route:fixture(route))
+    monkeypatch.setattr(sweep,'observe',slow_read)
+    monkeypatch.setattr(sweep,'close_context',broken_cleanup)
+    async with async_playwright() as p:
+        browser=await p.chromium.launch()
+        try:
+            with pytest.raises(RuntimeError,match='context could not retire'):
+                await sweep.bounded_case(browser,{'url':'https://fixture.invalid/'},timeout=2000,case_timeout=.2)
+            assert len(browser.contexts)==1
+            await browser.contexts[0].close()
+        finally:
+            await browser.close()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("guarded", [False, True])
 async def test_selected_link_stays_pinned_when_menu_order_changes(guarded):
     import contextlib

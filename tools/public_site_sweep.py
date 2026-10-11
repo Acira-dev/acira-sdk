@@ -233,15 +233,20 @@ async def close_context(context, fence):
     if fence.active_routes:
         await asyncio.wait(tuple(fence.active_routes), timeout=2)
 
-async def find_link(page, expected=None, robots=None, diagnostics=None):
+def scan_timeout(deadline, maximum=1000):
+    return maximum if deadline is None else max(1,min(maximum,int((deadline-time.monotonic())*1000)))
+
+async def find_link(page, expected=None, robots=None, diagnostics=None, deadline=None):
     diagnostics = diagnostics if diagnostics is not None else Counter()
     links = page.locator("a[href]")
     for index in range(min(await links.count(), 120)):
+        if deadline is not None and time.monotonic() >= deadline:
+            break
         try:
             # Keep the observed DOM node, not its menu position. Hydration can
             # insert/reorder anchors between scanning and the guarded action.
             # A replaced/detached node must fail rather than retarget a click.
-            item = await links.nth(index).element_handle(timeout=1000)
+            item = await links.nth(index).element_handle(timeout=scan_timeout(deadline))
             if item is None:
                 continue
             href, label, download, onclick, role, target = await asyncio.gather(
@@ -270,7 +275,7 @@ async def find_link(page, expected=None, robots=None, diagnostics=None):
             # clicking or asking for approval. This test-only trusted call has
             # fixed options; it cannot authorize a real browser operation.
             try:
-                await trusted(item, "click", trial=True, timeout=800)
+                await trusted(item, "click", trial=True, timeout=scan_timeout(deadline,800))
             except Exception:
                 diagnostics["target_not_actionable"] += 1
                 continue
@@ -285,14 +290,19 @@ async def find_link(page, expected=None, robots=None, diagnostics=None):
             continue
     return None
 
-async def ready_link(page, expected=None, robots=None):
+async def ready_link(page, expected=None, robots=None, budget_seconds=15):
     diagnostics = Counter()
+    deadline = time.monotonic()+budget_seconds
     for attempt in range(3):
-        found = await find_link(page, expected, robots, diagnostics)
+        found = await find_link(page, expected, robots, diagnostics,deadline)
         if found:
             return found, dict(diagnostics)
+        remaining=deadline-time.monotonic()
+        if remaining<=0:
+            diagnostics["scan_budget"]+=1
+            break
         if attempt != 2:
-            await asyncio.sleep(.4)
+            await asyncio.sleep(min(.4,remaining))
     return None, dict(diagnostics)
 
 async def robots_check(session, url):
@@ -353,12 +363,16 @@ async def load_page(page, url, timeout, fence, robots=None):
 def event_slice(journal, run, previous):
     return journal.events(run=run, after=previous, limit=5000)
 
-async def case(browser, site, *, timeout, expected=None, expected_landing=None, mode="baseline", guard=None, journal=None, reviewer=None, robots=None, pacer=None):
+async def case(browser, site, *, timeout, expected=None, expected_landing=None, mode="baseline", guard=None, journal=None, reviewer=None, robots=None, pacer=None, state=None):
     fence = Fence(site["url"], pacer)
+    result = {"mode": mode, "fresh_cookie_count": 0}
+    if state is not None:
+        state.update(result=result,fence=fence)
     context = await new_context(browser, fence)
+    if state is not None:
+        state["context"]=context
     page = await context.new_page()
     page.set_default_timeout(6000)
-    result = {"mode": mode, "fresh_cookie_count": 0}
     run = guard.runtime_control.run_id if guard else None
     previous = None
     prior_reviews = set()
@@ -368,11 +382,9 @@ async def case(browser, site, *, timeout, expected=None, expected_landing=None, 
         result["final_url"] = clean_url(page.url)
         if result["status"] != "loaded":
             return result
-        try:
-            async with asyncio.timeout(15):
-                link, selection = await ready_link(page, expected, robots)
-                result["selection"] = selection
-        except TimeoutError:
+        link, selection = await ready_link(page, expected, robots)
+        result["selection"] = selection
+        if selection.get("scan_budget"):
             result["status"] = "link_scan_timeout"
             return result
         if not link:
@@ -480,6 +492,35 @@ async def case(browser, site, *, timeout, expected=None, expected_landing=None, 
         result["failure"] = failure_detail(result)
     return result
 
+async def bounded_case(browser,site,*,case_timeout=120,**kwargs):
+    state={}
+    task=asyncio.create_task(case(browser,site,state=state,**kwargs))
+    done,_=await asyncio.wait({task},timeout=case_timeout)
+    if done:
+        return task.result()
+    # Close the isolated context first so pending native calls can finish and
+    # their exceptions are consumed. Never replay or substitute the operation.
+    context=state.get("context")
+    if context is not None:
+        try:
+            await asyncio.wait_for(close_context(context,state["fence"]),timeout=32)
+        except Exception as exc:
+            state["result"]["watchdog_cleanup_error"]=type(exc).__name__
+    done,_=await asyncio.wait({task},timeout=10)
+    if not done:
+        task.cancel()
+        done,_=await asyncio.wait({task},timeout=5)
+    if not done:
+        raise RuntimeError("Timed-out browser case could not retire; stop this worker")
+    if not task.cancelled():
+        task.exception()  # consume any browser-close error
+    if context is None or context in browser.contexts:
+        raise RuntimeError("Timed-out browser context could not retire; stop this worker")
+    result=state.get("result",{"mode":kwargs.get("mode","baseline"),"fresh_cookie_count":None})
+    result.update(status="case_timeout",case_timeout_seconds=case_timeout)
+    result["failure"]=failure_detail(result)
+    return result
+
 def failure_detail(case):
     """Fixed, non-sensitive diagnosis; no guessed SDK blame or recovery bypass."""
     status, error = case.get("status"), case.get("error", "")
@@ -575,21 +616,21 @@ async def worker(args):
             result["minimum_document_interval_seconds"] = interval
             pacer = DocumentPacer(interval)
             if robots is not False:
-                first = await case(baseline, site, timeout=args.timeout, robots=robots, pacer=pacer)
+                first = await bounded_case(baseline, site, timeout=args.timeout, robots=robots, pacer=pacer)
                 result["cases"].append(first)
                 if first.get("status") == "verified":
                     target = first["target_url"]
                     landing = first["landing_url"]
                     if robots is None or (robots.can_fetch(USER_AGENT, target) and robots.can_fetch("*", target)):
                         for mode, profile in (("normal", "normal"), ("blocked", "blocked"), ("rejected", "review"), ("approved", "review")):
-                            result["cases"].append(await case(browsers[profile], site, timeout=args.timeout, expected=target,expected_landing=landing,
+                            result["cases"].append(await bounded_case(browsers[profile], site, timeout=args.timeout, expected=target,expected_landing=landing,
                                 mode=mode, guard=guards[profile], journal=journal, reviewer=reviewer, robots=robots, pacer=pacer))
                     else:
                         result["target_robots_disallowed"] = True
                 elif first.get("status") in {"no_safe_link", "target_unavailable"}:
                     # Count a real guarded landing-page observation without
                     # pretending an action/review workflow was covered.
-                    result["cases"].append(await case(browsers["normal"], site, timeout=args.timeout,
+                    result["cases"].append(await bounded_case(browsers["normal"], site, timeout=args.timeout,
                         mode="normal", guard=guards["normal"], journal=journal, reviewer=reviewer, robots=robots, pacer=pacer))
             statuses = [c["status"] for c in result["cases"]]
             result["status"] = "complete" if statuses == ["verified"] * 5 else "partial" if any(s in {"verified", "no_safe_link", "target_unavailable"} for s in statuses) else "unavailable"

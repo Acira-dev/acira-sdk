@@ -30,6 +30,14 @@ The scan briefly waits for hydrated content, skips obstructed duplicate links an
 excludes absolute same-document fragment links. These are test-driver probes;
 they do not approve operations or change SDK policy behavior.
 
+Readiness uses Playwright's native timeouts within a 15-second scan budget,
+rather than externally cancelling a trial click. A stalled page can also hang a
+read-only browser call that has no native timeout. The runner gives each case a
+120-second watchdog, retires its isolated context and records `case_timeout`.
+It does not retry an uncertain action. If the task cannot retire, that worker
+stops instead of continuing with a live orphaned case. These budgets belong to
+the test runner; they do not change the SDK's review timeout.
+
 The baseline records both the selected href and its observed public landing.
 Protected cases must reach that exact landing, including client-side routes that
 change History without a document request. The network fence remains unchanged:
@@ -138,3 +146,6 @@ Offline real-browser fixtures verify empty initial sessions, ordinary navigation
 no-effect blocking/rejection, durable approvals, masked evidence, permitted
 redirects and an unsafe redirect whose destination receives no request.
 The ordinary test suite does not contact hundreds of public sites.
+Additional fixtures stall an inert local renderer and cover scan-budget expiry:
+the next isolated case remains usable, readiness produces no click event, and
+native trial timeouts leave no abandoned browser future.
