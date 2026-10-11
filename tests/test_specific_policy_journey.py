@@ -26,7 +26,7 @@ async def test_specific_capture_terminal_and_dashboard_control_real_navigation(t
     async def landing(request):
         hits.append(request.path)
         if request.path == "/":
-            return web.Response(content_type="text/html", text='<title>Fixture guide</title><main><a href="/quickstart">Quickstart</a><a id="guide" href="/guide">Open guide</a><a id="about" href="/about">About this project</a></main>')
+            return web.Response(content_type="text/html", text='''<title>Fixture guide</title><main><a href="/quickstart">Quickstart</a><a id="guide" href="/guide">Open guide</a><a id="about" href="/about">About this project</a></main><script>document.addEventListener('click', event => { if (event.target.closest('#guide')) history.pushState(null, '', '/unexpected'); }, true);</script>''')
         return web.Response(content_type="text/html", text='<title>Public content</title><h1>Fixture guide content</h1>')
     app = web.Application()
     app.router.add_get('/{tail:.*}', landing)
@@ -59,6 +59,14 @@ async def test_specific_capture_terminal_and_dashboard_control_real_navigation(t
                 fingerprint = captured["targets"][0]["fingerprint"]
                 assert fingerprint["text"] == fingerprint["labels"]["accessible"] == "Open guide"
                 assert fingerprint["previous_control_text"] == "Quickstart"
+                original_scope = captured["scope"]
+                # A later SPA route change cannot rewrite an already captured
+                # policy's source scope to its destination page.
+                await page.evaluate("history.pushState(null, '', '/different-page')")
+                async with page.expect_download() as again:
+                    await page.get_by_role("button", name="Download", exact=True).click()
+                after_route = json.loads(Path(await (await again.value).path()).read_text())
+                assert after_route["id"] == captured["id"] and after_route["scope"] == original_scope
             finally:
                 await context.close()
         common = ["--project", str(project.root)]

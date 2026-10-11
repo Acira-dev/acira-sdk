@@ -1,6 +1,6 @@
 (() => {
   const ROOT_ID = "acira-capture-panel";
-  const VERSION = "0.6.3";
+  const VERSION = "0.6.4";
   const STORAGE_PREFIX = "acira.capture.draft";
   const EXISTING = window.__ACIRA_CAPTURE__;
   if (EXISTING) {
@@ -76,7 +76,11 @@
     pendingElement: null,
     pendingFingerprint: null,
     targets: [],
-    policyId: null
+    policyId: null,
+    scopePatterns: null,
+    storageKey: null,
+    pendingPage: null,
+    pendingPatterns: null
   };
 
   const panel = document.createElement("section");
@@ -155,9 +159,9 @@
 
   panel.addEventListener("click", handlePanelClick);
   document.addEventListener("mousemove", handleMouseMove, true);
-  document.addEventListener("pointerdown", suppressCaptureActivation, true);
-  document.addEventListener("mousedown", suppressCaptureActivation, true);
-  document.addEventListener("click", handleDocumentClick, true);
+  window.addEventListener("pointerdown", suppressCaptureActivation, true);
+  window.addEventListener("mousedown", suppressCaptureActivation, true);
+  window.addEventListener("click", handleDocumentClick, true);
   document.addEventListener("keydown", handleKeyDown, true);
   window.addEventListener("scroll", refreshOverlays, true);
   window.addEventListener("resize", refreshOverlays, true);
@@ -188,9 +192,9 @@
     state.capturing = false;
     panel.removeEventListener("click", handlePanelClick);
     document.removeEventListener("mousemove", handleMouseMove, true);
-    document.removeEventListener("pointerdown", suppressCaptureActivation, true);
-    document.removeEventListener("mousedown", suppressCaptureActivation, true);
-    document.removeEventListener("click", handleDocumentClick, true);
+    window.removeEventListener("pointerdown", suppressCaptureActivation, true);
+    window.removeEventListener("mousedown", suppressCaptureActivation, true);
+    window.removeEventListener("click", handleDocumentClick, true);
     document.removeEventListener("keydown", handleKeyDown, true);
     window.removeEventListener("scroll", refreshOverlays, true);
     window.removeEventListener("resize", refreshOverlays, true);
@@ -297,7 +301,13 @@
   }
 
   function selectElement(element) {
+    if (state.targets.length && state.targets[0].capture?.url !== normalizedPageUrl()) {
+      setStatus("Page changed. Download this capture or Clear before selecting targets on another page.");
+      return;
+    }
     state.pendingElement = element;
+    state.pendingPage = normalizedPageUrl();
+    state.pendingPatterns = urlPatternsForCurrentPage();
     state.pendingFingerprint = collectFingerprint(element);
     placeOverlay(selectedBox, selectedLabel, overlayElementFor(element), labelForElement(element));
     facts.textContent = JSON.stringify(state.pendingFingerprint, null, 2);
@@ -310,7 +320,15 @@
       setStatus("Select a target first");
       return;
     }
-    if (!state.targets.length) state.policyId = newPolicyId();
+    if (state.pendingPage !== normalizedPageUrl()) {
+      setStatus("Page changed since selection. Select the target again before adding it.");
+      return;
+    }
+    if (!state.targets.length) {
+      state.policyId = newPolicyId();
+      state.scopePatterns = state.pendingPatterns;
+      state.storageKey = pageStorageKey();
+    }
     const targetId = `target-${state.targets.length + 1}-${slug(
       state.pendingFingerprint.text || state.pendingFingerprint.id || state.pendingFingerprint.tag || "element"
     )}`;
@@ -321,7 +339,7 @@
       threshold: 70,
       fingerprint: state.pendingFingerprint,
       capture: {
-        url: normalizedPageUrl(),
+        url: state.pendingPage,
         title: document.title,
         captured_at: new Date().toISOString(),
         tool: "acira-capture-webextension"
@@ -344,6 +362,9 @@
     state.targets = [];
     state.pendingElement = null;
     state.pendingFingerprint = null;
+    state.pendingPage = null;
+    state.pendingPatterns = null;
+    state.scopePatterns = null;
     facts.textContent = "";
     hideSelected();
     persistDraft();
@@ -359,7 +380,7 @@
       version: 2,
       semantic_profiles: ["acira.web_business_controls.v1"],
       scope: {
-        url_patterns: urlPatternsForCurrentPage()
+        url_patterns: state.scopePatterns || urlPatternsForCurrentPage()
       },
       targets: state.targets
     });
@@ -378,6 +399,9 @@
     const draft = await readDraft();
     if (!draft || !Array.isArray(draft.targets)) return;
     state.targets = sanitizeCapture(draft.targets.filter(isPersistedTarget));
+    state.storageKey = pageStorageKey();
+    state.scopePatterns = Array.isArray(draft.url_patterns) && draft.url_patterns.every(pattern => typeof pattern === "string")
+      ? draft.url_patterns : urlPatternsForCurrentPage();
     state.policyId = typeof draft.policy_id === "string" && /^[A-Za-z0-9_.-]{1,128}$/.test(draft.policy_id)
       ? draft.policy_id : newPolicyId();
     if (state.targets.length) {
@@ -393,8 +417,8 @@
       policy_id: state.policyId,
       version: 2,
       semantic_profiles: ["acira.web_business_controls.v1"],
-      page_key: pageStorageKey(),
-      url_patterns: urlPatternsForCurrentPage(),
+      page_key: state.storageKey || pageStorageKey(),
+      url_patterns: state.scopePatterns || urlPatternsForCurrentPage(),
       title: document.title,
       updated_at: new Date().toISOString(),
       targets: state.targets
@@ -427,7 +451,7 @@
 
   async function writeDraft(draft) {
     draft = sanitizeCapture(draft);
-    const key = pageStorageKey();
+    const key = state.storageKey || pageStorageKey();
     try {
       if (typeof chrome !== "undefined" && chrome.storage?.local) {
         await chrome.storage.local.set({ [key]: draft });
@@ -445,7 +469,7 @@
   }
 
   async function removeDraft() {
-    const key = pageStorageKey();
+    const key = state.storageKey || pageStorageKey();
     try {
       if (typeof chrome !== "undefined" && chrome.storage?.local) {
         await chrome.storage.local.remove(key);

@@ -80,6 +80,11 @@ before applying a policy to other pages; an exact page capture does not silently
 become a whole-site rule. Advanced scope/fingerprint edits remain available in the
 dashboard's JSON editor or the policy file, with schema validation.
 
+A captured draft keeps its source-page scope even if a site later changes its
+route without reloading. If the page changes between selecting and adding a
+target, select it again. Download the current capture or Clear it before capturing
+another page; Acira does not combine unrelated page targets under one scope.
+
 After upgrading the SDK, update the exported installation with
 `acira extension install --replace`, then reload its card in Chrome's extensions
 page. Acira refuses to overwrite unrelated files in that folder.

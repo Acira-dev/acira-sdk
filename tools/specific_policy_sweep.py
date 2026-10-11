@@ -95,6 +95,8 @@ async def capture(p, site, expected, root, *, timeout, robots, pacer, headed):
             if page.url != initial or len(fence.navigations) != before:
                 return {"status":"capture_selection_activated_target"}, None
             await panel.get_by_role("button",name="Block target",exact=True).click()
+            if page.url != initial or len(fence.navigations) != before:
+                return {"status":"capture_selection_activated_target"}, None
             async with page.expect_download(timeout=10000) as download:
                 await panel.get_by_role("button",name="Download",exact=True).click()
             output = directory / "capture.json"
@@ -102,6 +104,10 @@ async def capture(p, site, expected, root, *, timeout, robots, pacer, headed):
             value = json.loads(output.read_text())
             assert value["schema"] == "acira.specific_skill.v2"
             assert len(value["targets"]) == 1 and value["targets"][0]["decision"] == "block"
+            source = urlsplit(initial)
+            expected_scope = source.scheme + "://" + source.netloc + (source.path or "/")
+            if value["scope"]["url_patterns"] != [expected_scope]:
+                return {"status":"capture_scope_changed"}, None
             async with page.expect_download(timeout=10000) as again:
                 await panel.get_by_role("button",name="Download",exact=True).click()
             second = json.loads(Path(await (await again.value).path()).read_text())
@@ -211,7 +217,7 @@ async def campaign(args):
             with results.open("a") as output:
                 output.write(json.dumps(row,ensure_ascii=False)+"\n")
             print(json.dumps({"site":site["url"],"status":row["status"],"capture":row.get("capture",{}).get("status"),"cases":statuses,"error":row.get("error")}),flush=True)
-            if any(status in {"protection_failure","audit_failure","review_failure"} for status in statuses) or row.get("capture",{}).get("status")=="capture_selection_activated_target":
+            if any(status in {"protection_failure","audit_failure","review_failure"} for status in statuses) or row.get("capture",{}).get("status") in {"capture_selection_activated_target", "capture_scope_changed"}:
                 raise RuntimeError("Safety/evidence failure; campaign stopped without weakening protections")
             await asyncio.sleep(.5)
     summary(root, time.monotonic()-began)
@@ -244,4 +250,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.minutes<=0 or args.limit<1 or not 1000<=args.timeout<=30000:
         parser.error("Use a positive duration/site limit and a 1000–30000ms navigation timeout")
-    asyncio.run(campaign(args))
+    try:
+        asyncio.run(campaign(args))
+    except BaseException:
+        # Preserve coverage accounting even when a safety failure stops the
+        # worker. Keep the failure exit status; never turn it into a pass.
+        root = args.output.resolve()
+        if (root / "results.jsonl").exists():
+            summary(root)
+        raise
