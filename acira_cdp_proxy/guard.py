@@ -36,6 +36,7 @@ from .target_mapping import (
     TargetMappingStore,
     fingerprint_hash,
     target_mapping_key,
+    unchanged_capture_identity,
     url_scope_key,
 )
 
@@ -4232,7 +4233,11 @@ class AciraGuardPolicy:
                     candidate_key=candidate_key,
                 )
                 ranked.append((candidate, resolution, candidate_key, latest, eligibility, evidence_gate))
-            ranked.sort(key=lambda item: item[1].score, reverse=True)
+            # Saturated totals can tie an unchanged control with nearby decoys.
+            # Use the same eligibility-aware score for ordering and assignment.
+            ranked.sort(key=lambda item: (_assignment_candidate_score(item),
+                        unchanged_capture_identity(protected_target.fingerprint, item[0], page_url=str(facts.get("url") or ""))),
+                        reverse=True)
             approved = next(
                 (
                     item
@@ -4254,6 +4259,8 @@ class AciraGuardPolicy:
                     "ranked": ranked,
                     "approved": approved,
                     "rejected": rejected,
+                    "unchanged": [item for item in ranked if _assignment_candidate_viable(item)
+                                  and unchanged_capture_identity(protected_target.fingerprint, item[0], page_url=str(facts.get("url") or ""))],
                 }
             )
 
@@ -4268,7 +4275,8 @@ class AciraGuardPolicy:
             assigned_best = assigned.get(index)
             best = assigned_best or (ranked[0] if ranked else None)
             best_key_for_runner = best[2] if best else None
-            runner = next((item for item in ranked if item[2] != best_key_for_runner), None)
+            runner = next((item for item in ranked if item[2] != best_key_for_runner
+                           and _assignment_candidate_viable(item)), None)
             best_candidate = best[0] if best else None
             best_resolution = best[1] if best else None
             best_key = best[2] if best else None
@@ -4279,6 +4287,7 @@ class AciraGuardPolicy:
             margin = (best_resolution.score - runner_resolution.score) if best_resolution and runner_resolution else best_resolution.score if best_resolution else 0
             status = no_candidate_status
             concrete_allowed = bool(best_gate.get("concrete")) if isinstance(best_gate, dict) else False
+            unchanged = len(raw["unchanged"]) == 1 and best_key == raw["unchanged"][0][2]
             if assigned_best is None and best_record is not None and best_record.status == "approved":
                 concrete_allowed = True
             if rejected is not None and best_key == rejected[2]:
@@ -4291,7 +4300,7 @@ class AciraGuardPolicy:
                 best_resolution is not None
                 and best_resolution.kind in {"strong_match", "structural_slot_match"}
                 and best_resolution.score >= protected_target.threshold
-                and margin >= AUTO_TARGET_MAPPING_MARGIN
+                and (margin >= AUTO_TARGET_MAPPING_MARGIN or unchanged)
                 and concrete_allowed
             ):
                 status = "auto_mapped"
@@ -4343,6 +4352,7 @@ class AciraGuardPolicy:
                     "best_resolution": best_resolution.to_metadata() if best_resolution else None,
                     "runner_up_resolution": runner_resolution.to_metadata() if runner_resolution else None,
                     "margin": margin,
+                    "unchanged_capture_identity": unchanged,
                     "score": best_resolution.score if best_resolution else 0,
                     "signals": list(best_resolution.matched_signals)[:8] if best_resolution else [],
                     "status": status,

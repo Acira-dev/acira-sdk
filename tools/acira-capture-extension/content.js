@@ -1,6 +1,6 @@
 (() => {
   const ROOT_ID = "acira-capture-panel";
-  const VERSION = "0.6.4";
+  const VERSION = "0.6.5";
   const STORAGE_PREFIX = "acira.capture.draft";
   const EXISTING = window.__ACIRA_CAPTURE__;
   if (EXISTING) {
@@ -22,7 +22,7 @@
   }
 
   document
-    .querySelectorAll(`#${ROOT_ID}, .acira-capture-hover, .acira-capture-selected, .acira-capture-label`)
+    .querySelectorAll(`#${ROOT_ID}, .acira-capture-shield, .acira-capture-hover, .acira-capture-selected, .acira-capture-label`)
     .forEach((node) => node.remove());
 
   const SCHEMA = "acira.specific_skill.v2";
@@ -80,7 +80,9 @@
     scopePatterns: null,
     storageKey: null,
     pendingPage: null,
-    pendingPatterns: null
+    pendingPatterns: null,
+    selectionReady: false,
+    selectionTimer: null
   };
 
   const panel = document.createElement("section");
@@ -147,7 +149,16 @@
   selectedLabel.className = "acira-capture-label acira-capture-label-selected";
   selectedLabel.hidden = true;
 
-  document.documentElement.append(panel, hoverBox, selectedBox, hoverLabel, selectedLabel);
+  // Native input inside a separate extension document never reaches the page's
+  // earlier window listeners. The bridge sends coordinates, not page content.
+  const shield = document.createElement("iframe");
+  shield.className = "acira-capture-shield";
+  shield.title = "Acira target selection";
+  shield.src = chrome.runtime.getURL("selection.html");
+  shield.hidden = true;
+  const shieldOrigin = "chrome-extension://" + chrome.runtime.id;
+
+  document.documentElement.append(shield, panel, hoverBox, selectedBox, hoverLabel, selectedLabel);
 
   const pill = panel.querySelector("#acira-capture-pill");
   const status = panel.querySelector("#acira-capture-status");
@@ -165,6 +176,7 @@
   document.addEventListener("keydown", handleKeyDown, true);
   window.addEventListener("scroll", refreshOverlays, true);
   window.addEventListener("resize", refreshOverlays, true);
+  window.addEventListener("message", handleSelectionMessage);
 
   const api = { version: VERSION, open, close, toggle, destroy };
   window.__ACIRA_CAPTURE__ = api;
@@ -198,11 +210,14 @@
     document.removeEventListener("keydown", handleKeyDown, true);
     window.removeEventListener("scroll", refreshOverlays, true);
     window.removeEventListener("resize", refreshOverlays, true);
+    window.removeEventListener("message", handleSelectionMessage);
     if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
       chrome.runtime.onMessage.removeListener(handleRuntimeMessage);
     }
     window.clearTimeout(setStatus.timer);
+    window.clearTimeout(state.selectionTimer);
     panel.remove();
+    shield.remove();
     hoverBox.remove();
     selectedBox.remove();
     hoverLabel.remove();
@@ -223,9 +238,21 @@
 
   function setCapturing(capturing) {
     state.capturing = Boolean(capturing);
+    shield.hidden = !state.capturing;
+    if (state.capturing) shield.focus();
+    window.clearTimeout(state.selectionTimer);
+    if (state.capturing && !state.selectionReady) {
+      setStatus("Preparing target selection…");
+      state.selectionTimer = window.setTimeout(() => {
+        if (!state.selectionReady && state.visible && state.capturing) {
+          setCapturing(false);
+          setStatus("Capture couldn’t start safely on this page. Selection is paused; you can still export previous targets.");
+        }
+      }, 5000);
+    }
     if (!state.capturing) hideHover();
     if (state.visible && !panel.isConnected) {
-      document.documentElement.append(panel, hoverBox, selectedBox, hoverLabel, selectedLabel);
+      document.documentElement.append(shield, panel, hoverBox, selectedBox, hoverLabel, selectedLabel);
     }
     render();
   }
@@ -264,6 +291,34 @@
       return;
     }
     placeOverlay(hoverBox, hoverLabel, overlayElementFor(element), labelForElement(element));
+  }
+
+  function handleSelectionMessage(event) {
+    if (!event.isTrusted || event.source !== shield.contentWindow || event.origin !== shieldOrigin
+        || !state.visible || event.data?.type !== "acira.selection") return;
+    const {kind, x, y, dx, dy} = event.data;
+    if (kind === "ready") { state.selectionReady = true; shield.dataset.ready = "true"; window.clearTimeout(state.selectionTimer); if (state.capturing) setStatus("Click a control to select it without activating it."); return; }
+    if (!state.capturing) return;
+    if (kind === "escape") { setCapturing(false); toggleButton.focus(); return; }
+    if (!["move", "select", "scroll"].includes(kind) || !Number.isFinite(x) || !Number.isFinite(y)
+        || x < 0 || y < 0 || x > innerWidth || y > innerHeight) return;
+    const node = document.elementsFromPoint(x, y).find(item => !isAciraNode(item));
+    if (kind === "scroll") {
+      if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.abs(dx) > innerWidth * 4 || Math.abs(dy) > innerHeight * 4) return;
+      let scrollable = node;
+      while (scrollable && scrollable !== document.documentElement) {
+        const css = getComputedStyle(scrollable);
+        if ((/(auto|scroll)/.test(css.overflowY) && scrollable.scrollHeight > scrollable.clientHeight)
+            || (/(auto|scroll)/.test(css.overflowX) && scrollable.scrollWidth > scrollable.clientWidth)) break;
+        scrollable = scrollable.parentElement;
+      }
+      (scrollable || window).scrollBy(dx, dy);
+      return;
+    }
+    const element = interactiveElement(node);
+    if (!element) { hideHover(); return; }
+    if (kind === "select") selectElement(element);
+    else placeOverlay(hoverBox, hoverLabel, overlayElementFor(element), labelForElement(element));
   }
 
   function suppressCaptureActivation(event) {
@@ -1070,7 +1125,7 @@
   }
 
   function isAciraNode(node) {
-    return Boolean(node?.closest?.(`#${ROOT_ID}, .acira-capture-hover, .acira-capture-selected, .acira-capture-label`));
+    return Boolean(node?.closest?.(`#${ROOT_ID}, .acira-capture-shield, .acira-capture-hover, .acira-capture-selected, .acira-capture-label`));
   }
 
   function selectorFor(element) {

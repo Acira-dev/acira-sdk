@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Acira Capture",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Capture website targets as Acira specific policies. Export JSON or save to your paired local project.",
   "permissions": ["activeTab", "clipboardWrite", "scripting", "storage"],
   "optional_host_permissions": ["http://127.0.0.1/*"],
@@ -11,7 +11,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["assets/acira-logo.svg"],
+      "resources": ["assets/acira-logo.svg", "selection.html", "selection.js"],
       "matches": ["<all_urls>"]
     }
   ],

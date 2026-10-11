@@ -178,6 +178,57 @@ def target_mapping_key(target: dict[str, Any]) -> str:
     return f"map-target:{normalized[:240]}"
 
 
+def unchanged_capture_identity(fingerprint: dict[str, Any], target: dict[str, Any], *, page_url: str | None = None) -> bool:
+    """Identify an unchanged captured control without relying on a saturated score.
+
+    A DOM position alone never establishes identity. Require the same position,
+    control family, every captured stable attribute, a direct identity anchor,
+    and a matching control label. Drift continues through the review path.
+    """
+    if page_url is not None and target.get("url") != page_url:
+        return False
+    structure = fingerprint.get("structural_context") or {}
+    path = fingerprint.get("dom_path") or structure.get("dom_path")
+    observed_path = target.get("dom_path") or target.get("domPath")
+    # The capture emitter omits :nth-of-type(1) on the sole document root;
+    # runtime probes spell it explicitly. These identify the same root node.
+    def canonical_path(value):
+        return re.sub(r"^html(?=>|$)", "html:nth-of-type(1)", str(value or ""))
+    if not path or canonical_path(path) != canonical_path(observed_path):
+        return False
+    for key in ("tag", "type", "role"):
+        if str(fingerprint.get(key) or "").lower() != str(target.get(key) or "").lower():
+            return False
+    expected = dict(fingerprint.get("stable_attributes") or fingerprint.get("attributes") or {})
+    observed = dict(target.get("attributes") or {})
+    for key in ("id", "name", "href", "aria-label", "title"):
+        field = key.replace("-", "_")
+        if fingerprint.get(field):
+            expected.setdefault(key, fingerprint[field])
+        if target.get(field):
+            observed.setdefault(key, target[field])
+    if not any(expected.get(key) for key in ("id", "name", "href", "data-testid", "data-test", "data-cy")):
+        return False
+    if any(str(observed.get(key) or "") != str(value) for key, value in expected.items()):
+        return False
+    def labels(value):
+        facts = value.get("labels") or {}
+        values = [value.get(key) for key in ("text", "aria_label", "nearby_text", "title")]
+        values += [facts.get(key) for key in ("accessible", "associated")]
+        return {" ".join(item.split()).casefold() for item in values
+                if isinstance(item, str) and item.strip() and "[REDACTED]" not in item}
+    if not labels(fingerprint).intersection(labels(target)):
+        return False
+    original_state = (fingerprint.get("structure_signature") or {}).get("element_state") or {}
+    observed_state = (target.get("structure_signature") or {}).get("element_state") or {}
+    if any(observed_state.get(key) != value for key, value in original_state.items()):
+        return False
+    form = fingerprint.get("form") or fingerprint.get("form_context") or {}
+    if any(form.get(key) and form[key] != target.get("form_" + key) for key in ("id", "name", "action")):
+        return False
+    return True
+
+
 def _record_matches(
     record: TargetMappingRecord,
     *,

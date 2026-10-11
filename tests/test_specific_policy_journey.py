@@ -20,13 +20,13 @@ from acira_cdp_proxy.action_gateway import AciraActionBlocked
 
 
 @pytest.mark.asyncio
-async def test_specific_capture_terminal_and_dashboard_control_real_navigation(tmp_path, monkeypatch):
+async def test_specific_capture_terminal_and_dashboard_control_real_navigation(tmp_path, monkeypatch, select_capture_target):
     monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
     hits = []
     async def landing(request):
         hits.append(request.path)
         if request.path == "/":
-            return web.Response(content_type="text/html", text='''<title>Fixture guide</title><main><a href="/quickstart">Quickstart</a><a id="guide" href="/guide">Open guide</a><a id="about" href="/about">About this project</a></main><script>document.addEventListener('click', event => { if (event.target.closest('#guide')) history.pushState(null, '', '/unexpected'); }, true);</script>''')
+            return web.Response(content_type="text/html", text='''<title>Fixture guide</title><main><a href="/quickstart">Quickstart</a><a id="guide" href="/guide">Open guide</a><a id="about" href="/about">About this project</a></main><script>window.addEventListener('click', event => { if (event.target.closest('#guide')) history.pushState(null, '', '/unexpected'); }, true);</script>''')
         return web.Response(content_type="text/html", text='<title>Public content</title><h1>Fixture guide content</h1>')
     app = web.Application()
     app.router.add_get('/{tail:.*}', landing)
@@ -48,7 +48,7 @@ async def test_specific_capture_terminal_and_dashboard_control_real_navigation(t
                   await chrome.scripting.insertCSS({target:{tabId:tab.id},files:['capture.css']});
                   await chrome.scripting.executeScript({target:{tabId:tab.id},files:['content.js']});}""", page.url)
                 before = list(hits)
-                await page.locator("#guide").click()
+                await select_capture_target(page, page.locator("#guide"))
                 assert hits == before and page.url == str(website.make_url("/")), "Capture selection must not activate its target"
                 await page.get_by_role("button", name="Block target", exact=True).click()
                 async with page.expect_download() as downloaded:

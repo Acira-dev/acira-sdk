@@ -14,7 +14,7 @@ from acira_cdp_proxy.action_gateway import AciraActionBlocked
 
 
 @pytest.mark.asyncio
-async def test_capture_suppresses_early_handlers_and_guards_five_control_families(tmp_path, monkeypatch):
+async def test_capture_suppresses_early_handlers_and_guards_five_control_families(tmp_path, monkeypatch, select_capture_target):
     api = pytest.importorskip("playwright.async_api")
     monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
     html = '''<title>Local controls fixture</title><main style="width:400px">
@@ -24,7 +24,14 @@ async def test_capture_suppresses_early_handlers_and_guards_five_control_familie
       <label for="choice">Option one</label><input id="choice" type="radio" name="option">
       <label for="mode">View mode</label><select id="mode"><option value="a">Summary</option><option value="b">Details</option></select>
       <label for="notes">Project notes</label><input id="notes" type="text">
-    </main>'''
+    </main><script>
+      window.addEventListener('pointerdown',event=>{
+        if (!event.target.closest('#acira-capture-panel')) document.querySelector('#early').textContent='changed';
+      },true);
+      window.addEventListener('click',event=>{
+        if (!event.target.closest('#acira-capture-panel')) document.querySelector('#outcome').textContent='opened';
+      },true);
+    </script>'''
     app = web.Application()
     async def fixture(request):
         return web.Response(text=html, content_type='text/html')
@@ -47,7 +54,7 @@ async def test_capture_suppresses_early_handlers_and_guards_five_control_familie
                   await chrome.scripting.insertCSS({target:{tabId:tab.id},files:['capture.css']});
                   await chrome.scripting.executeScript({target:{tabId:tab.id},files:['content.js']});}''',url)
                 for identifier in identifiers:
-                    await page.locator('#'+identifier).click()
+                    await select_capture_target(page, page.locator('#'+identifier))
                     await page.get_by_role('button',name='Block target',exact=True).click()
                 assert await page.locator('#early').inner_text() == 'unchanged'
                 assert await page.locator('#outcome').inner_text() == 'closed'

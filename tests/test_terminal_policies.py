@@ -96,6 +96,7 @@ def test_extension_export_is_idempotent_and_never_replaces_unrelated_files(tmp_p
     assert "debugger" not in manifest["permissions"]
     assert "host_permissions" not in manifest
     assert (directory / "content.js").is_file()
+    assert (directory / "selection.html").is_file() and (directory / "selection.js").is_file()
     assert (directory / "assets/acira-logo.svg").is_file()
     assert install_extension(directory) == directory
     (directory / "my notes.txt").write_text("keep")

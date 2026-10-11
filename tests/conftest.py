@@ -8,6 +8,8 @@ import sys
 import uuid
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if os.environ.get("ACIRA_TEST_INSTALLED") == "1":
     # Run pytest with --import-mode=importlib from outside the checkout. Never
@@ -38,3 +40,19 @@ def pytest_sessionfinish(session, exitstatus):
             session.exitstatus = 1
             if reporter is not None:
                 reporter.write_line("Acira release verification failed: skipped tests are not accepted")
+@pytest.fixture
+def select_capture_target():
+    async def select(page, target):
+        await page.locator(".acira-capture-shield[data-ready='true']").wait_for(state="visible")
+        await target.scroll_into_view_if_needed()
+        box = await target.bounding_box()
+        assert box and box["width"] > 0 and box["height"] > 0
+        identity = await target.evaluate("el => ({id:el.id, href:el.getAttribute('href')})")
+        await page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+        await page.wait_for_function("""identity => {
+          const raw=document.querySelector('#acira-capture-facts')?.textContent;
+          if (!raw) return false;
+          const fp=JSON.parse(raw);
+          return identity.id ? fp.id===identity.id : fp.href===identity.href;
+        }""", arg=identity)
+    return select

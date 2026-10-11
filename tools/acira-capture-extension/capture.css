@@ -19,10 +19,22 @@
 }
 
 #acira-capture-panel[hidden],
+.acira-capture-shield[hidden],
 .acira-capture-hover[hidden],
 .acira-capture-selected[hidden],
 .acira-capture-label[hidden] {
   display: none !important;
+}
+
+.acira-capture-shield {
+  all: initial;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2147483645;
+  border: 0;
+  background: transparent;
 }
 
 #acira-capture-panel *,

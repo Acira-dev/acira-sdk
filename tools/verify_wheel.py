@@ -62,6 +62,7 @@ def main() -> None:
                 assert manifest["manifest_version"] == 3 and "debugger" not in manifest["permissions"]
                 assert "host_permissions" not in manifest, "Production extension must retain explicit activeTab access"
                 assert (exported / "content.js").is_file() and (exported / "assets/acira-logo.svg").is_file()
+                assert (exported / "selection.html").is_file() and (exported / "selection.js").is_file(), "Capture selection assets are missing"
                 run(python, "-m", "acira", "extension", "install", "--directory", str(exported))
                 missing_extra = subprocess.run([str(python), "-m", "acira", "demo", "--no-open"],
                     env=env, cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15)

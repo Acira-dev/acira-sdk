@@ -28,7 +28,7 @@ def assemble(destination: Path, source: Path | None = None):
             if path.is_symlink():
                 raise ValueError("Extension releases cannot include symbolic links")
             relative = path.relative_to(extension)
-            named = {"manifest.json", "background.js", "content.js", "capture.css", "connection.js", "connection.css", "connection.html", "README.md"}
+            named = {"manifest.json", "background.js", "content.js", "capture.css", "selection.html", "selection.js", "connection.js", "connection.css", "connection.html", "README.md"}
             if path.is_file() and (relative.as_posix() in named or relative.parts[0] == "assets" and path.suffix in {".svg", ".png", ".jpg"}):
                 output.write(path, relative)
     artifacts = [wheel, sdist, archive]

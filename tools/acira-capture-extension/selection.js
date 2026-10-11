@@ -1,0 +1,18 @@
+(() => {
+  function send(event, kind, extra = {}) {
+    if (!event.isTrusted) return;
+    parent.postMessage({type: "acira.selection", kind, x: event.clientX, y: event.clientY, ...extra}, "*");
+  }
+  window.addEventListener("mousemove", event => send(event, "move"));
+  window.addEventListener("pointerdown", event => { event.preventDefault(); document.body.focus(); });
+  window.addEventListener("click", event => { event.preventDefault(); send(event, "select"); });
+  window.addEventListener("wheel", event => {
+    event.preventDefault();
+    const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1;
+    send(event, "scroll", {dx: event.deltaX * scale, dy: event.deltaY * scale});
+  }, {passive: false});
+  window.addEventListener("keydown", event => {
+    if (event.key === "Escape") { event.preventDefault(); send(event, "escape"); }
+  });
+  parent.postMessage({type: "acira.selection", kind: "ready"}, "*");
+})();

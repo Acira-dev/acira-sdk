@@ -15,7 +15,7 @@ from acira.service import Service
 
 
 @pytest.mark.asyncio
-async def test_extension_pairs_captures_and_imports_into_selected_project(tmp_path, monkeypatch):
+async def test_extension_pairs_captures_and_imports_into_selected_project(tmp_path, monkeypatch, select_capture_target):
     monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
     first = initialize(tmp_path / "Orders", selected=[])
     other = initialize(tmp_path / "Support", selected=[])
@@ -58,7 +58,14 @@ async def test_extension_pairs_captures_and_imports_into_selected_project(tmp_pa
                   await chrome.scripting.insertCSS({target:{tabId:tab.id},files:["capture.css"]});
                   await chrome.scripting.executeScript({target:{tabId:tab.id},files:["content.js"]});
                 }""", page.url)
-                await page.locator("#send").click()
+                await page.evaluate("""() => {
+                  const frame=document.querySelector('.acira-capture-shield');
+                  window.dispatchEvent(new MessageEvent('message', {source:frame.contentWindow,
+                    origin:frame.src.split('/').slice(0,3).join('/'),
+                    data:{type:'acira.selection',kind:'select',x:65,y:65}}));
+                }""")
+                await expect(page.get_by_role("button",name="Ask first",exact=True)).to_be_disabled()
+                await select_capture_target(page, page.locator("#send"))
                 await page.get_by_role("button",name="Ask first",exact=True).click()
                 page.on("dialog",lambda dialog:dialog.accept())
                 await page.get_by_role("button",name="Save to dashboard",exact=True).click()
