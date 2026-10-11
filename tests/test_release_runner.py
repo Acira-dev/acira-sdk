@@ -62,3 +62,91 @@ def test_pre_job_hook_rejects_before_api_access(monkeypatch):
     monkeypatch.setattr(runner, "api", lambda *args: pytest.fail("Unapproved job queried the release API"))
     with pytest.raises(ValueError):
         runner.check_job(args)
+
+
+def test_mac_cache_label_uses_verified_actual_version(monkeypatch, tmp_path):
+    monkeypatch.setattr(runner.platform, "machine", lambda: "arm64")
+    data = {"version": [3, 12, 14], "releaselevel": "final", "platform": "darwin",
+        "architecture": "arm64", "prefix": str(tmp_path)}
+    assert runner.validate_mac_python(data, "3.12", tmp_path) == "3.12.14"
+
+
+@pytest.mark.parametrize("case", ["minor", "malformed", "boolean", "prerelease", "platform", "architecture", "missing-prefix", "relative-prefix"])
+def test_mac_cache_rejects_wrong_python_identity(monkeypatch, tmp_path, case):
+    monkeypatch.setattr(runner.platform, "machine", lambda: "arm64")
+    data = {"version": [3, 12, 14], "releaselevel": "final", "platform": "darwin",
+        "architecture": "arm64", "prefix": str(tmp_path)}
+    if case == "minor": data["version"] = [3, 11, 15]
+    elif case == "malformed": data["version"] = [3, 12]
+    elif case == "boolean": data["version"] = [3, 12, True]
+    elif case == "prerelease": data["releaselevel"] = "alpha"
+    elif case == "platform": data["platform"] = "linux"
+    elif case == "architecture": data["architecture"] = "x86_64"
+    elif case == "missing-prefix": data.pop("prefix")
+    elif case == "relative-prefix": data["prefix"] = "relative/location"
+    with pytest.raises(ValueError):
+        runner.validate_mac_python(data, "3.12", tmp_path)
+
+
+def test_mac_cache_does_not_mark_a_different_cached_interpreter(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    monkeypatch.setattr(runner.sys, "platform", "darwin")
+    monkeypatch.setattr(runner.platform, "machine", lambda: "arm64")
+    monkeypatch.setattr(runner.shutil, "which", lambda name: "/native/" + name)
+    def metadata(executable):
+        cached = "Python" in Path(executable).parts
+        return {"version": [3, 11, 16 if cached else 15], "releaselevel": "final",
+            "platform": "darwin", "architecture": "arm64",
+            "prefix": str(Path(executable).parents[1]) if cached else "/native"}
+    monkeypatch.setattr(runner, "python_metadata", metadata)
+    def create_venv(args, **kwargs):
+        Path(args[-1]).mkdir(parents=True)
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(runner.subprocess, "run", create_venv)
+    with pytest.raises(ValueError):
+        runner.prepare_mac_python_cache(tmp_path)
+    assert not list(tmp_path.rglob("*.complete"))
+
+
+def test_non_mac_cache_setup_does_not_touch_interpreters(monkeypatch, tmp_path):
+    monkeypatch.setattr(runner.sys, "platform", "linux")
+    monkeypatch.setattr(runner, "python_metadata", lambda *args: pytest.fail("Linux used Mac-specific cache setup"))
+    runner.prepare_mac_python_cache(tmp_path)
+    assert not list(tmp_path.iterdir())
+
+
+@pytest.fixture
+def native_mac_cache(monkeypatch, tmp_path):
+    monkeypatch.setattr(runner.sys, "platform", "darwin")
+    monkeypatch.setattr(runner.platform, "machine", lambda: "arm64")
+    prefix = tmp_path / "Python" / "3.12.14" / "arm64"
+    (prefix / "bin").mkdir(parents=True)
+    executable = prefix / "bin" / "python"
+    executable.write_text("native interpreter fixture")
+    marker = prefix.with_name("arm64.complete")
+    marker.write_text("verified")
+    data = {"version": [3, 12, 14], "releaselevel": "final", "platform": "darwin",
+        "architecture": "arm64", "prefix": str(prefix)}
+    monkeypatch.setattr(runner, "python_metadata", lambda executable: data)
+    return tmp_path, prefix, executable, marker, data
+
+
+def test_native_selection_returns_the_verified_minor(native_mac_cache):
+    directory, _, executable, _, _ = native_mac_cache
+    assert runner.select_mac_python_cache(directory, "3.12") == executable
+    with pytest.raises(ValueError):
+        runner.select_mac_python_cache(directory, "3.11")
+
+
+@pytest.mark.parametrize("case", ["minor", "platform", "marker", "label", "prefix", "no-cache"])
+def test_native_selection_rejects_incomplete_or_false_evidence(monkeypatch, native_mac_cache, case):
+    directory, prefix, _, marker, data = native_mac_cache
+    minor = "3.12"
+    if case == "minor": minor = "3.10"
+    elif case == "platform": monkeypatch.setattr(runner.sys, "platform", "linux")
+    elif case == "marker": marker.unlink()
+    elif case == "label": data["version"] = [3, 12, 15]
+    elif case == "prefix": data["prefix"] = str(directory / "outside")
+    elif case == "no-cache": directory = directory / "empty"
+    with pytest.raises(ValueError):
+        runner.select_mac_python_cache(directory, minor)

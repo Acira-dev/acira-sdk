@@ -70,6 +70,11 @@ as Acira-dev, and Bash (Git for Windows provides it). Linux also needs browser
 system dependencies; use a disposable Linux VM with passwordless sudo for
 Playwright's official dependency installer.
 
+Mac runners need native Python 3.11 and 3.12 already installed. The helper verifies
+their actual versions and architecture and prepares private, temporary virtual
+environments that setup-python can discover. It avoids the official Mac installer's
+privileged `/Users/runner` location; it does not create or modify system folders.
+
 Run verification from the Mac:
 ```sh
 gh workflow run verify-release.yml --repo Acira-dev/acira-sdk --ref main -f runners=self-hosted

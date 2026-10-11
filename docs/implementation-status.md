@@ -493,3 +493,13 @@ release mode enabled and no skips. The focused release-approval, skip-gate, and 
 checks passed **74 tests**. Both release workflows passed actionlint 1.7.12, and the
 diff passed whitespace checks. These local results do not substitute for the required
 six platform/version jobs or indicate that PyPI publication has occurred.
+
+The first self-hosted request stopped before SDK tests: setup-python's Mac path
+required a privileged `/Users/runner` directory. The runner now prepares isolated
+environments from verified native Python 3.11 and 3.12 installations and selects
+them without using that installer on a self-hosted Mac. Versions, architecture,
+cache labels, and environment locations are checked before activation. Hosted
+runners and Linux/Windows retain their official setup-python step. Real native
+selection and GitHub environment activation were exercised locally. After this
+repair, the complete suite passed **689 tests in 586.07 seconds**, without skips;
+the focused release checks passed **92 tests**. Workflow validation also passed.

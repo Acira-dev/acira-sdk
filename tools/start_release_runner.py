@@ -63,6 +63,96 @@ def child_command(path, arguments=()):
     return [str(path), *arguments]
 
 
+def python_metadata(interpreter):
+    code = "import json,platform,sys; print(json.dumps(dict(version=list(sys.version_info[:3]),releaselevel=sys.version_info.releaselevel,architecture=platform.machine(),platform=sys.platform,prefix=sys.prefix)))"
+    result = subprocess.run([str(interpreter), "-I", "-c", code],
+        capture_output=True, text=True, timeout=30)
+    if result.returncode or len(result.stdout) > 4096:
+        raise ValueError("Unable to verify the installed Python interpreter")
+    return json.loads(result.stdout)
+
+
+def validate_mac_python(data, minor, prefix=None):
+    if not isinstance(data, dict):
+        raise ValueError("Invalid installed Python metadata")
+    version = data.get("version")
+    if (not isinstance(version, list) or len(version) != 3
+            or any(type(part) is not int or part < 0 for part in version)
+            or version[:2] != [3, int(minor.split(".")[1])]
+            or data.get("releaselevel") != "final"
+            or data.get("platform") != "darwin"
+            or not isinstance(data.get("architecture"), str)
+            or data["architecture"].lower() != platform.machine().lower()):
+        raise ValueError("The local Python version, platform, or architecture does not match")
+    if prefix is not None:
+        location = data.get("prefix")
+        if (not isinstance(location, str) or not location or not Path(location).is_absolute()
+                or Path(location).resolve() != prefix.resolve()):
+            raise ValueError("The cached Python must be isolated inside the temporary runner")
+    return ".".join(map(str, version))
+
+
+def prepare_mac_python_cache(directory):
+    # GitHub's macOS Python installer writes to /Users/runner. Reuse native
+    # interpreters in isolated venvs instead of creating privileged host folders.
+    # Cache labels come from the actual executable, never the requested version.
+    if sys.platform != "darwin":
+        return
+    architecture = {"arm64": "arm64", "x86_64": "x64"}.get(platform.machine().lower())
+    if architecture is None:
+        raise ValueError("Unsupported Mac runner architecture")
+    for minor in ("3.11", "3.12"):
+        interpreter = sys.executable if sys.version_info[:2] == tuple(map(int, minor.split("."))) else shutil.which("python" + minor)
+        if interpreter is None:
+            raise ValueError("Mac release runners require Python 3.11 and 3.12 installed; no system folders will be created")
+        version = validate_mac_python(python_metadata(interpreter), minor)
+        destination = directory / "Python" / version / architecture
+        result = subprocess.run([str(interpreter), "-m", "venv", str(destination)],
+            capture_output=True, timeout=120)
+        if result.returncode:
+            raise ValueError("Unable to create an isolated temporary Python environment")
+        cached = python_metadata(destination / "bin" / "python")
+        if validate_mac_python(cached, minor, destination) != version:
+            raise ValueError("Cached Python differs from the verified native interpreter")
+        destination.with_name(architecture + ".complete").write_text("Verified local native Python in an isolated venv\n")
+
+
+def select_mac_python_cache(directory, minor):
+    if sys.platform != "darwin" or minor not in ("3.11", "3.12"):
+        raise ValueError("Native cache selection requires a supported Mac Python version")
+    architecture = {"arm64": "arm64", "x86_64": "x64"}.get(platform.machine().lower())
+    if architecture is None:
+        raise ValueError("Unsupported Mac runner architecture")
+    matches = []
+    for version_dir in (directory / "Python").glob(minor + ".*"):
+        if not re.fullmatch(re.escape(minor) + r"\.[0-9]+", version_dir.name):
+            continue
+        prefix = version_dir / architecture
+        marker = prefix.with_name(architecture + ".complete")
+        executable = prefix / "bin" / "python"
+        if prefix.is_symlink() or marker.is_symlink() or not marker.is_file() or not executable.is_file():
+            raise ValueError("Incomplete or redirected temporary Python cache")
+        version = validate_mac_python(python_metadata(executable), minor, prefix)
+        if version != version_dir.name:
+            raise ValueError("Python cache label differs from the actual executable")
+        matches.append((tuple(map(int, version.split("."))), executable))
+    if not matches:
+        raise ValueError("No verified native Python cache; start this Mac job with the temporary runner helper")
+    return max(matches)[1]
+
+
+def activate_mac_python(minor):
+    executable = select_mac_python_cache(Path(os.environ["RUNNER_TOOL_CACHE"]), minor)
+    prefix = executable.parents[1]
+    if any(character in str(prefix) for character in "\r\n"):
+        raise ValueError("Invalid Python environment path")
+    with open(os.environ["GITHUB_PATH"], "a", encoding="utf-8") as output:
+        output.write(str(executable.parent) + "\n")
+    with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
+        output.write("pythonLocation=" + str(prefix) + "\n")
+    print("Selected verified native Mac Python " + prefix.parent.name)
+
+
 def create_hook(directory, run_id, commit):
     # Stored outside the runner/checkout; validate the job before any job step.
     helper = Path(__file__).resolve()
@@ -133,6 +223,8 @@ def run_runner(args):
             child_env["ACTIONS_RUNNER_HOOK_JOB_STARTED"] = str(create_hook(private, args.run_id, args.commit))
             child_env["RUNNER_TOOL_CACHE"] = str(runner / "tool-cache")
             child_env["AGENT_TOOLSDIRECTORY"] = str(runner / "tool-cache")
+            prepare_mac_python_cache(runner / "tool-cache")
+            child_env["ACIRA_RELEASE_PYTHON_HELPER"] = str(Path(__file__).resolve())
             # Configuration output is captured so registration credentials cannot
             # appear in terminal output or a raised subprocess diagnostic.
             token = api(base + "/actions/runners/registration-token", "POST")["token"]
@@ -186,11 +278,16 @@ def main():
     parser.add_argument("--commit", required=True)
     parser.add_argument("--jobs", type=int, default=1, choices=range(1, 7))
     parser.add_argument("--check-job", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--activate-python", choices=("3.11", "3.12"), help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.run_id <= 0 or not re.fullmatch(r"[0-9a-f]{40}", args.commit):
         parser.error("Use the exact release run ID and source commit")
     try:
-        check_job(args) if args.check_job else run_runner(args)
+        if args.activate_python:
+            check_job(args)
+            activate_mac_python(args.activate_python)
+        else:
+            check_job(args) if args.check_job else run_runner(args)
     except (ValueError, KeyError, OSError, subprocess.SubprocessError, json.JSONDecodeError) as error:
         parser.exit(1, f"Temporary runner stopped: {error}\n")
 
