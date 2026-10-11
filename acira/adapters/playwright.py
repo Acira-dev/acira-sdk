@@ -635,7 +635,10 @@ class PlaywrightCDPProxy:
 
     async def _ensure_page_mapping_preflight(self, page: Any) -> None:
         config = self.guard_policy.config
-        if not config.specific_skills or not config.has_page_policy:
+        # Specific mapping is needed even when no general page-level policy is
+        # installed. Otherwise unrelated actions fall back to an unavailable
+        # mapping instead of the adapter's verified page observation.
+        if not config.specific_skills:
             return
 
         page_id = id(page)

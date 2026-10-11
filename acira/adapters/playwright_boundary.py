@@ -289,6 +289,13 @@ async def guarded(manager: Any, page: Any, obj: Any, method: str, args: tuple, k
         return await trusted(obj, method, *args, **kwargs)
     details = {"source": f"playwright.{type(obj).__name__}.{method}",
                "url": str(args[0] if args else kwargs.get("url", page.url)) if method == "goto" else page.url}
+    if action != "navigation" and manager.guard_policy.config.specific_skills:
+        # Carry this page's trusted observation through the same authorization
+        # boundary. A successful adapter preflight alone does not populate the
+        # core's CDP probe cache, especially in specific-only installations.
+        targets, metadata = await manager._probe_page_targets(page)
+        details["page_targets"] = targets
+        details["page_target_probe"] = metadata
     if upload_evidence is not None:
         evidence["files"] = upload_evidence
     if action == "form_input":

@@ -813,7 +813,7 @@ _OLD_PAGE_TARGETS_PROBE_JS_UNUSED = r"""
 
 PAGE_TARGETS_PROBE_JS = r"""
 () => {
-  const normalizerVersion = "0.7.0";
+  const normalizerVersion = "0.7.1";
   const selector = [
     "button",
     "input",
@@ -893,7 +893,9 @@ PAGE_TARGETS_PROBE_JS = r"""
     const tag = element?.tagName ? element.tagName.toLowerCase() : "";
     const type = (element?.getAttribute?.("type") || "").toLowerCase();
     const role = (element?.getAttribute?.("role") || "").toLowerCase();
-    if (tag === "button" || role === "button" || ["button", "submit", "reset"].includes(type)) {
+    // A link's own label identifies its action. Borrowing the previous link's
+    // text makes neighboring destinations appear identical during mapping.
+    if (tag === "a" || role === "link" || tag === "button" || role === "button" || ["button", "submit", "reset"].includes(type)) {
       const ownText = clean(element?.value || textOf(element, 160), 160);
       if (ownText) return ownText;
     }
