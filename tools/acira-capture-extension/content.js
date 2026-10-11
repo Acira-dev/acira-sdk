@@ -1,6 +1,6 @@
 (() => {
   const ROOT_ID = "acira-capture-panel";
-  const VERSION = "0.6.0";
+  const VERSION = "0.6.3";
   const STORAGE_PREFIX = "acira.capture.draft";
   const EXISTING = window.__ACIRA_CAPTURE__;
   if (EXISTING) {
@@ -75,7 +75,8 @@
     restored: false,
     pendingElement: null,
     pendingFingerprint: null,
-    targets: []
+    targets: [],
+    policyId: null
   };
 
   const panel = document.createElement("section");
@@ -154,6 +155,8 @@
 
   panel.addEventListener("click", handlePanelClick);
   document.addEventListener("mousemove", handleMouseMove, true);
+  document.addEventListener("pointerdown", suppressCaptureActivation, true);
+  document.addEventListener("mousedown", suppressCaptureActivation, true);
   document.addEventListener("click", handleDocumentClick, true);
   document.addEventListener("keydown", handleKeyDown, true);
   window.addEventListener("scroll", refreshOverlays, true);
@@ -185,6 +188,8 @@
     state.capturing = false;
     panel.removeEventListener("click", handlePanelClick);
     document.removeEventListener("mousemove", handleMouseMove, true);
+    document.removeEventListener("pointerdown", suppressCaptureActivation, true);
+    document.removeEventListener("mousedown", suppressCaptureActivation, true);
     document.removeEventListener("click", handleDocumentClick, true);
     document.removeEventListener("keydown", handleKeyDown, true);
     window.removeEventListener("scroll", refreshOverlays, true);
@@ -257,6 +262,15 @@
     placeOverlay(hoverBox, hoverLabel, overlayElementFor(element), labelForElement(element));
   }
 
+  function suppressCaptureActivation(event) {
+    if (!state.visible || !state.capturing || isAciraNode(event.target) || !interactiveElement(event.target)) return;
+    // Native selects and applications can act on pointerdown/mousedown before
+    // click. Selecting a capture target must suppress those target handlers too.
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+  }
+
   function handleDocumentClick(event) {
     if (!state.visible || !state.capturing || isAciraNode(event.target)) return;
     const element = interactiveElement(event.target);
@@ -296,6 +310,7 @@
       setStatus("Select a target first");
       return;
     }
+    if (!state.targets.length) state.policyId = newPolicyId();
     const targetId = `target-${state.targets.length + 1}-${slug(
       state.pendingFingerprint.text || state.pendingFingerprint.id || state.pendingFingerprint.tag || "element"
     )}`;
@@ -339,7 +354,7 @@
   function buildSkill() {
     return sanitizeCapture({
       schema: SCHEMA,
-      id: `skill-${slug(location.host || "page")}-${Date.now()}`,
+      id: state.policyId || (state.policyId = newPolicyId()),
       name: `Acira captured targets for ${document.title || location.host || "page"}`,
       version: 2,
       semantic_profiles: ["acira.web_business_controls.v1"],
@@ -350,13 +365,23 @@
     });
   }
 
+  function newPolicyId() {
+    // getRandomValues is also available on ordinary HTTP pages, where Chrome
+    // does not expose randomUUID. This ID routes captures; it is not a token.
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    return "skill-" + Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+  }
+
   async function restoreDraft() {
     if (state.restored) return;
     state.restored = true;
     const draft = await readDraft();
     if (!draft || !Array.isArray(draft.targets)) return;
     state.targets = sanitizeCapture(draft.targets.filter(isPersistedTarget));
+    state.policyId = typeof draft.policy_id === "string" && /^[A-Za-z0-9_.-]{1,128}$/.test(draft.policy_id)
+      ? draft.policy_id : newPolicyId();
     if (state.targets.length) {
+      await persistDraft();
       setStatus(`Restored ${state.targets.length} captured target${state.targets.length === 1 ? "" : "s"}`);
       render();
     }
@@ -365,6 +390,7 @@
   async function persistDraft() {
     const draft = {
       schema: SCHEMA,
+      policy_id: state.policyId,
       version: 2,
       semantic_profiles: ["acira.web_business_controls.v1"],
       page_key: pageStorageKey(),
@@ -781,14 +807,16 @@
   }
 
   function nearbyLabel(element) {
+    const direct = textFromIds(element, "aria-labelledby") || element.getAttribute("aria-label");
+    if (direct) return direct.slice(0, 160);
     const label = labelForControl(element);
     if (label) return visibleLabelText(label).slice(0, 160);
-    const ariaText = textFromIds(element, "aria-labelledby");
-    if (ariaText) return ariaText.slice(0, 160);
     const tag = element.tagName.toLowerCase();
     const type = (element.getAttribute("type") || "").toLowerCase();
     const role = (element.getAttribute("role") || "").toLowerCase();
-    if (tag === "button" || role === "button" || ["button", "submit", "reset"].includes(type)) {
+    // Match the runtime normalizer: neighboring links are context, not this
+    // link's accessible label. Borrowed labels create ambiguous fingerprints.
+    if (tag === "a" || role === "link" || tag === "button" || role === "button" || ["button", "submit", "reset"].includes(type)) {
       const ownText = visibleContainerText(element) || element.value || "";
       if (ownText) return ownText.slice(0, 160);
     }

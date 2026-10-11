@@ -56,6 +56,13 @@ def main() -> None:
                 run(python, "-m", "pip", "install", "--quiet", str(wheel))
                 run(python, "-I", "-c", "from importlib.resources import files; import acira; assert 'site-packages' in acira.__file__; assets = files('acira_dashboard').joinpath('static'); required = ('workspace.html', 'workspace.css', 'workspace.js', 'theme.css', 'styles.css', 'index.html', 'google-sans.woff2', 'GeistMono-Regular.woff2', 'GoogleSans-OFL.txt', 'GeistMono-OFL.txt', 'acira-logo.png', 'acira-mark.png'); assert all(assets.joinpath(name).is_file() for name in required), 'Installed dashboard assets or font notices are missing'")
                 assert "demo" in run(python, "-m", "acira", "--help")
+                exported = root / (name + "-capture-extension")
+                run(python, "-m", "acira", "extension", "install", "--directory", str(exported))
+                manifest = json.loads((exported / "manifest.json").read_text())
+                assert manifest["manifest_version"] == 3 and "debugger" not in manifest["permissions"]
+                assert "host_permissions" not in manifest, "Production extension must retain explicit activeTab access"
+                assert (exported / "content.js").is_file() and (exported / "assets/acira-logo.svg").is_file()
+                run(python, "-m", "acira", "extension", "install", "--directory", str(exported))
                 missing_extra = subprocess.run([str(python), "-m", "acira", "demo", "--no-open"],
                     env=env, cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15)
                 assert missing_extra.returncode == 2 and "Playwright integration" in missing_extra.stderr, "Base wheel did not explain the optional Playwright dependency"

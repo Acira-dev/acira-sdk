@@ -52,7 +52,7 @@ python -m pip install ".[playwright]"
 
 Alternatively build with `python -m build --wheel`, then install
 `/absolute/path/to/acira-0.1.0-py3-none-any.whl[playwright]` in your existing project's
-environment. The base wheel includes the CLI, policies and dashboard. The
+environment. The base wheel includes the CLI, policies, dashboard and capture extension. The
 `playwright`, `browser-use` and `vertex` dependencies are separate optional extras.
 The Google Cloud stack is not required for an ordinary Playwright project.
 
@@ -216,14 +216,59 @@ expire within 15 minutes, and cannot cover critical actions.
 
 ## Extension and policies
 
-Load `tools/acira-capture-extension` as an unpacked Chrome/Edge extension.
+General protections and specific website policies can be managed entirely in the
+terminal. From an initialized project:
+
+```sh
+acira policy add                 # choose a bundled general protection
+acira policy list                # readable general/specific policy list
+acira policy configure           # choose a policy, risk/target and decision
+acira policy disable POLICY_ID   # disable only for the selected agent
+acira policy enable POLICY_ID
+acira policy validate
+```
+
+Use `--agent NAME` to select an agent, or `--project /path/to/project` when launching
+elsewhere. Shared folders affect every listed assignment; separate folders isolate
+files. General risks support Allow, Ask or Block. Captured targets support Ask or
+Block only. An unattended review blocks; configuring Ask does not silently approve.
+Scripts use `acira policy list --json` for the previous machine-readable output.
+
+To create a specific policy, export the extension bundled in your installed SDK:
+
+```sh
+acira extension install
+```
+
+Open `chrome://extensions` or `edge://extensions`, enable Developer mode, choose
+**Load unpacked**, and select the folder printed by the command. On the website,
+click **Acira Capture**, select a target, choose **Ask first** or **Block target**,
+then download its JSON. Selecting a target during capture does not activate it.
+For a first test, use a signed-out public documentation link or your local test app.
+
+```sh
+acira policy import /path/to/capture.json
+acira policy configure POLICY_ID --decision ask
+acira policy configure POLICY_ID --decision block
+```
+
+For several captured targets, add `--target TARGET_ID` or choose interactively.
+`acira extension install --replace` updates an existing exported Acira extension;
+reload it in Chrome afterward. It never enables an extension or changes Chrome
+permissions automatically. Browser-internal pages cannot host capture scripts.
+
 Offline capture supports copy/download JSON. For direct import, open dashboard
 Settings → Pair capture extension, then enter the displayed address/code in the
 extension's connection settings. The extension asks for optional loopback access
 during pairing. Select the destination project and agent before saving.
 
 Paired credentials permit capture import and destination listing, never approvals
-or secret retrieval. Pairing can be revoked. Repeated identical imports are idempotent.
+or secret retrieval. Pairing can be revoked. Repeated exports retain the capture ID
+and repeated identical imports are idempotent. Changed captures need an explicit
+replacement/import or a policy edit; they do not silently overwrite an existing
+policy. The dashboard's **Policies → Capture specific policy** explains setup, and
+**Configure** offers an Ask/Block selector for each captured target alongside
+optional advanced JSON.
 
 The four starter policies are bundled. Additional declarative catalogs are explicit:
 

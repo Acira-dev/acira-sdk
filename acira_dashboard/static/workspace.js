@@ -777,6 +777,7 @@ async function policies(content) {
   const actions = el("div", undefined, "actions");
   actions.append(
     button("Add protection", catalogDialog, "primary"),
+    button("Capture specific policy", capturePolicyDialog),
     button("Import JSON", importDialog),
   );
   const tools = el("div", undefined, "actions");
@@ -810,12 +811,25 @@ async function policies(content) {
       ["Policy", "Type", "File", "Edit"],
       data.policies.map((policy) => [
         policy.name,
-        policy.kind,
+        policy.kind === "specific" ? "Specific · captured target" : "General protection",
         policyFile(policy.path),
         button("Configure", () => policyDialog(policy)),
       ]),
     ),
   );
+}
+function capturePolicyDialog() {
+  const body = dialog("Capture a specific policy · " + contextLine());
+  body.append(el("p", "A specific policy protects the website targets you select, such as a particular button or link. General protections cover broad risks."),
+    el("h3", "Set up Chrome capture once"),
+    el("pre", "acira extension install"),
+    el("p", "Open chrome://extensions, enable Developer mode, choose Load unpacked, and select the folder printed by that command."),
+    el("h3", "Select the target on your website"),
+    el("p", "Click Acira Capture in the Chrome toolbar. Select a target and choose Ask first or Block. Capture selection does not activate the website control."),
+    el("h3", "Save to this agent"),
+    el("p", "Pair the extension in Settings and select this project and agent to save directly. Or download the JSON and import it here or in your terminal."),
+    el("pre", "acira policy import capture.json\nacira policy configure"),
+    button("Import capture JSON", importDialog, "primary"));
 }
 async function catalogDialog() {
   const data = await api("/api/catalog"),
@@ -902,7 +916,7 @@ function policyDialog(policy) {
     documentCopy = structuredClone(policy.document);
   const affected = policy.affected_agents || [state.agent];
   body.append(
-    el("p", "Writes to: " + policy.path),
+    policyFile(policy.path),
     el(
       "p",
       "This file may be shared. Affected assignments: " +
@@ -938,6 +952,28 @@ function policyDialog(policy) {
         notice("Unsaved changes · this file affects the listed agents.");
         documentCopy.acira_decisions[risk.id || risk.risk] = select.value;
         editor.value = JSON.stringify(documentCopy, null, 2);
+      };
+      row.append(label, select);
+      body.append(row);
+    }
+  }
+  if (policy.kind === "specific") {
+    const scope = documentCopy.scope?.url_patterns || documentCopy.url_patterns || ["All websites"];
+    body.append(el("p", "Applies on: " + (Array.isArray(scope) ? scope : [scope]).join(", "), "muted"));
+    for (const target of documentCopy.targets || []) {
+      const row = el("div", undefined, "risk-row"), label = el("div"), select = el("select"),
+        fingerprint = target.fingerprint || target.match || {},
+        targetName = fingerprint.text || fingerprint.aria_label || fingerprint.id || target.id;
+      label.append(el("strong", targetName), el("p", "Captured target · " + target.id, "muted"));
+      select.append(option("ask", "Ask for human review"), option("block", "Block action"));
+      select.value = target.decision;
+      select.setAttribute("aria-label", "Decision for " + targetName);
+      select.onchange = () => {
+        target.decision = select.value;
+        if (["Block activation of captured target.", "Ask before activation of captured target."].includes(target.reason))
+          target.reason = (select.value === "block" ? "Block" : "Ask before") + " activation of captured target.";
+        editor.value = JSON.stringify(documentCopy, null, 2);
+        notice("Unsaved changes · this file affects the listed agents.");
       };
       row.append(label, select);
       body.append(row);

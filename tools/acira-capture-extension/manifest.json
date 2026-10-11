@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Acira Capture",
-  "version": "0.1.2",
-  "description": "Capture Acira specific skill target fingerprints from a logged-in web app.",
+  "version": "0.1.4",
+  "description": "Capture website targets as Acira specific policies. Export JSON or save to your paired local project.",
   "permissions": ["activeTab", "clipboardWrite", "scripting", "storage"],
   "optional_host_permissions": ["http://127.0.0.1/*"],
   "options_page": "connection.html",

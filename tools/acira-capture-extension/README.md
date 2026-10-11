@@ -6,15 +6,16 @@ This is the first user-facing capture surface for Acira specific skills. It targ
 
 1. Open `chrome://extensions` or `edge://extensions`.
 2. Enable developer mode.
-3. Load this folder as an unpacked extension.
-4. Open the real logged-in app page you want the agent to use later.
+3. Run `acira extension install`, then load the printed folder as an unpacked extension. Developers working in this repository can load this source folder instead.
+4. Open the website page you want the agent to use later. Start testing with a signed-out public link or an inert local fixture.
 5. Click the Acira Capture extension icon to open the capture panel on that tab.
 6. Select a button/link/input/select, then mark it as `Block` or `Ask`.
-7. Copy or download the exported JSON skill file.
+7. Copy or download the exported JSON policy file, then run `acira policy import capture.json` inside your initialized project.
+8. Run `acira policy configure` to choose the policy and Ask/Block decision in the terminal. Use `--agent NAME` when configuring another agent.
 
 The panel and overlays are injected only after you click the extension icon. Clicking `Close` or clicking the extension icon again removes the panel and overlays from that tab.
 
-The exported file is declarative data only. It contains URL scope, target fingerprints, decisions, reasons, and capture metadata; it does not contain executable page code.
+The exported file is declarative data only. It contains URL scope, target fingerprints, decisions, reasons, and capture metadata; it does not contain executable page code. The panel captures a selection without activating the website control. Repeated exports and saved drafts retain their policy ID. Identical imports are idempotent; changed captures require explicit replacement. No dashboard is needed for the download/import workflow.
 
 ## Optional dashboard connection
 

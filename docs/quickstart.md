@@ -1,5 +1,8 @@
 # Connect Acira to your existing project
 
+For terminal policy selection and Chrome capture, see the
+[general and specific policy guide](specific-policies.md).
+
 The normal setup is **install → initialize → integrate → run your agent**.
 The optional dashboard opens with `acira open`. You can complete this setup without
 running a demo or creating a sample application.
@@ -194,12 +197,32 @@ The dashboard's lifetime is independent of your agent's lifetime.
 
 ## 6. Manage your real policies and other agents
 
-Import a captured policy or edit the selected project's policies in the dashboard:
+Choose and configure protections directly from the terminal:
+
+```sh
+acira policy add
+acira policy list
+acira policy configure
+```
+
+To create a website-specific policy, run `acira extension install`, load the printed
+folder through Chrome's **Extensions → Developer mode → Load unpacked**, then click
+Acira Capture on your website. Select a target, choose **Ask first** or **Block target**
+and download JSON. Capture selection does not activate the control. Import it:
 
 ```sh
 acira policy import /absolute/path/to/captured-policy.json
+acira policy configure POLICY_ID --decision ask
 acira policy validate
 ```
+
+The configure command offers target selection and Ask/Block choices; general policies
+also support Allow. `acira policy disable POLICY_ID --agent NAME` changes only that
+agent's assignment. `acira policy list --json` provides machine-readable output.
+All these commands work without a dashboard. Terminal reviews are available in an
+interactive terminal; unattended reviews block. Dashboard users can instead select
+**Policies → Capture specific policy**, **Import JSON**, or **Configure** for target
+controls. A changed page can require a separate mapping review before its first action.
 
 Dashboard saves write to that project's allowed policy folders automatically.
 **Saved** means the files were written; **Active** means the selected run loaded them.

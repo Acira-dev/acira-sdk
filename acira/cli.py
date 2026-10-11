@@ -45,13 +45,25 @@ def parser() -> argparse.ArgumentParser:
         sub.add_argument("--agent", default="default")
         if name == "doctor":
             sub.add_argument("--recover", action="store_true", help="Restore the previous complete snapshot after an interrupted policy write")
-    policies = commands.add_parser("policy").add_subparsers(dest="operation", required=True)
-    for name in ("list", "add", "import", "validate", "update"):
+    extension = commands.add_parser("extension", help="Install the Chrome capture extension from this SDK").add_subparsers(dest="operation", required=True)
+    install = extension.add_parser("install", help="Export the bundled extension and show Chrome setup steps")
+    install.add_argument("--directory", help="New output folder; defaults to Acira's private user state")
+    install.add_argument("--replace", action="store_true", help="Update an existing Acira extension installation")
+    policies = commands.add_parser("policy", help="Select, import and configure general or specific policies in the terminal").add_subparsers(dest="operation", required=True)
+    for name in ("list", "add", "import", "configure", "enable", "disable", "validate", "update"):
         sub = policies.add_parser(name)
         sub.add_argument("--project")
         sub.add_argument("--agent", default="default")
-        if name in {"add", "import"}:
+        if name in {"add", "configure", "enable", "disable"}:
+            sub.add_argument("source", nargs="?", help="Policy name/ID; omit for interactive selection")
+        if name == "import":
             sub.add_argument("source")
+        if name == "list":
+            sub.add_argument("--json", action="store_true", help="Machine-readable policy documents and locations")
+        if name == "configure":
+            sub.add_argument("--decision", choices=["ask", "block", "allow"])
+            sub.add_argument("--risk", help="General-policy risk ID")
+            sub.add_argument("--target", help="Specific-policy captured target ID")
         if name == "add":
             sub.add_argument("--catalog", help="Explicit HTTPS URL of an acira.catalog.v1 manifest")
         if name == "import":
@@ -106,6 +118,7 @@ def run(argv: list[str] | None = None) -> None:
             print(f"\n2. In a terminal opened at {project.root}, verify configuration:")
             print(f"acira doctor --agent {args.agent}\nacira policy validate --agent {args.agent}")
             print("\n3. Start your agent using its usual command. Protection begins when this code runs.")
+            print("\nManage policies entirely from the terminal:\n  acira policy add          # select a general protection\n  acira extension install   # set up Chrome capture for specific targets\n  acira policy import capture.json\n  acira policy configure    # select a policy and change its decision\n  acira policy list")
             print("\n4. Optional dashboard (now or later): acira open\nInspect Agents, Approvals and Activity for your project's real run.")
             if not project.document().get("dashboard", {}).get("connect", False):
                 print("This project has automatic dashboard connection disabled. Use protect(..., dashboard=True) to connect a run.")
@@ -141,6 +154,11 @@ def run(argv: list[str] | None = None) -> None:
             from .service import open_dashboard
             url = open_dashboard(launch_browser=not args.no_browser)
             print(url if args.no_browser else "Acira opened in your browser. Closing the tab does not stop enforcement.")
+            return
+        if args.command == "extension":
+            from .extension import install_extension
+            directory = install_extension(args.directory, replace=args.replace)
+            print(f"Acira Capture is ready in:\n{directory}\n\n1. Open chrome://extensions in Chrome (or edge://extensions in Edge).\n2. Turn on Developer mode, choose Load unpacked, and select that folder.\n3. On a website, click Acira Capture, select a target, and choose Ask first or Block.\n4. Download the JSON, then run: acira policy import <downloaded-file.json>\n5. Configure it without the dashboard: acira policy configure\n\nOptional direct saving: pair the extension from acira open → Settings.\nThe SDK does not enable extensions or change browser permissions for you.")
             return
         if args.command == "server":
             from .service import admin_request, serve, verified_descriptor
@@ -201,12 +219,30 @@ def run(argv: list[str] | None = None) -> None:
             output(result)
             return
         if args.operation == "list":
-            output({"catalog": list(CATALOG), "policies": project.policies(args.agent)})
+            if args.json:
+                output({"catalog": list(CATALOG), "policies": project.policies(args.agent)})
+            else:
+                from .policy_cli import show_policies
+                show_policies(project, args.agent)
+        elif args.operation == "configure":
+            from .policy_cli import configure_policy
+            result = configure_policy(project, args.agent, args.source, decision=args.decision, risk=args.risk, target=args.target)
+            print("Saved · " + Path(result["path"]).name + " · affected agents: " + ", ".join(result["affected_agents"]))
+            print("Running agents apply it at their next guarded action. Use acira status to inspect the active revision.")
+        elif args.operation in {"enable", "disable"}:
+            from .policy_cli import set_enabled
+            result = set_enabled(project, args.agent, args.source, enabled=args.operation == "enable")
+            output(result)
         elif args.operation == "validate":
             output({"valid": True, "revision": snapshot.revision, "policy_count": len(snapshot.documents)})
         elif args.operation in {"add", "import"}:
             from .catalog import policy as remote_policy
             remote = getattr(args, "catalog", None)
+            if args.operation == "add" and args.source is None:
+                if remote:
+                    raise ValueError("Provide the policy name when using --catalog")
+                from .policy_cli import select_bundled
+                args.source = select_bundled()
             value = remote_policy(remote, args.source) if remote else catalog_policy(args.source) if args.operation == "add" else read_json(Path(args.source))
             kind, policy_id = validate_policy(value)
             filename = (CATALOG[args.source] if args.operation == "add" and not remote else "import-" + digest({"id": policy_id})[:16]) + ".json"

@@ -89,6 +89,7 @@ class Fence:
         self.documents = None
         self.allowed = 0
         self.denied = Counter()
+        self.transport_failures = Counter()
         self.navigations = []
         self.redirects = {}
         self.limit = 400
@@ -156,8 +157,13 @@ class Fence:
                         await route.abort("blockedbyclient")
                 else:
                     await route.fulfill(response=response)
-            except Exception:
+            except Exception as error:
                 self.denied["transport_error"] += 1
+                # Classify failures without recording headers, cookies or raw
+                # request payloads. This keeps outages distinct from guard bugs.
+                message = str(error).lower()
+                reason = next((name for name in ("certificate", "timeout", "econnreset", "enotfound", "context closed", "blocked") if name in message), type(error).__name__)
+                self.transport_failures[reason] += 1
                 with contextlib.suppress(Exception):
                     await route.abort("failed")
             finally:
@@ -481,6 +487,7 @@ async def case(browser, site, *, timeout, expected=None, expected_landing=None, 
                 result["status"] = "protection_failure"
         result["read_requests"] = fence.allowed
         result["requests_stopped"] = dict(fence.denied)
+        result["transport_failures"] = dict(fence.transport_failures)
         result["final_url"] = clean_url(page.url)
         # The context is being destroyed; suppress only abandoned route errors,
         # after all action/effect evidence has been recorded.

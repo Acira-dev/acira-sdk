@@ -63,7 +63,7 @@ filterwarnings = ["error::DeprecationWarning:acira"]
 include = ["acira*", "acira_cdp_proxy*", "acira_dashboard*"]
 
 [tool.setuptools.package-data]
-acira = ["resources/*.json", "resources/policies/*.json"]
+acira = ["resources/*.json", "resources/policies/*.json", "resources/capture_extension/*", "resources/capture_extension/assets/*"]
 # Ship the dashboard's static UI assets with the package.
 acira_cdp_proxy = ["resources/semantic_profiles/*.json"]
 acira_dashboard = ["static/*", "static/**/*"]

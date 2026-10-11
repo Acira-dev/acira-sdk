@@ -68,6 +68,13 @@ async def test_extension_pairs_captures_and_imports_into_selected_project(tmp_pa
                 async with page.expect_download() as saved:
                     await page.get_by_role("button",name="Download",exact=True).click()
                 exported = json.loads(Path(await (await saved.value).path()).read_text())
+                async with page.expect_download() as second:
+                    await page.get_by_role("button",name="Download",exact=True).click()
+                again = json.loads(Path(await (await second.value).path()).read_text())
+                assert exported == again, "Repeated exports must keep the capture identity"
+                await page.get_by_role("button",name="Save to dashboard",exact=True).click()
+                await expect(page.locator("#acira-capture-status")).to_contain_text("Already saved to Orders / default",timeout=10000)
+                assert len(first.policies("default")) == 1, "Repeated saves must not add duplicate policies"
                 assert exported["schema"] == "acira.specific_skill.v2"
                 assert "CAPTURE_SECRET" not in json.dumps(exported)
                 assert "HANDLER_SECRET" not in json.dumps(exported)
