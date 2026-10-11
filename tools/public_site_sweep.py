@@ -244,6 +244,7 @@ def scan_timeout(deadline, maximum=1000):
 
 async def find_link(page, expected=None, robots=None, diagnostics=None, deadline=None):
     diagnostics = diagnostics if diagnostics is not None else Counter()
+    source_url = page.url
     links = page.locator("a[href]")
     for index in range(min(await links.count(), 120)):
         if deadline is not None and time.monotonic() >= deadline:
@@ -285,6 +286,12 @@ async def find_link(page, expected=None, robots=None, diagnostics=None, deadline
             except Exception:
                 diagnostics["target_not_actionable"] += 1
                 continue
+            # Native trial may scroll. Give scroll/history callbacks a bounded
+            # turn before deciding this is still the observed source page.
+            await asyncio.sleep(.075 if deadline is None else min(.075, max(0, deadline-time.monotonic())))
+            if page.url != source_url:
+                diagnostics["source_changed"] += 1
+                return None
             # Scrolling/hydration during the trial may replace or change a link.
             # Scan again before any review; never substitute after approval.
             if (await item.get_attribute("href") != href or await item.inner_text() != label
@@ -303,6 +310,8 @@ async def ready_link(page, expected=None, robots=None, budget_seconds=15):
         found = await find_link(page, expected, robots, diagnostics,deadline)
         if found:
             return found, dict(diagnostics)
+        if diagnostics.get("source_changed"):
+            return None, dict(diagnostics)
         remaining=deadline-time.monotonic()
         if remaining<=0:
             diagnostics["scan_budget"]+=1
@@ -388,8 +397,14 @@ async def case(browser, site, *, timeout, expected=None, expected_landing=None, 
         result["final_url"] = clean_url(page.url)
         if result["status"] != "loaded":
             return result
+        source_url = page.url
         link, selection = await ready_link(page, expected, robots)
         result["selection"] = selection
+        result["source_url"] = source_url
+        if selection.get("source_changed") or page.url != source_url:
+            result["status"] = "source_changed_before_action"
+            result["final_url"] = clean_url(page.url)
+            return result
         if selection.get("scan_budget"):
             result["status"] = "link_scan_timeout"
             return result
@@ -545,7 +560,7 @@ def failure_detail(case):
         kind, scope, recovery = "http_error", "site", "Respect the server response. Do not bypass access restrictions."
     elif status == "bot_challenge":
         kind, scope, recovery = "access_challenge", "site", "Record unavailable coverage; do not bypass the challenge."
-    elif status in {"no_safe_link", "link_scan_timeout"}:
+    elif status in {"no_safe_link", "link_scan_timeout", "source_changed_before_action"}:
         kind, scope, recovery = status, "test_selection", "Provide an eligible public link in a separately recorded test."
     elif status in {"sdk_block", "destination_failure"}:
         kind, scope, recovery = status, "needs_investigation", "Compare with the baseline and journal. Do not force clicks or replay an uncertain operation."

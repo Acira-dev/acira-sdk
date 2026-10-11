@@ -15,6 +15,26 @@ sweep = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(sweep)
 
 
+@pytest.mark.asyncio
+async def test_readiness_rejects_a_page_changed_by_scrolling_before_any_click():
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        try:
+            context = await browser.new_context(viewport={"width": 1000, "height": 700})
+            await context.route("https://fixture.invalid/**", lambda route: route.fulfill(content_type="text/html", body='''
+              <div style="height:1800px">Public fixture</div><a href="/guide">Guide</a>
+              <script>window.clicks=0;document.addEventListener('click',()=>clicks++);
+              window.addEventListener('scroll',()=>history.replaceState(null,'','/changed'));</script>'''))
+            page = await context.new_page()
+            await page.goto("https://fixture.invalid/")
+            found, diagnostics = await sweep.ready_link(page, "https://fixture.invalid/guide")
+            assert found is None and diagnostics["source_changed"] == 1
+            assert page.url == "https://fixture.invalid/changed"
+            assert await page.evaluate("clicks") == 0
+        finally:
+            await browser.close()
+
+
 @pytest.mark.parametrize("url,method,navigation", [
     ("https://fixture.invalid/about", "POST", True),
     ("https://fixture.invalid/about", "PUT", False),
