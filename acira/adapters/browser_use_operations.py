@@ -17,7 +17,7 @@ from typing import Any
 from acira_cdp_proxy.action_gateway import AciraActionBlocked, ActionRequest
 from acira_cdp_proxy.guard import RUNTIME_OBJECT_PROBE_JS, _target_from_probe_value
 from acira_cdp_proxy.operation import STATE_JS, evidence_for
-from ._cdp_channel import Channel
+from ._cdp_channel import Channel, OperationConnectionLost
 from ._submission_contract import RequestContract
 
 
@@ -294,6 +294,13 @@ class NetworkGate:
             return result
         except asyncio.TimeoutError as exc:
             raise AciraActionBlocked("Submission outcome unknown; its endpoint remains blocked against automatic retry") from exc
+        except OperationConnectionLost:
+            # The activation command can lose its response before the network
+            # outcome waiter resumes. Preserve the same no-retry public error.
+            raise AciraActionBlocked(
+                "Submission outcome unknown after browser connection loss; no automatic retry is permitted. Close the owned browser and start a fresh Acira run.",
+                metadata={"business_outcome": "unknown", "retry_allowed": False},
+            ) from None
         finally:
             contract.finished = True
             self.active = None

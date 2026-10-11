@@ -13,6 +13,10 @@ from urllib.parse import urlsplit
 from aiohttp import ClientSession, ClientTimeout, WSMsgType
 
 
+class OperationConnectionLost(RuntimeError):
+    """A dispatched private command lost its response; never retry it."""
+
+
 class Channel:
     def __init__(self):
         self.client = None
@@ -125,7 +129,7 @@ class Channel:
             self.error = True
             for future in list(self.pending.values()):
                 if not future.done():
-                    future.set_exception(RuntimeError("Browser connection ended; operation outcome may be unknown"))
+                    future.set_exception(OperationConnectionLost("Browser connection ended; operation outcome may be unknown"))
             if not self.closing and self.on_disconnect is not None:
                 # The owner poisons authorization before writing its audit.
                 # Even a failed audit must allow private transport cleanup.

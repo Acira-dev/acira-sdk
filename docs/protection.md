@@ -117,6 +117,10 @@ facts=...)` adds an explicit single-request contract:
   browser and start a fresh run. This integration cannot promise zero browser
   effects after its controlling transport or runtime process is forcibly lost.
   A surviving external browser is not an operating-system/network sandbox.
+  While waiting for an authorized submission's activation or network response,
+  this loss raises `AciraActionBlocked`. The error denotes
+  an unknown outcome and prohibits automatic retry; it does not establish that
+  the browser produced no side effect.
 - The initial endpoint budget is 1,000 contracts per run and related-target budget is
   64 attached targets. Exceeding a budget requires a fresh run rather than unbounded
   routing or event state.
