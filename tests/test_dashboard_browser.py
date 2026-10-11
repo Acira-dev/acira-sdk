@@ -516,6 +516,12 @@ async def test_companion_preferences_keep_approvals_mascot_free(tmp_path, monkey
             try:
                 await ui.goto(str(server.make_url("/")) + "#ticket=" + ticket)
                 await ui.get_by_role("heading", name="Appearance", exact=True).wait_for()
+                async def preview_geometry():
+                    await ui.evaluate("() => document.fonts.ready.then(() => true)")
+                    return await ui.locator(".review-focus").evaluate("""el => ({
+                        frame: el.querySelector('.review-focus-canvas').getBoundingClientRect().toJSON(),
+                        caption: el.querySelector('.target-caption').getBoundingClientRect().toJSON()
+                    })""")
                 await click_control(ui, ui.get_by_role("button", name="Settings", exact=True, include_hidden=True))
                 mode = ui.get_by_role("combobox", name="Companion appearance")
                 await expect(mode).to_have_value("still")
@@ -524,8 +530,8 @@ async def test_companion_preferences_keep_approvals_mascot_free(tmp_path, monkey
                 await ui.get_by_role("button", name="Review operation").click()
                 assert await ui.locator("dialog .acira-mascot").count() == 0
                 await expect(ui.locator(".review-stage .target-outline")).to_be_visible()
-                hidden_frame = await ui.locator(".review-focus-canvas").bounding_box()
-                hidden_caption = await ui.locator(".target-caption").bounding_box()
+                hidden_geometry = await preview_geometry()
+                hidden_frame, hidden_caption = hidden_geometry["frame"], hidden_geometry["caption"]
                 preview_gap = hidden_frame["y"] - hidden_caption["y"] - hidden_caption["height"]
                 await expect(ui.get_by_role("dialog").get_by_role("heading", name="Click “Save note”?", exact=True)).to_be_visible()
                 await expect(ui.locator(".review-destination").get_by_text("Destination", exact=True)).to_be_visible()
@@ -546,15 +552,15 @@ async def test_companion_preferences_keep_approvals_mascot_free(tmp_path, monkey
                 await ui.get_by_role("button", name="Review operation").click()
                 await expect(ui.locator(".review-stage .target-outline")).to_be_visible()
                 assert await ui.locator("dialog .acira-mascot").count() == 0
-                animated_frame = await ui.locator(".review-focus-canvas").bounding_box()
-                animated_caption = await ui.locator(".target-caption").bounding_box()
+                animated_geometry = await preview_geometry()
+                animated_frame, animated_caption = animated_geometry["frame"], animated_geometry["caption"]
                 assert abs(animated_frame["width"] - hidden_frame["width"]) < 1
                 assert abs(animated_frame["height"] - hidden_frame["height"]) < 1
                 assert abs(animated_frame["y"] - animated_caption["y"] - animated_caption["height"] - preview_gap) < 1
                 await ui.emulate_media(reduced_motion="no-preference")
                 assert await ui.locator("dialog .acira-mascot").count() == 0
-                moving_frame = await ui.locator(".review-focus-canvas").bounding_box()
-                moving_caption = await ui.locator(".target-caption").bounding_box()
+                moving_geometry = await preview_geometry()
+                moving_frame, moving_caption = moving_geometry["frame"], moving_geometry["caption"]
                 assert abs(moving_frame["width"] - hidden_frame["width"]) < 1
                 assert abs(moving_frame["height"] - hidden_frame["height"]) < 1
                 assert abs(moving_frame["y"] - moving_caption["y"] - moving_caption["height"] - preview_gap) < 1

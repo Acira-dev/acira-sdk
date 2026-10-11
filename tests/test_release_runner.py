@@ -88,13 +88,18 @@ def test_mac_cache_rejects_wrong_python_identity(monkeypatch, tmp_path, case):
         runner.validate_mac_python(data, "3.12", tmp_path)
 
 
-def test_mac_cache_does_not_mark_a_different_cached_interpreter(monkeypatch, tmp_path):
+@pytest.mark.parametrize("native_minor", [(3, 11), (3, 12)])
+def test_mac_cache_does_not_mark_a_different_cached_interpreter(monkeypatch, tmp_path, native_minor):
     from types import SimpleNamespace
-    monkeypatch.setattr(runner.sys, "platform", "darwin")
+    native_version = ".".join(map(str, (*native_minor, 15)))
+    monkeypatch.setattr(runner, "sys", SimpleNamespace(
+        platform="darwin", version_info=(*native_minor, 15),
+        executable=f"/native/Python/{native_version}/arm64/bin/python",
+    ))
     monkeypatch.setattr(runner.platform, "machine", lambda: "arm64")
     monkeypatch.setattr(runner.shutil, "which", lambda name: "/native/" + name)
     def metadata(executable):
-        cached = "Python" in Path(executable).parts
+        cached = Path(executable).is_relative_to(tmp_path)
         return {"version": [3, 11, 16 if cached else 15], "releaselevel": "final",
             "platform": "darwin", "architecture": "arm64",
             "prefix": str(Path(executable).parents[1]) if cached else "/native"}

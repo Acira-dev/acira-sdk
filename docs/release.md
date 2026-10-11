@@ -70,6 +70,11 @@ as Acira-dev, and Bash (Git for Windows provides it). Linux also needs browser
 system dependencies; use a disposable Linux VM with passwordless sudo for
 Playwright's official dependency installer.
 
+Use Ubuntu 24.04 or a supported Debian release for the pinned Playwright 1.60.0
+Linux tests. Its installer rejects Ubuntu 26.04 ARM64. A newer operating system
+does not establish browser compatibility; choose a supported image rather than
+overriding Playwright's platform detection or skipping browser tests.
+
 Mac runners need native Python 3.11 and 3.12 already installed. The helper verifies
 their actual versions and architecture and prepares private, temporary virtual
 environments that setup-python can discover. It avoids the official Mac installer's
