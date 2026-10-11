@@ -26,6 +26,11 @@ allow, block and review cases. It reports unavailable sites separately from pass
 See the [failure investigation and repairs](docs/public-site-failures.md) for what
 was corrected and which access or test-boundary limitations remain.
 
+For captured policies, use the [terminal-first policy guide](docs/specific-policies.md).
+The [specific-policy validation report](docs/validation/2026-10-11-specific-policies/README.md)
+records the extension-to-SDK journey, real-site results, original failures, repairs,
+and remaining checks.
+
 This checkout contains the SDK/shared-dashboard implementation. See
 [implementation and release status](docs/implementation-status.md) for verified behavior
 and remaining release gates. Do not infer full adapter coverage from package installation.

@@ -149,3 +149,7 @@ reported as limitations rather than protection passes.
 
 Use a new output folder for each campaign and keep its private journals and images
 local. Public links cannot establish authenticated, payment, or every-site safety.
+
+See the [recorded validation campaign](validation/2026-10-11-specific-policies/README.md)
+for verified workflows, capture repairs, unavailable sites, and remaining manual
+and platform checks.

@@ -1,0 +1,235 @@
+phase,url,status,robots,capture,repeat_import,elapsed_seconds,baseline,baseline_dispatches,baseline_reviews,blocked,blocked_dispatches,blocked_reviews,rejected,rejected_dispatches,rejected_reviews,approved,approved_dispatches,approved_reviews,error
+initial,https://www.python.org/,complete,allowed,verified,idempotent,57.21,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://docs.python.org/3/,complete,allowed,verified,idempotent,18.36,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://developer.mozilla.org/en-US/docs/Web/,complete,allowed,verified,idempotent,57.73,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://playwright.dev/python/docs/intro,complete,allowed,verified,idempotent,84.96,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://www.djangoproject.com/,complete,allowed,verified,idempotent,91.94,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://flask.palletsprojects.com/,partial,allowed,verified,idempotent,27.82,verified,,,error,,,error,,,error,,,PlaywrightGuardBlockedError: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks. | AciraActionBlocked: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks. | AciraActionBlocked: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks.
+initial,https://fastapi.tiangolo.com/,unavailable,allowed,,,20.15,error,,,,,,,,,,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://fastapi.tiangolo.com/"", waiting until ""domcontentloaded""
+"
+initial,https://www.rust-lang.org/,complete,not_present,verified,idempotent,41.83,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://go.dev/,partial,allowed,,,46.04,verified,,,,,,,,,,,,"Error: Locator.click: Error: strict mode violation: get_by_role(""button"", name=""Download"", exact=True) resolved to 2 elements:
+    1) <a href=""/dl"" role=""button"" aria-label=""Download"" class=""Secondary js-downloadBtn"" aria-describedby=""download-description"">Download</a> aka get_by_role(""button"", name=""Download"", description=""Opens a new window to download Go."", exact=True)
+    2) <button data-action=""download"">…</button> aka get_by_label(""Acira Capture"", exact=True).get_by_role(""button"", name=""Download"")
+
+Call log:
+  - waiting for get_by_role(""button"", name=""Download"", exact=True)
+"
+initial,https://julialang.org/,complete,allowed,verified,idempotent,115.85,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://www.ruby-lang.org/en/,partial,allowed,verified,idempotent,152.13,verified,,,verified,0,,verified,0,rejected,destination_failure,1,approved,"TimeoutError: Timeout 18000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to ""<function ImplToApiMapping.wrap_handler.<locals>.wrapper_func at 0x10a769bc0>"" until 'domcontentloaded'
+============================================================"
+initial,https://elixir-lang.org/,partial,allowed,verified,idempotent,65.98,verified,,,verified,0,,verified,0,rejected,error,,,"Error: Page.goto: net::ERR_FAILED at https://elixir-lang.org/
+Call log:
+  - navigating to ""https://elixir-lang.org/"", waiting until ""domcontentloaded""
+"
+initial,https://www.erlang.org/,unavailable,not_present,,,40.01,destination_failure,,,,,,,,,,,,"TimeoutError: Timeout 18000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to ""<function ImplToApiMapping.wrap_handler.<locals>.wrapper_func at 0x10a8df380>"" until 'domcontentloaded'
+============================================================"
+initial,https://www.haskell.org/,unavailable,robots_unavailable_TimeoutError,,,12.07,,,,,,,,,,,,,
+initial,https://www.scala-lang.org/,unavailable,allowed,,,17.27,error,,,,,,,,,,,,"Error: Page.goto: net::ERR_FAILED at https://www.scala-lang.org/
+Call log:
+  - navigating to ""https://www.scala-lang.org/"", waiting until ""domcontentloaded""
+"
+initial,https://clojure.org/,partial,allowed,,,48.46,verified,,,,,,,,,,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://clojure.org/"", waiting until ""domcontentloaded""
+"
+initial,https://racket-lang.org/,unavailable,allowed,,,32.66,error,,,,,,,,,,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://racket-lang.org/"", waiting until ""domcontentloaded""
+"
+initial,https://www.lua.org/,complete,not_present,verified,idempotent,51.02,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://www.php.net/,partial,allowed,verified,idempotent,99.92,verified,,,verified,0,,error,,,error,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://www.php.net/"", waiting until ""domcontentloaded""
+ | TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://www.php.net/"", waiting until ""domcontentloaded""
+"
+initial,https://www.perl.org/,complete,allowed,verified,idempotent,98.59,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://groovy-lang.org/,unavailable,robots_redirect_outside_scope,,,0.45,,,,,,,,,,,,,
+initial,https://kotlinlang.org/,unavailable,allowed,,,25.11,error,,,,,,,,,,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://kotlinlang.org/"", waiting until ""domcontentloaded""
+"
+initial,https://www.swift.org/,unavailable,robots_unavailable_ClientConnectorCertificateError,,,0.24,,,,,,,,,,,,,
+initial,https://www.typescriptlang.org/,complete,not_present,verified,idempotent,66.37,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://openjdk.org/,unavailable,robots_unavailable_TimeoutError,,,12.38,,,,,,,,,,,,,
+initial,https://cplusplus.com/,unavailable,allowed,,,23.86,error,,,,,,,,,,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://cplusplus.com/"", waiting until ""domcontentloaded""
+"
+initial,https://www.learncpp.com/,unavailable,allowed,,,21.19,error,,,,,,,,,,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://www.learncpp.com/"", waiting until ""domcontentloaded""
+"
+initial,https://nim-lang.org/,unavailable,allowed,,,24.81,error,,,,,,,,,,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://nim-lang.org/"", waiting until ""domcontentloaded""
+"
+initial,https://ziglang.org/,complete,not_present,verified,idempotent,44.27,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://ocaml.org/,unavailable,allowed,,,44.46,destination_failure,,,,,,,,,,,,"TimeoutError: Timeout 18000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to ""<function ImplToApiMapping.wrap_handler.<locals>.wrapper_func at 0x10b6c1580>"" until 'domcontentloaded'
+============================================================"
+initial,https://fortran-lang.org/,unavailable,not_present,,,28.19,error,,,,,,,,,,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://fortran-lang.org/"", waiting until ""domcontentloaded""
+"
+initial,https://vlang.io/,unavailable,allowed,,,16.68,error,,,,,,,,,,,,"Error: Page.goto: net::ERR_FAILED at https://vlang.io/
+Call log:
+  - navigating to ""https://vlang.io/"", waiting until ""domcontentloaded""
+"
+initial,https://deno.com/,unavailable,robots_unavailable_TimeoutError,,,12.51,,,,,,,,,,,,,
+initial,https://nodejs.org/en,partial,allowed,,,69.01,verified,,,,,,,,,,,,"Error: Page.goto: net::ERR_FAILED at https://nodejs.org/en
+Call log:
+  - navigating to ""https://nodejs.org/en"", waiting until ""domcontentloaded""
+"
+initial,https://bun.sh/,unavailable,robots_unavailable_TimeoutError,,,12.98,,,,,,,,,,,,,
+initial,https://react.dev/,unavailable,robots_unavailable_TimeoutError,,,12.5,,,,,,,,,,,,,
+initial,https://vuejs.org/,unavailable,allowed,,,17.0,error,,,,,,,,,,,,"Error: Page.goto: net::ERR_FAILED at https://vuejs.org/
+Call log:
+  - navigating to ""https://vuejs.org/"", waiting until ""domcontentloaded""
+"
+initial,https://angular.dev/,unavailable,robots_unavailable_TimeoutError,,,13.0,,,,,,,,,,,,,
+initial,https://svelte.dev/,unavailable,allowed,,,48.46,destination_failure,,,,,,,,,,,,"TimeoutError: Timeout 18000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to ""<function ImplToApiMapping.wrap_handler.<locals>.wrapper_func at 0x10a8825c0>"" until 'domcontentloaded'
+============================================================"
+initial,https://www.solidjs.com/,unavailable,allowed,,,17.69,no_safe_link,,,,,,,,,,,,
+initial,https://astro.build/,complete,allowed,verified,idempotent,103.49,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://nextjs.org/,complete,allowed,verified,idempotent,138.64,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://nuxt.com/,unavailable,allowed,,,32.32,destination_failure,,,,,,,,,,,,"TimeoutError: Timeout 18000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to ""<function ImplToApiMapping.wrap_handler.<locals>.wrapper_func at 0x10c9ec720>"" until 'domcontentloaded'
+============================================================"
+initial,https://tailwindcss.com/,unavailable,not_present,,,45.88,destination_failure,,,,,,,,,,,,"TimeoutError: Timeout 18000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to ""<function ImplToApiMapping.wrap_handler.<locals>.wrapper_func at 0x10b85c180>"" until 'domcontentloaded'
+============================================================"
+initial,https://getbootstrap.com/,complete,allowed,verified,idempotent,84.28,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://bulma.io/,partial,allowed,verified,idempotent,90.98,verified,,,error,,,error,,,error,,,PlaywrightGuardBlockedError: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks. | AciraActionBlocked: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks. | AciraActionBlocked: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks.
+initial,https://lit.dev/,complete,allowed,verified,idempotent,83.68,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://htmx.org/,complete,allowed,verified,idempotent,80.49,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://alpinejs.dev/,complete,allowed,verified,idempotent,37.24,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://preactjs.com/,complete,allowed,verified,idempotent,31.18,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+initial,https://webpack.js.org/,partial,allowed,verified,idempotent,52.93,verified,,,error,,,error,,,error,,,PlaywrightGuardBlockedError: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks. | AciraActionBlocked: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks. | AciraActionBlocked: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks.
+initial,https://vite.dev/,partial,not_present,verified,idempotent,94.29,verified,,,protection_failure,1,,,,,,,,
+label-followup,https://flask.palletsprojects.com/,partial,allowed,verified,idempotent,81.72,verified,,,verified,0,,verified,0,rejected,error,,,"Error: Page.goto: net::ERR_FAILED at https://flask.palletsprojects.com/
+Call log:
+  - navigating to ""https://flask.palletsprojects.com/"", waiting until ""domcontentloaded""
+"
+label-followup,https://go.dev/,unavailable,robots_unavailable_TimeoutError,,,12.8,,,,,,,,,,,,,
+label-followup,https://fastapi.tiangolo.com/,unavailable,allowed,,,27.5,error,,,,,,,,,,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://fastapi.tiangolo.com/"", waiting until ""domcontentloaded""
+"
+label-followup,https://www.ruby-lang.org/en/,unavailable,allowed,,,24.05,error,,,,,,,,,,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://www.ruby-lang.org/en/"", waiting until ""domcontentloaded""
+"
+label-followup,https://www.python.org/,unavailable,allowed,,,22.03,error,,,,,,,,,,,,"Error: Page.goto: net::ERR_FAILED at https://www.python.org/
+Call log:
+  - navigating to ""https://www.python.org/"", waiting until ""domcontentloaded""
+"
+label-followup,https://docs.python.org/3/,complete,allowed,verified,idempotent,52.4,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+label-expanded,https://flask.palletsprojects.com/,complete,allowed,verified,idempotent,105.74,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+label-expanded,https://go.dev/,unavailable,allowed,,,24.92,error,,,,,,,,,,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://go.dev/"", waiting until ""domcontentloaded""
+"
+label-expanded,https://www.djangoproject.com/,unavailable,robots_unavailable_TimeoutError,,,12.01,,,,,,,,,,,,,
+label-expanded,https://developer.mozilla.org/en-US/docs/Web/,partial,allowed,,,68.41,verified,,,,,,,,,,,,"Error: Page.goto: net::ERR_FAILED at https://developer.mozilla.org/en-US/docs/Web/
+Call log:
+  - navigating to ""https://developer.mozilla.org/en-US/docs/Web/"", waiting until ""domcontentloaded""
+"
+label-expanded,https://www.rust-lang.org/,unavailable,robots_unavailable_TimeoutError,,,12.59,,,,,,,,,,,,,
+label-expanded,https://julialang.org/,unavailable,robots_unavailable_TimeoutError,,,12.5,,,,,,,,,,,,,
+label-expanded,https://nodejs.org/en,unavailable,robots_unavailable_TimeoutError,,,12.5,,,,,,,,,,,,,
+label-expanded,https://deno.com/,unavailable,allowed,,,14.74,error,,,,,,,,,,,,"Error: Page.goto: net::ERR_FAILED at https://deno.com/
+Call log:
+  - navigating to ""https://deno.com/"", waiting until ""domcontentloaded""
+"
+label-expanded,https://numpy.org/,unavailable,allowed,,,28.44,error,,,,,,,,,,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://numpy.org/"", waiting until ""domcontentloaded""
+"
+label-expanded,https://pandas.pydata.org/,complete,allowed,verified,idempotent,117.03,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+label-expanded,https://www.sphinx-doc.org/en/master/,complete,allowed,verified,idempotent,103.1,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+label-expanded,https://jax.readthedocs.io/,unavailable,allowed,,,7.74,error,,,,,,,,,,,,"Error: Page.goto: net::ERR_BLOCKED_BY_CLIENT at https://jax.readthedocs.io/
+Call log:
+  - navigating to ""https://jax.readthedocs.io/"", waiting until ""domcontentloaded""
+"
+spa-followup,https://vite.dev/,unavailable,not_present,,,38.41,destination_failure,,,,,,,,,,,,"TimeoutError: Timeout 18000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to ""<function ImplToApiMapping.wrap_handler.<locals>.wrapper_func at 0x109816520>"" until 'domcontentloaded'
+============================================================"
+spa-followup,https://bulma.io/,partial,allowed,,,65.7,verified,,,,,,,,,,,,"Error: Page.goto: net::ERR_FAILED at https://bulma.io/
+Call log:
+  - navigating to ""https://bulma.io/"", waiting until ""domcontentloaded""
+"
+spa-followup,https://webpack.js.org/,unavailable,allowed,,,49.42,destination_failure,,,,,,,,,,,,"TimeoutError: Timeout 18000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to ""<function ImplToApiMapping.wrap_handler.<locals>.wrapper_func at 0x109bd8860>"" until 'domcontentloaded'
+============================================================"
+spa-followup,https://go.dev/,unavailable,allowed,,,19.19,error,,,,,,,,,,,,"Error: Page.goto: net::ERR_FAILED at https://go.dev/
+Call log:
+  - navigating to ""https://go.dev/"", waiting until ""domcontentloaded""
+"
+spa-followup,https://flask.palletsprojects.com/,unavailable,allowed,,,24.26,error,,,,,,,,,,,,"Error: Page.goto: net::ERR_FAILED at https://flask.palletsprojects.com/
+Call log:
+  - navigating to ""https://flask.palletsprojects.com/"", waiting until ""domcontentloaded""
+"
+spa-followup,https://www.python.org/,unavailable,allowed,,,14.6,error,,,,,,,,,,,,"Error: Page.goto: net::ERR_FAILED at https://www.python.org/
+Call log:
+  - navigating to ""https://www.python.org/"", waiting until ""domcontentloaded""
+"
+spa-followup,https://developer.mozilla.org/en-US/docs/Web/,unavailable,allowed,,,58.22,destination_failure,,,,,,,,,,,,"TimeoutError: Timeout 18000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to ""<function ImplToApiMapping.wrap_handler.<locals>.wrapper_func at 0x109a934c0>"" until 'domcontentloaded'
+============================================================"
+spa-followup,https://vuejs.org/,unavailable,allowed,,,53.04,destination_failure,,,,,,,,,,,,"TimeoutError: Timeout 18000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to ""<function ImplToApiMapping.wrap_handler.<locals>.wrapper_func at 0x1096b0e00>"" until 'domcontentloaded'
+============================================================"
+spa-followup,https://astro.build/,unavailable,allowed,,,30.06,error,,,,,,,,,,,,"TimeoutError: Page.goto: Timeout 18000ms exceeded.
+Call log:
+  - navigating to ""https://astro.build/"", waiting until ""domcontentloaded""
+"
+spa-followup,https://nextjs.org/,unavailable,allowed,,,20.44,error,,,,,,,,,,,,"Error: Page.goto: net::ERR_FAILED at https://nextjs.org/
+Call log:
+  - navigating to ""https://nextjs.org/"", waiting until ""domcontentloaded""
+"
+spa-followup,https://preactjs.com/,complete,allowed,verified,idempotent,44.69,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+spa-followup,https://www.typescriptlang.org/,complete,not_present,verified,idempotent,40.74,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+spa-followup,https://svelte.dev/,partial,allowed,verified,idempotent,79.86,verified,,,error,,,error,,,error,,,"Error: Page.goto: net::ERR_FAILED at https://svelte.dev/
+Call log:
+  - navigating to ""https://svelte.dev/"", waiting until ""domcontentloaded""
+ | Error: Page.goto: net::ERR_FAILED at https://svelte.dev/
+Call log:
+  - navigating to ""https://svelte.dev/"", waiting until ""domcontentloaded""
+ | Error: Page.goto: net::ERR_FAILED at https://svelte.dev/
+Call log:
+  - navigating to ""https://svelte.dev/"", waiting until ""domcontentloaded""
+"
+spa-followup,https://htmx.org/,unavailable,allowed,,,43.64,destination_failure,,,,,,,,,,,,"TimeoutError: Timeout 18000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to ""<function ImplToApiMapping.wrap_handler.<locals>.wrapper_func at 0x109d268e0>"" until 'domcontentloaded'
+============================================================"
+vite-diagnostic,https://vite.dev/,partial,not_present,verified,idempotent,147.08,verified,,,verified,0,,verified,0,rejected,review_failure,1,,
+driver-followup,https://vite.dev/,unavailable,not_present,,,56.75,destination_failure,,,,,,,,,,,,"TimeoutError: Timeout 30000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to ""<function ImplToApiMapping.wrap_handler.<locals>.wrapper_func at 0x1096d7ba0>"" until 'domcontentloaded'
+============================================================"
+driver-followup,https://bulma.io/,partial,allowed,verified,idempotent,86.81,verified,,,error,,,error,,,error,,,PlaywrightGuardBlockedError: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks. | AciraActionBlocked: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks. | AciraActionBlocked: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks.
+driver-followup,https://webpack.js.org/,partial,allowed,verified,idempotent,7.04,verified,,,error,,,error,,,error,,,PlaywrightGuardBlockedError: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks. | AciraActionBlocked: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks. | AciraActionBlocked: ACIRA_SECURITY_LOCKDOWN_DO_NOT_RETRY: All actions from this agent have been blocked by Acira Guard because the page mapping was rejected for security reasons. Stop sending browser commands; do not retry or attempt bypasses. Do not brute-force clicks.
+driver-followup,https://www.python.org/,complete,allowed,verified,idempotent,13.01,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+driver-followup,https://docs.python.org/3/,complete,allowed,verified,idempotent,9.67,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+driver-followup,https://flask.palletsprojects.com/,complete,allowed,verified,idempotent,26.24,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+driver-followup,https://go.dev/,complete,allowed,verified,idempotent,16.65,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
+driver-followup,https://www.sphinx-doc.org/en/master/,complete,allowed,verified,idempotent,9.89,verified,,,verified,0,,verified,0,rejected,verified,1,approved,
