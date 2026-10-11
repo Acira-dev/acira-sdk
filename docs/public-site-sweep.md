@@ -22,12 +22,20 @@ Review images use the SDK's existing masking/capture pipeline. Missing images an
 their reasons remain in the results; a link-action pass does not prove that an
 image was available.
 
+Selection pins the observed DOM element rather than its index in a menu. Menu
+reordering cannot silently change the chosen link. Replaced, hidden or changed
+targets remain failures; the driver never forces a click or retargets it.
+
 A complete result requires all five cases. A loaded page without an eligible
 link is partial coverage. Robots restrictions, bot checks, timeouts, server errors
 and login requirements are retained as unavailable results, never counted as
 protection passes. A baseline pass followed by an Acira failure needs investigation;
 a baseline failure cannot establish an SDK defect. Protection failures stop the
 worker for investigation.
+
+Bot challenges and blank loading pages are excluded from the observed-public-page
+coverage metric, even when a server returns HTTP 200. They remain visible in the
+per-site evidence.
 
 ## Safety and limitations
 

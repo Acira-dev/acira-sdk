@@ -58,6 +58,24 @@ def test_public_catalog_has_hundreds_of_unique_safe_sites():
     assert all(sweep.public_url(site["url"], document=True) for site in sites)
 
 
+def test_report_excludes_challenges_and_blank_html_from_public_coverage(tmp_path):
+    rows = []
+    for url, title, length, challenge in (
+        ("https://content.invalid/", "Public guide", 100, False),
+        ("https://challenge.invalid/", "Verify you are human", 100, True),
+        ("https://blank.invalid/", "Loading", 0, False),
+    ):
+        rows.append({"url": url, "category": "fixture", "status": "partial",
+            "robots": "allowed", "cases": [{"mode": "normal", "status": "no_safe_link",
+                "http_status": 200, "title": title, "text_length": length, "challenge": challenge}]})
+    (tmp_path / "results-0.jsonl").write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    report = sweep.summary(tmp_path)
+    assert report["sites_attempted"] == 3
+    assert report["sites_with_observed_html"] == report["sites_with_guarded_html"] == 1
+    assert report["full_workflow_passes"] == 0
+    assert "challenge.invalid" in (tmp_path / "report.html").read_text()
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("unsafe_redirect", [False, True])
 async def test_sweep_observes_actual_effects_and_fresh_sessions(tmp_path, monkeypatch, unsafe_redirect):
@@ -180,3 +198,40 @@ async def test_teardown_keeps_background_mutations_off_the_network(monkeypatch):
                     assert received_posts == []
         finally:
             await browser.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("guarded", [False, True])
+async def test_selected_link_stays_pinned_when_menu_order_changes(guarded):
+    import contextlib
+    from acira.adapters.playwright import PlaywrightCDPProxy
+    from acira.adapters.playwright_boundary import trusted
+    reviewer = sweep.TestReviewer()
+    reviewer.expected = "https://fixture.invalid/about"
+    reviewer.decision = "allow"
+    async with contextlib.AsyncExitStack() as stack:
+        p = await stack.enter_async_context(async_playwright())
+        if guarded:
+            guard = await stack.enter_async_context(PlaywrightCDPProxy(
+                config={"review_actions": ["click"], "terminal_log": False},
+                review_backend=reviewer))
+            guard.patch_playwright(p)
+        browser = await p.chromium.launch()
+        stack.push_async_callback(browser.close)
+        page = await browser.new_page()
+        async def fixture(route):
+            text = '<h1>Local fixture</h1><a href="/about">About this project</a>' if route.request.url.endswith('/') else '<h1>Public content</h1>'
+            await route.fulfill(content_type="text/html", body=text)
+        await page.route("**/*", fixture)
+        await page.goto("https://fixture.invalid/")
+        selected, destination, _ = await sweep.find_link(page)
+        # A live menu inserts a new link ahead of the previously selected one.
+        # An ordinal Locator would now point to a different operation.
+        await trusted(page, "evaluate", '''() => {
+            const item = document.createElement('a');
+            item.href = '/research'; item.textContent = 'Research';
+            document.body.insertBefore(item, document.querySelector('a'));
+        }''')
+        await selected.click()
+        assert page.url == destination == reviewer.expected
+        assert reviewer.requests == (1 if guarded else 0)

@@ -218,10 +218,15 @@ async def close_context(context, fence):
 async def find_link(page, expected=None, robots=None):
     links = page.locator("a[href]")
     for index in range(min(await links.count(), 120)):
-        item = links.nth(index)
         try:
+            # Keep the observed DOM node, not its menu position. Hydration can
+            # insert/reorder anchors between scanning and the guarded action.
+            # A replaced/detached node must fail rather than retarget a click.
+            item = await links.nth(index).element_handle(timeout=1000)
+            if item is None:
+                continue
             href, label, download, onclick, role, target = await asyncio.gather(
-                item.get_attribute("href"), item.inner_text(timeout=1500),
+                item.get_attribute("href"), item.inner_text(),
                 item.get_attribute("download"), item.get_attribute("onclick"),
                 item.get_attribute("role"), item.get_attribute("target"),
             )
@@ -495,13 +500,17 @@ async def worker(args):
             await asyncio.sleep(.5)
     print("SWEEP WORKER FINISHED", args.shard, flush=True)
 
+def observed_public_html(case):
+    return bool(case.get("http_status", 999) < 400 and case.get("title")
+                and case.get("text_length", 0) > 0 and not case.get("challenge"))
+
 def summary(output):
     rows = [json.loads(line) for path in sorted(output.glob("results-*.jsonl")) for line in path.read_text().splitlines() if line]
     counts = Counter(row["status"] for row in rows)
     cases = Counter(f"{case['mode']}:{case['status']}" for row in rows for case in row["cases"])
     metadata = {"sites_attempted": len(rows), "unique_hosts": len({urlsplit(r["url"]).hostname for r in rows}),
-                "sites_with_observed_html": sum(any(c.get("http_status", 999) < 400 and c.get("title") for c in r["cases"]) for r in rows),
-                "sites_with_guarded_html": sum(any(c["mode"] != "baseline" and c.get("http_status", 999) < 400 and c.get("title") for c in r["cases"]) for r in rows),
+                "sites_with_observed_html": sum(any(observed_public_html(c) for c in r["cases"]) for r in rows),
+                "sites_with_guarded_html": sum(any(c["mode"] != "baseline" and observed_public_html(c) for c in r["cases"]) for r in rows),
                 "full_workflow_passes": counts["complete"],
                 "site_status": dict(counts), "cases": dict(cases),
                 "limits": ["Signed-out asynchronous Chromium/Playwright public-page workflows only.",
