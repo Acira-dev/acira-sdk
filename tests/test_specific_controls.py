@@ -27,6 +27,9 @@ async def test_capture_suppresses_early_handlers_and_guards_five_control_familie
     </main><script>
       // Some host pages consume messages before a late-injected listener.
       window.addEventListener('message',event=>event.stopImmediatePropagation(),true);
+      document.addEventListener('click',event=>{
+        if(event.target.closest('[data-action]')) event.stopPropagation();
+      },true);
       window.addEventListener('pointerdown',event=>{
         if (!event.target.closest('#acira-capture-panel')) document.querySelector('#early').textContent='changed';
       },true);

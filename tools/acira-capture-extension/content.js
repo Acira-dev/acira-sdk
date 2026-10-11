@@ -1,6 +1,6 @@
 (() => {
   const ROOT_ID = "acira-capture-panel";
-  const VERSION = "0.6.6";
+  const VERSION = "0.6.7";
   const STORAGE_PREFIX = "acira.capture.draft";
   const EXISTING = window.__ACIRA_CAPTURE__;
   if (EXISTING) {
@@ -171,7 +171,6 @@
   const toggleButton = panel.querySelector("[data-action='toggle']");
   const markButtons = Array.from(panel.querySelectorAll("[data-action='mark']"));
 
-  panel.addEventListener("click", handlePanelClick);
   document.addEventListener("mousemove", handleMouseMove, true);
   window.addEventListener("pointerdown", suppressCaptureActivation, true);
   window.addEventListener("mousedown", suppressCaptureActivation, true);
@@ -212,7 +211,6 @@
   function destroy() {
     state.visible = false;
     state.capturing = false;
-    panel.removeEventListener("click", handlePanelClick);
     document.removeEventListener("mousemove", handleMouseMove, true);
     window.removeEventListener("pointerdown", suppressCaptureActivation, true);
     window.removeEventListener("mousedown", suppressCaptureActivation, true);
@@ -348,7 +346,17 @@
   }
 
   function handleDocumentClick(event) {
-    if (!state.visible || !state.capturing || isAciraNode(event.target)) return;
+    if (!state.visible) return;
+    // Handle our controls at window capture, before host-page document
+    // listeners can stop propagation. Native trusted activation is retained
+    // for clipboard/download controls, and an action is handled only once.
+    if (event.target instanceof Node && panel.contains(event.target)) {
+      handlePanelClick(event);
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      return;
+    }
+    if (!state.capturing || isAciraNode(event.target)) return;
     const element = interactiveElement(event.target);
     if (!element) return;
     event.preventDefault();
