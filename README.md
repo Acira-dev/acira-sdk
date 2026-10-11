@@ -68,8 +68,13 @@ dashboard connection. It shows the integration snippet; it does not rewrite your
 application or install browsers. If your environment needs Chromium, install it
 explicitly with `python -m playwright install chromium`. Reuse your existing browser
 setup when it is compatible with the supported integration. Framework versions tested
-for this release are Playwright 1.60.0 and browser-use 0.13.11; `acira doctor` reports
+for this release are Playwright 1.60.0 and browser-use 0.11.12; `acira doctor` reports
 your installed versions and configured capabilities.
+The browser-use extra includes its settings dependency and tested integration
+libraries, with fixed AnyIO and pypdf versions. Newer browser-use 0.13.11 currently
+pins affected library versions; Acira does not override upstream package metadata
+or ignore dependency advisories. Installing the extra can change existing framework
+versions, so use your project's environment and review pip's dependency changes.
 
 For a reproducible setup:
 

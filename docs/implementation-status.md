@@ -423,3 +423,44 @@ failed account payments or a spending limit. The private repository's publishing
 environment also still lacks the required reviewer controls. Local verification
 does not replace the current cross-platform release matrix or authorize bypassing
 these gates. The existing pending trusted publisher is not a public PyPI upload.
+
+## Browser-use dependency repair — 2026-10-11
+
+The release extra now selects the compatible upstream **browser-use 0.11.12**,
+which permits fixed **AnyIO 4.15.1** and **pypdf 6.20.0**. Its missing
+pydantic-settings dependency and the tested integration libraries are explicit
+requirements. Browser-use remains included as an optional integration. No upstream
+package metadata was overridden and no advisory IDs were ignored.
+
+The adapter supports framework versions that recover through connect() directly,
+and blocks reconnection after deliberate shutdown. Its review-aware action timeout
+no longer depends on a newer private vendor helper; invalid timeout inputs retain a
+finite bound. Real-browser fixtures verify shutdown cannot revive a stale approval.
+The agent fixtures verify approval executes once, rejection/cancellation produces no
+effects, and model failure does not fabricate success. No paid model/API was used.
+
+The entire source suite passed **612 tests in 640.67 seconds**. Clean installed-wheel
+suites outside the checkout also passed all **612 tests** on Python 3.12
+(**624.48 seconds**) and Python 3.11 (**602.99 seconds**), with no skips.
+Both integrations were installed. Clean installs selected websockets 16.1.1; the
+source environment exercised 15.0.1. Dependency consistency passed in both clean
+environments. The advisory check covered **118 distinct external package versions**
+across those environments, with zero active findings or unavailable queries. The
+pip-audit check independently covered 115 external dependencies; only the unpublished
+local SDK lacked a PyPI registry record.
+
+The wheel and source archive passed Twine validation. All 110 packaged runtime and
+dashboard files, including 84 Python modules, match the source. The two-project
+clean-wheel journey passed again: file-only startup, connection to a late-started
+shared dashboard, separate policy updates, service restart and stable event IDs.
+The exact tested wheel SHA-256 is
+`c712e6758d3c458f7e7d05988ec7b955f4607ec07fbb10fac154ca66004557ab`.
+See the [dependency repair record](validation/2026-10-11-public-sites/dependency-repair.json).
+
+These checks resolve the recorded optional-integration dependency findings, not
+every release gate. GitHub-hosted CI remains unavailable while its included allowance
+is exhausted with paid usage disabled. The repository is private and the publishing
+approval check is unchanged. A free Acira-owner-only approval flow has been proposed,
+but replacing that checkpoint requires explicit owner approval. No PyPI distribution
+has been uploaded. Local macOS results do not establish a new Windows/Linux matrix
+pass, and a clean advisory query does not establish an absence of undisclosed issues.

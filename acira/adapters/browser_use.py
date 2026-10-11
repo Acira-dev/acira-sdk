@@ -527,8 +527,10 @@ class BrowserUseCDPProxy:
             _ORIGINAL_BROWSER_USE_POST_PROCESS = Agent._post_process
             _ORIGINAL_BROWSER_USE_FINALIZE = Agent._finalize
             _ORIGINAL_BROWSER_USE_BROWSER_STATE_SUMMARY = BrowserSession.get_browser_state_summary
-            _ORIGINAL_BROWSER_USE_RECONNECT = BrowserSession.reconnect
-            _ORIGINAL_BROWSER_USE_AUTO_RECONNECT = BrowserSession._auto_reconnect
+            # Some supported browser-use versions reconnect through connect()
+            # directly rather than exposing separate recovery entry points.
+            _ORIGINAL_BROWSER_USE_RECONNECT = getattr(BrowserSession, "reconnect", None)
+            _ORIGINAL_BROWSER_USE_AUTO_RECONNECT = getattr(BrowserSession, "_auto_reconnect", None)
             _ORIGINAL_BROWSER_USE_AGENT_ASYNCIO = agent_service.asyncio
             Agent.step = _agent_step_with_acira_runtime_freeze  # type: ignore[method-assign]
             Agent._execute_step = _execute_step_with_acira_hitl_pause  # type: ignore[method-assign]
@@ -540,8 +542,10 @@ class BrowserUseCDPProxy:
             Agent._post_process = _post_process_with_acira_runtime_freeze  # type: ignore[method-assign]
             Agent._finalize = _finalize_with_acira_runtime_freeze  # type: ignore[method-assign]
             BrowserSession.get_browser_state_summary = _browser_state_summary_with_acira_runtime_freeze  # type: ignore[method-assign]
-            BrowserSession.reconnect = _browser_session_reconnect_with_acira_runtime_freeze  # type: ignore[method-assign]
-            BrowserSession._auto_reconnect = _browser_session_auto_reconnect_with_acira_runtime_freeze  # type: ignore[method-assign]
+            if _ORIGINAL_BROWSER_USE_RECONNECT is not None:
+                BrowserSession.reconnect = _browser_session_reconnect_with_acira_runtime_freeze  # type: ignore[method-assign]
+            if _ORIGINAL_BROWSER_USE_AUTO_RECONNECT is not None:
+                BrowserSession._auto_reconnect = _browser_session_auto_reconnect_with_acira_runtime_freeze  # type: ignore[method-assign]
             agent_service.asyncio = _AsyncioReviewPauseProxy(agent_service.asyncio)
         _BROWSER_USE_AGENT_PATCH_REFCOUNT += 1
         self._agent_step_patch_active = True
@@ -642,6 +646,9 @@ class BrowserUseCDPProxy:
     async def _connect_with_proxy(self, browser_session: Any, cdp_url: str | None) -> Any:
         if self._original_connect is None:
             raise RuntimeError("BrowserUseCDPProxy has not been entered")
+        if (getattr(browser_session, "_intentional_stop", False)
+                or id(browser_session) in self._stopping_sessions):
+            raise ConnectionError("A deliberately stopped browser cannot reconnect during cleanup")
 
         real_cdp_url = cdp_url or getattr(browser_session, "cdp_url", None)
         if not real_cdp_url:
@@ -4207,6 +4214,23 @@ async def _bubus_execute_handler_with_acira_pause(
             pass
 
 
+def _browser_use_action_timeout(value: float | None) -> float:
+    """Keep action waits bounded across framework versions and invalid inputs."""
+    import math
+    import os
+
+    for candidate in (value, os.environ.get("BROWSER_USE_ACTION_TIMEOUT_S"), 180.0):
+        if isinstance(candidate, bool):
+            continue
+        try:
+            timeout = float(candidate)
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if math.isfinite(timeout) and timeout > 0:
+            return timeout
+    return 180.0
+
+
 async def _browser_use_tools_act_with_acira_pause(
     self: Any,
     action: Any,
@@ -4220,7 +4244,7 @@ async def _browser_use_tools_act_with_acira_pause(
 ) -> Any:
     import browser_use.tools.service as tools_service
 
-    timeout_s = tools_service._coerce_valid_action_timeout(action_timeout)  # noqa: SLF001
+    timeout_s = _browser_use_action_timeout(action_timeout)
 
     for action_name, params in action.model_dump(exclude_unset=True).items():
         if params is None:

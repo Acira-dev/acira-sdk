@@ -23,9 +23,14 @@ python -m pip install "/absolute/path/acira-0.1.0-py3-none-any.whl"
 ```
 
 If browser-use is missing, install the wheel with `[browser-use]`. This release
-is tested with browser-use 0.13.11; check your version with `acira doctor` after
+is tested with browser-use 0.11.12; check your version with `acira doctor` after
 initializing. Keep your existing Chromium executable/session options. The SDK
 does not silently install browsers, download models or rewrite application code.
+The extra pins tested integration libraries, supplies the framework's missing
+`pydantic-settings` dependency, and selects fixed AnyIO/pypdf releases. Browser-use
+0.13.11 currently pins affected versions of those two libraries. This release uses
+the compatible upstream 0.11.12 distribution, without modifying its metadata or
+ignoring advisories. Review the dependency changes if you already use another version.
 
 ## Integrate your existing browser-use agent
 

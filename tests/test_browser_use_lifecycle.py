@@ -82,6 +82,11 @@ async def test_shutdown_invalidates_review_without_browser_effect(tmp_path, monk
                 assert not Journal(project.root).decide(review["review_id"], "approved")
                 assert answer.cancelled()
                 assert hits == [], "A stopped browser must not execute a stale approval"
+                # Older framework versions reconnect through connect() itself.
+                # Neither recovery path may revive this deliberately stopped run.
+                with pytest.raises(ConnectionError, match="deliberately stopped"):
+                    await browser.connect()
+                assert hits == []
             finally:
                 if task is not None and not task.done():
                     task.cancel()

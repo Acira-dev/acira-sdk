@@ -23,7 +23,21 @@ dependencies = [
 # resolve like a published console script while the local source stays editable.
 [project.optional-dependencies]
 playwright = ["playwright==1.60.0"]
-browser-use = ["browser-use==0.13.11"]
+# 0.13.11 pins vulnerable AnyIO/pypdf releases. Use the compatible upstream
+# release that permits the fixes, with its missing settings dependency declared.
+# Pin the framework's integration libraries to the versions we actually verify.
+browser-use = [
+    "browser-use==0.11.12",
+    "anyio==4.15.1",
+    "pypdf==6.20.0",
+    "pydantic-settings==2.15.0",
+    "pydantic==2.13.5",
+    "browser-use-sdk==3.4.2",
+    "bubus==1.5.6",
+    "cdp-use==1.4.5",
+    "mcp==2.1.1",
+    "reportlab==4.4.9",
+]
 vertex = ["google-cloud-aiplatform==1.145.0"]
 dev = [
     "pytest==9.1.1",

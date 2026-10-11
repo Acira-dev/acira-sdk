@@ -29,13 +29,15 @@ advisory audit against the installed SDK and both browser integrations; any list
 vulnerability or failed audit prevents upload. Build-only local verification remains
 available while dependency fixes are under evaluation.
 
-The 2026-10-10 dependency review upgraded core aiohttp/cryptography/Pillow and the
-development tools, and evaluates browser-use 0.13.11. That upstream release still
-pins AnyIO 4.12.1 and pypdf 6.16.2, which have current advisory records. Do not bypass
-their declared requirements or ignore advisories to claim a clean release. The local
-fake-data demo does not exercise PDF parsing or remote model TLS, but this does not
-establish the safety of arbitrary downstream workflows. Resolving the upstream pins
-and rechecking the actual dependency graph remains a publication gate.
+The 2026-10-11 dependency repair selects the compatible upstream browser-use
+0.11.12 distribution, which permits fixed AnyIO 4.15.1 and pypdf 6.20.0. Its missing
+pydantic-settings dependency and tested integration libraries are explicitly included
+in the optional extra. The adapter handles the older framework's recovery entry
+points and supplies a finite, review-aware action timeout without depending on a
+newer private vendor helper. Browser-use 0.13.11 still pins affected library versions;
+no upstream metadata override or advisory exclusion is used to claim a clean graph.
+Full installed-distribution tests, dependency consistency and the current advisory
+audit remain publication gates.
 
 Publishing also checks GitHub's actual environment configuration with
 `tools/verify_release_environment.py`. It requires the selected repository-owner
@@ -85,6 +87,16 @@ public repositories. The repository remains private. The release check correctly
 blocks publishing in this state; an environment existing by name is not proof of
 configured approval. No billing change, public-visibility change, or upload is
 performed to work around this limitation.
+
+When included hosted Actions minutes are exhausted, keep paid usage disabled.
+Hosted jobs need renewed free allowance; trusted self-hosted runners on existing
+hardware do not consume hosted minutes. Local test evidence must not be represented
+as a successful Windows/Linux Actions matrix.
+
+GitHub repository visibility and PyPI package availability are independent. Publishing
+Acira to PyPI makes the distributed SDK source available for inspection while the
+GitHub repository can remain private. Making the repository public later does not
+change `pip install acira`. Until PyPI confirms an upload, use the tested wheel.
 
 Select `testpypi` or `pypi` only for an approved release. Publication jobs receive
 OIDC permission, download already-tested artifacts, and do not run checkout/build

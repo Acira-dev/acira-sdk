@@ -48,7 +48,7 @@ python -m pip install "/absolute/path/to/acira-0.1.0-py3-none-any.whl[browser-us
 Replace the path with the actual downloaded wheel path. The base SDK includes the
 CLI, dashboard and starter policies. Extras install the selected framework; they
 do not install Chromium or download a model. This release's integration tests use
-Playwright 1.60.0 and browser-use 0.13.11. Other versions are not established by
+Playwright 1.60.0 and browser-use 0.11.12. Other versions are not established by
 those tests; check the [protection coverage](protection.md) when evaluating them.
 
 Reuse your existing Chromium installation or connection and your existing model.
