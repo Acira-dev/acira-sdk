@@ -354,3 +354,27 @@ python tools/prepare_release.py dist
 The real-browser tests require installed Chromium. Browser-use tests explicitly disable
 telemetry/cloud synchronization and use temporary profiles. Test runtime data, credentials,
 profiles and review images are ignored and must not be committed.
+
+## Large signed-out public-site validation — 2026-10-11
+
+The installed SDK completed a 393-host real public-site campaign. Public HTML
+was observed on 279 hosts, 242 loaded with Acira, and 193 passed all five baseline,
+normal-policy, block, rejected-review and approved-review checks. The 57 partial
+and 143 unavailable outcomes remain in the evidence. These counts cover public
+content-link navigation, not every operation, authenticated tasks or live payment
+flows.
+
+A durable-journal cross-check found zero duplicate dispatches, zero blocked-profile
+click dispatches and zero dispatches for rejected reviews across 10,215 events.
+Screenshot availability is recorded independently; privacy masking was not weakened.
+The test driver gained verified redirect/teardown boundaries and exact-element
+selection after a real changing-menu issue was reproduced locally. Product runtime
+files are unchanged by this testing work.
+
+The full local suite passed 590 tests; all 25 sweep fixtures also passed against
+the installed SDK outside the checkout. Current GitHub CI execution remains blocked
+by the account's billing/spending restriction. This does not establish a new
+cross-platform CI pass or complete the publication gate.
+
+See [the recorded outcomes and limits](validation/2026-10-11-public-sites/README.md)
+and [the repeatable public-site method](public-site-sweep.md).

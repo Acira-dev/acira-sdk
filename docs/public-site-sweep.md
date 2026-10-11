@@ -106,6 +106,14 @@ serve it as a website; share the report/CSV after inspecting them.
 The runner registers only in its isolated test-user directory and does not add
 hundreds of test projects to your normal local dashboard.
 
+## Recorded campaign
+
+The [2026-10-11 validation record](validation/2026-10-11-public-sites/README.md)
+retains all 393 host outcomes: 242 guarded public-page observations, 193 complete
+five-case passes, 57 partial and 143 unavailable. It also contains a separate
+17-host follow-up after exact-element selection was added. The original outcomes
+were not replaced, and repeated hosts are not counted twice.
+
 ## Repeatable safety verification
 
 ```sh
