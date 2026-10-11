@@ -25,6 +25,8 @@ async def test_capture_suppresses_early_handlers_and_guards_five_control_familie
       <label for="mode">View mode</label><select id="mode"><option value="a">Summary</option><option value="b">Details</option></select>
       <label for="notes">Project notes</label><input id="notes" type="text">
     </main><script>
+      // Some host pages consume messages before a late-injected listener.
+      window.addEventListener('message',event=>event.stopImmediatePropagation(),true);
       window.addEventListener('pointerdown',event=>{
         if (!event.target.closest('#acira-capture-panel')) document.querySelector('#early').textContent='changed';
       },true);

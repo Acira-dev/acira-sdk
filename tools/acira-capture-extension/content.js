@@ -1,6 +1,6 @@
 (() => {
   const ROOT_ID = "acira-capture-panel";
-  const VERSION = "0.6.5";
+  const VERSION = "0.6.6";
   const STORAGE_PREFIX = "acira.capture.draft";
   const EXISTING = window.__ACIRA_CAPTURE__;
   if (EXISTING) {
@@ -150,13 +150,16 @@
   selectedLabel.hidden = true;
 
   // Native input inside a separate extension document never reaches the page's
-  // earlier window listeners. The bridge sends coordinates, not page content.
+  // earlier window listeners. Extension ports carry coordinates, not page
+  // content, and cannot be intercepted by a website's message listeners.
+  const selectionToken = Array.from(crypto.getRandomValues(new Uint8Array(24)),
+    byte => byte.toString(16).padStart(2, "0")).join("");
+  const selectionPort = chrome.runtime.connect({name: "acira.selection.controller." + selectionToken});
   const shield = document.createElement("iframe");
   shield.className = "acira-capture-shield";
   shield.title = "Acira target selection";
-  shield.src = chrome.runtime.getURL("selection.html");
+  shield.src = chrome.runtime.getURL("selection.html") + "#" + selectionToken;
   shield.hidden = true;
-  const shieldOrigin = "chrome-extension://" + chrome.runtime.id;
 
   document.documentElement.append(shield, panel, hoverBox, selectedBox, hoverLabel, selectedLabel);
 
@@ -176,7 +179,14 @@
   document.addEventListener("keydown", handleKeyDown, true);
   window.addEventListener("scroll", refreshOverlays, true);
   window.addEventListener("resize", refreshOverlays, true);
-  window.addEventListener("message", handleSelectionMessage);
+  selectionPort.onMessage.addListener(handleSelectionMessage);
+  selectionPort.onDisconnect.addListener(() => {
+    if (!state.visible) return;
+    state.selectionReady = false;
+    delete shield.dataset.ready;
+    setCapturing(false);
+    setStatus("Capture connection closed. Close and reopen Acira Capture to select safely.", {persistent: true});
+  });
 
   const api = { version: VERSION, open, close, toggle, destroy };
   window.__ACIRA_CAPTURE__ = api;
@@ -210,7 +220,8 @@
     document.removeEventListener("keydown", handleKeyDown, true);
     window.removeEventListener("scroll", refreshOverlays, true);
     window.removeEventListener("resize", refreshOverlays, true);
-    window.removeEventListener("message", handleSelectionMessage);
+    selectionPort.onMessage.removeListener(handleSelectionMessage);
+    selectionPort.disconnect();
     if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
       chrome.runtime.onMessage.removeListener(handleRuntimeMessage);
     }
@@ -246,7 +257,7 @@
       state.selectionTimer = window.setTimeout(() => {
         if (!state.selectionReady && state.visible && state.capturing) {
           setCapturing(false);
-          setStatus("Capture couldn’t start safely on this page. Selection is paused; you can still export previous targets.");
+          setStatus("Capture couldn’t start safely on this page. Selection is paused; you can still export previous targets.", {persistent: true});
         }
       }, 5000);
     }
@@ -293,10 +304,16 @@
     placeOverlay(hoverBox, hoverLabel, overlayElementFor(element), labelForElement(element));
   }
 
-  function handleSelectionMessage(event) {
-    if (!event.isTrusted || event.source !== shield.contentWindow || event.origin !== shieldOrigin
-        || !state.visible || event.data?.type !== "acira.selection") return;
-    const {kind, x, y, dx, dy} = event.data;
+  function handleSelectionMessage(message) {
+    if (!state.visible || message?.type !== "acira.selection") return;
+    const {kind, x, y, dx, dy} = message;
+    if (kind === "unavailable") {
+      state.selectionReady = false;
+      delete shield.dataset.ready;
+      setCapturing(false);
+      setStatus("Capture connection closed. Close and reopen Acira Capture to select safely.", {persistent: true});
+      return;
+    }
     if (kind === "ready") { state.selectionReady = true; shield.dataset.ready = "true"; window.clearTimeout(state.selectionTimer); if (state.capturing) setStatus("Click a control to select it without activating it."); return; }
     if (!state.capturing) return;
     if (kind === "escape") { setCapturing(false); toggleButton.focus(); return; }
@@ -1262,12 +1279,14 @@
     return `${fingerprint.tag || "element"}${id}${role} - ${truncate(label, 48)}`;
   }
 
-  function setStatus(message) {
+  function setStatus(message, {persistent = false} = {}) {
     status.textContent = message;
     window.clearTimeout(setStatus.timer);
-    setStatus.timer = window.setTimeout(() => {
-      status.textContent = "";
-    }, 2600);
+    if (!persistent) {
+      setStatus.timer = window.setTimeout(() => {
+        status.textContent = "";
+      }, 2600);
+    }
   }
 
   function fallbackCopy(text) {

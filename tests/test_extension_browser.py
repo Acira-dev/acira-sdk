@@ -87,5 +87,12 @@ async def test_extension_pairs_captures_and_imports_into_selected_project(tmp_pa
                 assert "HANDLER_SECRET" not in json.dumps(exported)
                 assert "PRIVATE" not in json.dumps(exported)
                 assert "PAGE_SECRET" not in json.dumps(exported)
+                await page.locator(".acira-capture-shield").evaluate("frame => frame.remove()")
+                await expect(page.locator("#acira-capture-pill")).to_have_text("Paused")
+                await expect(page.locator("#acira-capture-status")).to_contain_text("Close and reopen")
+                async with page.expect_download() as recovered:
+                    await page.get_by_role("button", name="Download", exact=True).click()
+                recovery = json.loads(Path(await (await recovered.value).path()).read_text())
+                assert recovery == exported, "Bridge failure must preserve the already captured draft"
             finally:
                 await context.close()

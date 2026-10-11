@@ -1,7 +1,11 @@
 (() => {
+  const token = location.hash.slice(1);
+  if (!/^[0-9a-f]{48}$/.test(token)) return;
+  const port = chrome.runtime.connect({name: "acira.selection.frame." + token});
   function send(event, kind, extra = {}) {
     if (!event.isTrusted) return;
-    parent.postMessage({type: "acira.selection", kind, x: event.clientX, y: event.clientY, ...extra}, "*");
+    try { port.postMessage({type: "acira.selection", kind, x: event.clientX, y: event.clientY, ...extra}); }
+    catch { /* A closed bridge keeps native input isolated from the page. */ }
   }
   window.addEventListener("mousemove", event => send(event, "move"));
   window.addEventListener("pointerdown", event => { event.preventDefault(); document.body.focus(); });
@@ -14,5 +18,5 @@
   window.addEventListener("keydown", event => {
     if (event.key === "Escape") { event.preventDefault(); send(event, "escape"); }
   });
-  parent.postMessage({type: "acira.selection", kind: "ready"}, "*");
+  port.postMessage({type: "acira.selection", kind: "ready"});
 })();

@@ -19,6 +19,55 @@ function isInjectableUrl(url) {
   return /^(https?|file):/i.test(url);
 }
 
+// Pair the injected top-frame controller with its own extension document.
+// Page postMessage traffic is never an input to this bridge. The random token
+// routes an instance; authentication comes from Chrome's runtime sender.
+const selectionBridges = new Map();
+chrome.runtime.onConnect.addListener((port) => {
+  const match = /^acira\.selection\.(controller|frame)\.([0-9a-f]{48})$/.exec(port.name);
+  const sender = port.sender;
+  if (!match || sender?.id !== chrome.runtime.id || !Number.isInteger(sender.tab?.id)) {
+    port.disconnect();
+    return;
+  }
+  const [, role, token] = match;
+  const frameUrl = chrome.runtime.getURL("selection.html") + "#" + token;
+  if ((role === "controller" && (sender.frameId !== 0 || !isInjectableUrl(sender.url || "")))
+      || (role === "frame" && (!(sender.frameId > 0) || sender.url !== frameUrl))) {
+    port.disconnect();
+    return;
+  }
+  const key = sender.tab.id + ":" + token;
+  const bridge = selectionBridges.get(key) || {ready: false};
+  if (bridge[role]) {
+    port.disconnect();
+    return;
+  }
+  bridge[role] = port;
+  selectionBridges.set(key, bridge);
+  const deliver = (destination, message) => {
+    try { destination?.postMessage(message); } catch { /* Disconnect handler removes stale ports. */ }
+  };
+  if (role === "controller" && bridge.ready) {
+    deliver(port, {type: "acira.selection", kind: "ready"});
+  }
+  port.onMessage.addListener((message) => {
+    if (role !== "frame" || bridge.frame !== port || message?.type !== "acira.selection"
+        || !["ready", "move", "select", "scroll", "escape"].includes(message.kind)) return;
+    if (message.kind === "ready") bridge.ready = true;
+    // Reconstruct the limited message; never forward arbitrary page payloads.
+    deliver(bridge.controller, {type: "acira.selection", kind: message.kind,
+      x: message.x, y: message.y, dx: message.dx, dy: message.dy});
+  });
+  port.onDisconnect.addListener(() => {
+    if (bridge[role] !== port) return;
+    delete bridge[role];
+    bridge.ready = false;
+    if (role === "frame") deliver(bridge.controller, {type: "acira.selection", kind: "unavailable"});
+    if (!bridge.controller && !bridge.frame) selectionBridges.delete(key);
+  });
+});
+
 // Credentials remain in the extension worker, never in page/content-script DOM.
 async function aciraRequest(path, body) {
   const { aciraConnection: connection } =
