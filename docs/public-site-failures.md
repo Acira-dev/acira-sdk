@@ -57,3 +57,8 @@ and repeated hostnames are not counted as additional sites.
 This work covers signed-out public content through asynchronous Playwright and
 Chromium. It does not establish every action on every website, real transactions,
 authenticated workflows, browser-use live-site coverage or other browser families.
+
+The [203-host repair comparison](validation/2026-10-11-public-sites/repairs/README.md)
+retains 23 complete, 53 partial and 127 unavailable outcomes, including 20 newly
+complete workflows. It also records separate diagnostic witnesses for Greenpeace's
+query-string boundary and fresh IKEA/Chicago passes without replacing earlier failures.

@@ -110,3 +110,11 @@ account's billing/spending restriction; no steps executed in
 Local results are not presented as a new Windows/Linux CI pass or PyPI publication.
 
 See [the repeatable method](../../public-site-sweep.md) for commands and safety limits.
+
+## Failure investigation and repair rerun
+
+The [separate repair record](repairs/README.md) repeats all 200 originally incomplete
+hosts and three controls. It retains 23 complete, 53 partial and 127 unavailable
+outcomes, with 20 new complete workflows among those incomplete hosts. The initial
+393-host and 17-host follow-up records above remain unchanged. Per-phase wheel and
+harness identities, residual limitations and audit checks are included.

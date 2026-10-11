@@ -1,0 +1,165 @@
+{
+  "schema": "acira.public_site_repair.v2",
+  "generated_at_utc": "2026-10-11T02:11:56.879169+00:00",
+  "source_revision": "b68807fc842b59860d37d187bab9b8f29dc8a8e4",
+  "phases": [
+    {
+      "phase": 1,
+      "hosts_recorded": 125,
+      "catalog_hosts": 203,
+      "harness_sha256": "84e39066e6903cffbf369e6e39768ae236767de951e6e7af5446ddf50760224b",
+      "catalog_sha256": "16123c5c23557a8295625c70ffe80a8c5d13190d1bc742240b06585808df216a",
+      "sdk": "0.1.0",
+      "playwright": "1.60.0",
+      "python": "3.12.14",
+      "started_at_utc": "2026-10-11T01:35:33Z",
+      "wheel_sha256": "c718a246ca0e24df3e3fe8b45422b096576a4f8f074d3bd352a060cb18b1ad1b",
+      "completion": "125 completed records retained; one renderer-stalled worker was interrupted; 78 unrecorded hosts continue in phase 2.",
+      "journal_audit": {
+        "blocked_profile_click_dispatches": 0,
+        "clicks_dispatched": 37,
+        "duplicate_dispatches": 0,
+        "events_checked": 1056,
+        "rejected_review_dispatches": 0,
+        "review_capture_ready": 27,
+        "review_capture_unavailable": 9,
+        "reviews_approved": 18,
+        "reviews_checked": 36,
+        "reviews_rejected": 18,
+        "unknown_dispatch_outcomes": 1
+      }
+    },
+    {
+      "phase": 2,
+      "hosts_recorded": 78,
+      "catalog_hosts": 78,
+      "harness_sha256": "baab468263066adb0c3954711535e70694eddc7ae2e36c3bf3d680175af7d57c",
+      "catalog_sha256": "686d8e5f0b2c007f5bd34559d642f793bfd0ab9df6e17dab6dd096b83584ae86",
+      "sdk": "0.1.0",
+      "playwright": "1.60.0",
+      "python": "3.12.14",
+      "started_at_utc": "2026-10-11T01:58:07Z",
+      "wheel_sha256": "f8fff111d800a6d0201bb0e4f7692a12ce28db0e1de7c3daf25cfe7691f313c9",
+      "completion": "Remaining 78 hosts, with native scan budgets and a per-case renderer watchdog.",
+      "journal_audit": {
+        "blocked_profile_click_dispatches": 0,
+        "clicks_dispatched": 20,
+        "duplicate_dispatches": 0,
+        "events_checked": 694,
+        "rejected_review_dispatches": 0,
+        "review_capture_ready": 15,
+        "review_capture_unavailable": 5,
+        "reviews_approved": 10,
+        "reviews_checked": 20,
+        "reviews_rejected": 10
+      }
+    }
+  ],
+  "chromium": "148.0.7778.96",
+  "platform": "macOS arm64",
+  "workers": 2,
+  "hosts_attempted": 203,
+  "previously_incomplete_hosts": 200,
+  "control_hosts": 3,
+  "site_status": {
+    "partial": 53,
+    "complete": 23,
+    "unavailable": 127
+  },
+  "case_status": {
+    "baseline:no_safe_link": 42,
+    "normal:no_safe_link": 41,
+    "baseline:verified": 30,
+    "normal:verified": 27,
+    "blocked:verified": 28,
+    "rejected:verified": 28,
+    "approved:verified": 26,
+    "baseline:destination_failure": 22,
+    "baseline:error": 15,
+    "baseline:http_error": 22,
+    "baseline:link_scan_timeout": 5,
+    "baseline:target_unavailable": 4,
+    "normal:target_unavailable": 4,
+    "normal:destination_failure": 2,
+    "approved:destination_failure": 2,
+    "approved:error": 1,
+    "baseline:bot_challenge": 1,
+    "blocked:target_unavailable": 1,
+    "rejected:target_unavailable": 2,
+    "normal:case_timeout": 1,
+    "normal:sdk_block": 1,
+    "blocked:http_error": 1,
+    "approved:http_error": 1
+  },
+  "original_to_repair": {
+    "partial -> partial": 45,
+    "partial -> complete": 8,
+    "unavailable -> complete": 12,
+    "unavailable -> unavailable": 123,
+    "partial -> unavailable": 4,
+    "unavailable -> partial": 8,
+    "complete -> complete": 3
+  },
+  "new_complete_hosts": 20,
+  "remaining_issue_kinds": {
+    "no_safe_link": 30,
+    "robots_or_access_preflight": 62,
+    "test_redirect_scope": 36,
+    "transport_or_test_fetch": 12,
+    "http_error": 23,
+    "link_scan_timeout": 2,
+    "target_unavailable": 5,
+    "destination_failure": 11,
+    "access_challenge": 1,
+    "case_timeout": 1,
+    "sdk_block": 1
+  },
+  "journal_audit": {
+    "blocked_profile_click_dispatches": 0,
+    "clicks_dispatched": 57,
+    "duplicate_dispatches": 0,
+    "events_checked": 1750,
+    "rejected_review_dispatches": 0,
+    "review_capture_ready": 42,
+    "review_capture_unavailable": 14,
+    "reviews_approved": 28,
+    "reviews_checked": 56,
+    "reviews_rejected": 28,
+    "unknown_dispatch_outcomes": 1
+  },
+  "review_capture": {
+    "ready": 42,
+    "unavailable": 14
+  },
+  "unavailable_capture_reason_codes": {
+    "code_not_retained": 9,
+    "page_unstable": 3,
+    "masking_effects_unbounded": 2
+  },
+  "runtime_difference": "The final wheel additionally retains only the fixed screenshot reason enums through journal redaction. The campaign wheel preserves human-readable reasons; action enforcement is identical.",
+  "limits": [
+    "Original 393-host and 17-host results remain unchanged; repeated hosts are not added to the distinct-host count.",
+    "Public signed-out Playwright/Chromium navigation only. No accounts, transactions or form entry.",
+    "GET/HEAD test fence, access/robots rules, certificate checks and no-force restrictions remain enabled.",
+    "Live repeats can recover because of server/network/timing changes; a new pass is not proof of a particular fix.",
+    "Unavailable and partial cases remain gaps; SDK compatibility with every operation is not established."
+  ],
+  "regression_verification": {
+    "source_revision": "b68807fc842b59860d37d187bab9b8f29dc8a8e4",
+    "full_suite": {
+      "passed": 601,
+      "elapsed_seconds": 489.95,
+      "environment": "Python 3.12.14 / Chromium 148.0.7778.96 / macOS arm64"
+    },
+    "installed_wheel_focused_unique_cases": {
+      "review_capture_and_privacy": 26,
+      "public_site_sweep": 33,
+      "execution": "Separate focused runs outside the source checkout, all using the final installed wheel."
+    },
+    "installed_runtime_source_match": {
+      "python_files": 84,
+      "differences": []
+    },
+    "final_harness_after_continuation": "Two-line fail-closed check stops a worker if the timed-out context was not confirmed retired; covered by an installed real-browser fixture."
+  }
+}
