@@ -1,148 +1,131 @@
 name: SDK release
+run-name: Acira approval to publish verified run ${{ inputs.verification_run }}
 
 on:
   workflow_dispatch:
     inputs:
       publish:
-        description: "Build and verify, or publish after protected-environment approval"
+        description: "Approve publication of the exact previously verified artifacts"
         type: choice
-        options: [none, testpypi, pypi]
-        default: none
+        options: [pypi, testpypi]
+        default: pypi
+      runners:
+        description: "Hosted free allowance or a trusted existing Mac"
+        type: choice
+        options: [hosted, self-hosted]
+        default: hosted
+      verification_run:
+        description: "Successful SDK release verification run ID"
+        required: true
+        type: string
+      source_sha:
+        description: "Exact verified main commit (40 characters)"
+        required: true
+        type: string
+      wheel_sha256:
+        description: "Approved wheel SHA-256 (64 characters)"
+        required: true
+        type: string
+      sdist_sha256:
+        description: "Approved source archive SHA-256 (64 characters)"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: acira-publish-${{ inputs.publish }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TARGET: ${{ inputs.publish }}
+  VERIFICATION_RUN: ${{ inputs.verification_run }}
+  SOURCE_SHA: ${{ inputs.source_sha }}
+  WHEEL_SHA256: ${{ inputs.wheel_sha256 }}
+  SDIST_SHA256: ${{ inputs.sdist_sha256 }}
+
 jobs:
   release-authorization:
-    if: inputs.publish != 'none'
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
+    if: github.repository == 'Acira-dev/acira-sdk' && github.repository_owner_id == '286463772' && github.actor_id == '286463772' && github.triggering_actor == 'Acira-dev' && github.ref == 'refs/heads/main'
+    runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","macOS","acira-release-{0}"]', github.run_id)) || 'ubuntu-latest' }}
+    timeout-minutes: 5
     permissions:
       contents: read
       actions: read
+    outputs:
+      artifact_id: ${{ steps.check.outputs.artifact_id }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
-      - name: Require configured release approval and main-only deployment
+      - name: Validate completed verification and owner approval
+        id: check
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python tools/verify_release_environment.py --environment "${{ inputs.publish }}"
-
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+        run: python tools/verify_release_environment.py --environment "$RELEASE_TARGET" --verification-run "$VERIFICATION_RUN" --source-sha "$SOURCE_SHA" --wheel-sha256 "$WHEEL_SHA256" --sdist-sha256 "$SDIST_SHA256"
+        shell: bash
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          python-version: "3.12"
-      - run: python -m pip install build twine
-      - run: python -m build --outdir dist
-      - run: python -m twine check dist/*.whl dist/*.tar.gz
-      - run: python tools/prepare_release.py dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: python-distributions
-          path: |
-            dist/*.whl
-            dist/*.tar.gz
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: acira-release-bundle
-          path: dist/
-          if-no-files-found: error
-
-  verify:
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.11", "3.12"]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
-    env:
-      ANONYMIZED_TELEMETRY: "false"
-      BROWSER_USE_CLOUD_SYNC: "false"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - uses: actions/download-artifact@v4
-        with:
-          name: python-distributions
+          artifact-ids: ${{ steps.check.outputs.artifact_id }}
+          run-id: ${{ inputs.verification_run }}
+          github-token: ${{ github.token }}
           path: dist
-      - run: python -m pip install "./dist/acira-0.1.0-py3-none-any.whl[dev,playwright,browser-use]"
-      - run: python -m playwright install --with-deps chromium
-      - run: python tools/configure_ci_chromium.py
-      - name: Test the installed distribution outside the checkout
-        working-directory: ${{ runner.temp }}
+          merge-multiple: true
+      - name: Verify downloaded distributions match approval
         env:
-          ACIRA_TEST_INSTALLED: "1"
-        run: python -m pytest -q "${{ github.workspace }}/tests" --import-mode=importlib --basetemp="${{ runner.temp }}/acira-pytest"
-      - run: python tools/verify_wheel.py dist/acira-0.1.0-py3-none-any.whl
-      - run: node --check acira_dashboard/static/workspace.js
-      - run: node --check tools/acira-capture-extension/background.js
-      - run: node --check tools/acira-capture-extension/content.js
-      - run: node --check tools/acira-capture-extension/connection.js
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/verify_release_environment.py --environment "$RELEASE_TARGET" --verification-run "$VERIFICATION_RUN" --source-sha "$SOURCE_SHA" --wheel-sha256 "$WHEEL_SHA256" --sdist-sha256 "$SDIST_SHA256" --artifact-directory dist
+        shell: bash
 
-  dependency-audit:
-    if: inputs.publish != 'none'
-    needs: build
-    runs-on: ubuntu-latest
+  publish:
+    needs: release-authorization
+    runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","macOS","acira-release-{0}"]', github.run_id)) || 'ubuntu-latest' }}
     timeout-minutes: 10
-    steps:
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: actions/download-artifact@v4
-        with:
-          name: python-distributions
-          path: dist
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install "./dist/acira-0.1.0-py3-none-any.whl[playwright,browser-use]" pip-audit
-      - name: Require no known dependency advisories before publication
-        run: python -m pip_audit --format json --output dependency-audit.json
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: dependency-audit
-          path: dependency-audit.json
-          if-no-files-found: warn
-
-  publish-testpypi:
-    if: inputs.publish == 'testpypi' && github.ref == 'refs/heads/main'
-    needs: [build, verify, dependency-audit, release-authorization]
-    runs-on: ubuntu-latest
-    environment: testpypi
+    environment: ${{ inputs.publish }}
     permissions:
+      actions: read
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      # No checkout, package import, build, or test code runs with upload identity.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: python-distributions
+          artifact-ids: ${{ needs.release-authorization.outputs.artifact_id }}
+          run-id: ${{ inputs.verification_run }}
+          github-token: ${{ github.token }}
           path: dist
-      - uses: pypa/gh-action-pypi-publish@release/v1
+          merge-multiple: true
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
-          repository-url: https://test.pypi.org/legacy/
-
-  publish-pypi:
-    if: inputs.publish == 'pypi' && github.ref == 'refs/heads/main'
-    needs: [build, verify, dependency-audit, release-authorization]
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: python-distributions
-          path: dist
-      - uses: pypa/gh-action-pypi-publish@release/v1
+          version: "0.13.0"
+          enable-cache: false
+      - name: Recheck exact files immediately before upload
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, os, pathlib, re
+          files = list(pathlib.Path("dist").iterdir())
+          wheels = [p for p in files if re.fullmatch(r"acira-[0-9]+\.[0-9]+\.[0-9]+-py3-none-any\.whl", p.name)]
+          assert len(files) == 2 and len(wheels) == 1, "Unexpected upload files"
+          wheel = wheels[0]
+          sdist = wheel.with_name(wheel.name.removesuffix("-py3-none-any.whl") + ".tar.gz")
+          for path, key in ((wheel, "WHEEL_SHA256"), (sdist, "SDIST_SHA256")):
+              expected = os.environ[key]
+              assert re.fullmatch(r"[0-9a-f]{64}", expected), "Invalid approval hash"
+              assert path.is_file() and not path.is_symlink(), "Invalid upload file"
+              assert 0 < path.stat().st_size <= 25 * 1024 * 1024, "Invalid file size"
+              assert hashlib.sha256(path.read_bytes()).hexdigest() == expected, "Approval hash mismatch"
+          PY
+      - name: Publish using short-lived trusted identity
+        shell: bash
+        run: |
+          if [ "$RELEASE_TARGET" = "pypi" ]; then
+            uv publish --trusted-publishing always dist/*.whl dist/*.tar.gz
+          elif [ "$RELEASE_TARGET" = "testpypi" ]; then
+            uv publish --trusted-publishing always --publish-url https://test.pypi.org/legacy/ dist/*.whl dist/*.tar.gz
+          else
+            exit 1
+          fi

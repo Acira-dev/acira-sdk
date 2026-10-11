@@ -1,0 +1,186 @@
+name: SDK release verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      runners:
+        description: "Hosted free allowance, or existing trusted computers (all three operating systems required)"
+        type: choice
+        options: [hosted, self-hosted]
+        default: hosted
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  authorize-verification:
+    if: github.repository == 'Acira-dev/acira-sdk' && github.repository_owner_id == '286463772' && github.actor_id == '286463772' && github.triggering_actor == 'Acira-dev' && github.ref == 'refs/heads/main'
+    runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","macOS","acira-release-{0}"]', github.run_id)) || 'ubuntu-latest' }}
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Check Acira owner
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -c "import os, runpy; r=runpy.run_path('tools/verify_release_environment.py'); api=r['github_json']; base='repos/Acira-dev/acira-sdk'; r['verify_owner_request'](api(base), api(base+'/actions/runs/'+os.environ['GITHUB_RUN_ID']), os.environ['GITHUB_SHA'], r['VERIFICATION_PATH'])"
+
+  build:
+    needs: authorize-verification
+    runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","macOS","acira-release-{0}"]', github.run_id)) || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build twine
+      - name: Build distributions
+        run: python -m build --outdir dist
+      - name: Validate distributions
+        run: python -m twine check dist/*.whl dist/*.tar.gz
+      - name: Assemble release bundle
+        run: python tools/prepare_release.py dist
+      - name: Upload distributions
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: python-distributions
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: acira-release-bundle
+          path: dist/
+          retention-days: 7
+          if-no-files-found: error
+
+  verify:
+    name: verify-${{ matrix.platform }}-py${{ matrix.python }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [Linux, macOS, Windows]
+        python: ["3.11", "3.12"]
+        include:
+          - platform: Linux
+            hosted: ubuntu-latest
+          - platform: macOS
+            hosted: macos-latest
+          - platform: Windows
+            hosted: windows-latest
+    runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","{0}","acira-release-{1}"]', matrix.platform, github.run_id)) || matrix.hosted }}
+    timeout-minutes: 45
+    env:
+      ANONYMIZED_TELEMETRY: "false"
+      BROWSER_USE_CLOUD_SYNC: "false"
+      BROWSER_USE_VERSION_CHECK: "false"
+      ACIRA_RELEASE_TESTS: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Validate platform
+        env:
+          EXPECTED_PLATFORM: ${{ matrix.platform }}
+          EXPECTED_PYTHON: ${{ matrix.python }}
+        run: |
+          python -c "import os, sys; actual={'linux':'Linux','darwin':'macOS','win32':'Windows'}.get(sys.platform); assert actual == os.environ['EXPECTED_PLATFORM'], 'Incorrect test operating system'; assert '.'.join(map(str,sys.version_info[:2])) == os.environ['EXPECTED_PYTHON'], 'Incorrect Python version'"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: python-distributions
+          path: dist
+      - name: Install release and check dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "./dist/acira-0.1.0-py3-none-any.whl[dev,playwright,browser-use]"
+          python -m pip check
+      - name: Install Chromium
+        run: |
+          python -m playwright install --with-deps chromium
+          python tools/configure_ci_chromium.py
+      - name: Test source checkout
+        run: python -m pytest -q
+      - name: Test installed distribution
+        working-directory: ${{ runner.temp }}
+        env:
+          ACIRA_TEST_INSTALLED: "1"
+        run: python -m pytest -q "${{ github.workspace }}/tests" --import-mode=importlib --basetemp="${{ runner.temp }}/acira-pytest"
+      - name: Verify clean installation journey
+        run: python tools/verify_wheel.py dist/acira-0.1.0-py3-none-any.whl
+      - name: Check dashboard and extension scripts
+        run: |
+          node --check acira_dashboard/static/workspace.js
+          node --check tools/acira-capture-extension/background.js
+          node --check tools/acira-capture-extension/content.js
+          node --check tools/acira-capture-extension/connection.js
+
+  dependency-audit:
+    needs: build
+    runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","macOS","acira-release-{0}"]', github.run_id)) || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: python-distributions
+          path: dist
+      - name: Install audited release
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "./dist/acira-0.1.0-py3-none-any.whl[playwright,browser-use]" pip-audit
+      - name: Check dependency consistency
+        run: python -m pip check
+      - name: Require no known dependency advisories
+        run: python -m pip_audit --format json --output dependency-audit.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: dependency-audit
+          path: dependency-audit.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  verification-summary:
+    needs: [authorize-verification, build, verify, dependency-audit]
+    runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","macOS","acira-release-{0}"]', github.run_id)) || 'ubuntu-latest' }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: acira-release-bundle
+          path: dist
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Show exact approval inputs
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          VERIFICATION_RUN: ${{ github.run_id }}
+        run: |
+          python -c "import os,pathlib; p=pathlib.Path(os.environ['GITHUB_STEP_SUMMARY']); p.write_text('All required verification checks passed.\n\nVerification run: '+os.environ['VERIFICATION_RUN']+'\n\nSource commit: '+os.environ['SOURCE_SHA']+'\n\nSHA-256 checksums:\n\n'+pathlib.Path('dist/SHA256SUMS').read_text()+'\nSubmit a separate SDK release approval with these exact values. No publication has occurred.\n')"

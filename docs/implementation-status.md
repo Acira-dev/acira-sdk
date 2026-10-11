@@ -299,12 +299,15 @@ dependency audit and the final revision's checks.
   `FouadDim/Acira-Browser-Security` publisher was removed after verifying the new
   route. GitHub's `pypi` environment restricts deployments to `main` and disables
   administrator bypass, but required reviewers are unavailable under the current
-  private-repository plan. The release check blocks publication until those
-  controls are available. GitHub administration access is verified for the new
+  private-repository plan. On 2026-10-11 the owner explicitly approved a free
+  Acira-owner-only workflow approval after verification, replacing the unavailable
+  environment reviewer. Exact source, completed test matrix, audit and artifact
+  hashes remain enforced. GitHub administration access is verified for the new
   repository. See [repository provenance](repository.md).
   Publication also remains gated by passing checks and the dependency audit. Confirm
   extension-store access separately; repository migration is not store publication.
-  The manual release workflow defaults to build/verify without publication.
+  The verification workflow never publishes. Publication requires a separate
+  owner request after verification completes; it cannot approve a failed run.
 
 These are retained commitments and explicit limits. They are not deleted scope.
 
@@ -459,8 +462,34 @@ See the [dependency repair record](validation/2026-10-11-public-sites/dependency
 
 These checks resolve the recorded optional-integration dependency findings, not
 every release gate. GitHub-hosted CI remains unavailable while its included allowance
-is exhausted with paid usage disabled. The repository is private and the publishing
-approval check is unchanged. A free Acira-owner-only approval flow has been proposed,
-but replacing that checkpoint requires explicit owner approval. No PyPI distribution
+is exhausted with paid usage disabled. The repository remains private. The owner
+subsequently approved the free approval flow described below. No PyPI distribution
 has been uploaded. Local macOS results do not establish a new Windows/Linux matrix
 pass, and a clean advisory query does not establish an absence of undisclosed issues.
+
+## Free release approval and local runners — 2026-10-11
+
+The Acira owner explicitly approved replacing the unavailable private-repository
+reviewer feature with a separate owner-only manual publish request after verification.
+No paid service, repository visibility, budget, or spending limit was changed.
+
+`verify-release.yml` builds one distribution pair and requires the full source and
+installed-wheel suites on Linux, macOS, and Windows with Python 3.11 and 3.12,
+browser-effect checks, clean-wheel journeys, script validation, dependency consistency,
+and an advisory audit. Release-mode tests fail if any test skips. `release.yml` accepts
+only a completed successful verification from the same main commit, an actual Acira
+owner request made afterwards, and exact wheel/source-archive SHA-256 hashes. It
+downloads the verified artifacts without rebuilding. Only the isolated publishing
+job has a short-lived PyPI upload identity.
+
+The temporary runner helper registers one-job runners with a label unique to the
+selected workflow run. Its pre-job hook rejects unrelated jobs before executing their
+steps. It validates the owner and commit, verifies the official runner download
+checksum, bounds the runner lifetime, and removes its registration and files on exit.
+It installs no background runner service.
+
+Local validation of the final changes passed **671 tests in 604.20 seconds**, with
+release mode enabled and no skips. The focused release-approval, skip-gate, and runner
+checks passed **74 tests**. Both release workflows passed actionlint 1.7.12, and the
+diff passed whitespace checks. These local results do not substitute for the required
+six platform/version jobs or indicate that PyPI publication has occurred.

@@ -27,3 +27,14 @@ def pytest_configure(config):
         parent = REPO_ROOT / ".pytest_tmp"
         parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         config.option.basetemp = parent / ("run-"+uuid.uuid4().hex)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    # Optional integrations may skip during core-only development, but release
+    # jobs must exercise both adapters and real-browser checks in full.
+    if os.environ.get("ACIRA_RELEASE_TESTS") == "1":
+        reporter = session.config.pluginmanager.getplugin("terminalreporter")
+        if reporter is None or reporter.stats.get("skipped"):
+            session.exitstatus = 1
+            if reporter is not None:
+                reporter.write_line("Acira release verification failed: skipped tests are not accepted")
