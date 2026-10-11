@@ -1,6 +1,6 @@
 # SDK and shared-dashboard implementation status
 
-Updated 2026-10-10. The entire approved feature set remains committed. This is an
+Updated 2026-10-11. The entire approved feature set remains committed. This is an
 implementation ledger, not a claim that every release gate or the customer pilot is
 complete. Local SDK/extension release artifacts are built. Publication and platform results
 are recorded separately below; a local build is not proof of PyPI publication.
@@ -378,3 +378,48 @@ cross-platform CI pass or complete the publication gate.
 
 See [the recorded outcomes and limits](validation/2026-10-11-public-sites/README.md)
 and [the repeatable public-site method](public-site-sweep.md).
+
+## Public-site repairs and candidate verification — 2026-10-11
+
+The [repair comparison](validation/2026-10-11-public-sites/repairs/README.md)
+repeated the 200 incomplete hosts plus three controls. It retains **23 complete,
+53 partial and 127 unavailable** outcomes, including 20 newly complete workflows.
+These repeated hosts are not additional distinct websites. The comparison preserves
+access failures, test-scope restrictions and uncertain outcomes instead of treating
+them as successful coverage.
+
+Playwright now distinguishes a detached target from one that cannot be inspected,
+and reports that no browser action was dispatched. Two real-browser fixtures verify
+zero effects and zero reviews for the failed attempt, followed by a separately
+requested fresh target and review. No automatic retargeting or retry was added.
+The complete source suite passed **603 tests in 509.67 seconds** on macOS/Python 3.12.
+The entire suite also passed against the installed wheel outside the checkout on
+Python 3.12: **603 tests in 505.80 seconds**, with enforced site-packages imports.
+Python 3.11 passed the same installed-wheel suite: **603 tests in 502.72 seconds**.
+Both integrations were installed: Playwright 1.60.0 and browser-use 0.13.11.
+
+A fresh source archive and wheel built from that archive passed Twine validation.
+All **84 Python modules and 26 resources/assets** in the wheel match the current
+runtime source. The extension ZIP contains nine matching source files, and all
+three distribution checksums were verified. The clean-wheel journey again passed
+with two environments and projects, late dashboard connection, independent policy
+updates and service restart. Wheel SHA-256:
+
+```text
+b8385d87a1698f0153ec75456adbb25fe07e2d0249ba49ff724d2da2cf117970
+```
+
+The dedicated core/Playwright environment had no active PyPI advisory records after
+updating its old pip installer. Browser-use 0.13.11 still requires AnyIO 4.12.1 and
+pypdf 6.16.2; their advisory records remain a publication blocker. These checks do
+not establish an absence of undisclosed vulnerabilities.
+The audit queried 123 distinct package versions across the three dedicated
+environments with no unavailable queries. The old Python 3.11 build tool was also
+updated; no declared browser-use pins were overridden. See the
+[candidate verification record](validation/2026-10-11-public-sites/sdk-candidate.json).
+
+The current Acira repository CI run did not execute any test steps: GitHub reported
+failed account payments or a spending limit. The private repository's publishing
+environment also still lacks the required reviewer controls. Local verification
+does not replace the current cross-platform release matrix or authorize bypassing
+these gates. The existing pending trusted publisher is not a public PyPI upload.

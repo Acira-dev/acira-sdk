@@ -148,6 +148,12 @@ If a dashboard sign-in expires, use `acira open` instead of copying service keys
 Read-only folders and incompatible SDK/server versions receive repair guidance.
 Do not retry an ambiguous critical operation automatically.
 
+If Acira reports that a selected target detached before authorization, or could not
+be inspected safely, it has dispatched no browser action. Dynamic pages can replace
+an element during inspection. Reevaluate the page and select a fresh target for a
+new operation; any required review happens again. Do not force the click, reuse an
+old approval, or turn this diagnostic into an automatic retry loop.
+
 This is a local, same-user deployment. Other browser connections, independent HTTP
 clients and manual human actions are outside Acira's SDK boundary. The SDK is not
 an operating-system sandbox. No public publication or external customer-pilot

@@ -230,8 +230,10 @@ async def guarded(manager: Any, page: Any, obj: Any, method: str, args: tuple, k
         raw_target = await trusted(element, "evaluate", "el => (" + RUNTIME_OBJECT_PROBE_JS.strip() + ").call(el)")
         target = _target_from_probe_value(raw_target)
         before = await trusted(element, "evaluate", STATE_JS)
-        if target is None or not before:
-            raise AciraActionBlocked("The target could not be resolved safely")
+        if target is None:
+            raise AciraActionBlocked("The selected target could not be inspected safely; no browser action was dispatched")
+        if not before:
+            raise AciraActionBlocked("The selected target detached before authorization; resolve a fresh target for a new operation. No browser action was dispatched")
         if method == "press" and action == "keyboard":
             if target.is_editable:
                 action = "form_input"

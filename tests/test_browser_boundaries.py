@@ -77,6 +77,54 @@ async def test_changed_form_invalidates_approved_submit(tmp_path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["detached", "uninspectable"])
+async def test_unverifiable_target_explains_failure_without_review_or_retarget(monkeypatch, failure):
+    from acira.adapters import playwright_boundary as boundary
+    native_trusted = boundary.trusted
+    class Reviewer:
+        requests = 0
+        async def ask(self, request):
+            self.requests += 1
+            return "allow"
+    reviewer = Reviewer()
+    async with async_playwright() as p:
+        async with PlaywrightCDPProxy(config={"review_actions": ["click"], "terminal_log": False}, review_backend=reviewer) as guard:
+            guard.patch_playwright(p)
+            browser = await p.chromium.launch()
+            try:
+                page = await browser.new_page()
+                await native_trusted(page, "set_content", '''
+                    <button id="act" onclick="window.clicks++">Public content</button>
+                    <script>window.clicks=0</script>''')
+                element = await page.locator("#act").element_handle()
+                async def failing_probe(obj, name, *args, **kwargs):
+                    result = await native_trusted(obj, name, *args, **kwargs)
+                    if obj is element and name == "evaluate" and args[0].startswith("el => ("):
+                        if failure == "uninspectable":
+                            return None
+                        # Replace the real reviewed node with an identical-looking
+                        # fixture node between target inspection and state capture.
+                        await native_trusted(obj, "evaluate", "el=>el.replaceWith(el.cloneNode(true))")
+                    return result
+                monkeypatch.setattr(boundary, "trusted", failing_probe)
+                message = "detached before authorization" if failure == "detached" else "could not be inspected safely"
+                with pytest.raises(AciraActionBlocked, match=message) as error:
+                    await element.click()
+                assert "No browser action was dispatched" in str(error.value) or "no browser action was dispatched" in str(error.value)
+                assert reviewer.requests == 0
+                assert await native_trusted(page, "evaluate", "window.clicks") == 0
+                assert await page.locator("#act").count() == 1
+                # Recovery is a distinct caller-requested operation, with its own
+                # fresh target and review. The failed invocation is never replayed.
+                monkeypatch.setattr(boundary, "trusted", native_trusted)
+                await page.locator("#act").click()
+                assert reviewer.requests == 1
+                assert await native_trusted(page, "evaluate", "window.clicks") == 1
+            finally:
+                await browser.close()
+
+
+@pytest.mark.asyncio
 async def test_local_project_reload_blocks_next_action(tmp_path, monkeypatch):
     from acira.adapters.playwright_boundary import trusted
     from acira.local import atomic_json

@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-11",
+  "scope": "Local SDK release-candidate verification; no additional live-site campaign or publication",
+  "sdk_version": "0.1.0",
+  "artifacts": [
+    {
+      "file": "acira-0.1.0-py3-none-any.whl",
+      "sha256": "b8385d87a1698f0153ec75456adbb25fe07e2d0249ba49ff724d2da2cf117970",
+      "bytes": 813015
+    },
+    {
+      "file": "acira-0.1.0.tar.gz",
+      "sha256": "c546ba9990f08260adc5f3754184dbf8485d172fdb4278bc463ce2a3292b11fa",
+      "bytes": 953604
+    },
+    {
+      "file": "acira-capture-0.1.2.zip",
+      "sha256": "71d04129f8f66360afade9af056717fb5fad08f9bf1dee90ae0aca677e980449",
+      "bytes": 21935
+    }
+  ],
+  "artifact_identity": {
+    "python_modules": 84,
+    "runtime_and_asset_files": 110,
+    "missing": [],
+    "differing": [],
+    "source_archive_test_modules": 40,
+    "private_runtime_paths_in_artifacts": false,
+    "runtime_snapshot_sha256": "85ce5021a2afbae884bfc1be5f8b7eec13e0138275e9bfdc1c75f6aaa7899055"
+  },
+  "verification": {
+    "full_suites": [
+      {
+        "python": "3.12.14",
+        "platform": "macOS arm64",
+        "imports": "source checkout",
+        "passed": 603,
+        "seconds": 509.67,
+        "playwright": "1.60.0",
+        "browser_use": "0.13.11"
+      },
+      {
+        "python": "3.12.14",
+        "platform": "macOS arm64",
+        "imports": "installed wheel outside checkout",
+        "passed": 603,
+        "seconds": 505.8,
+        "playwright": "1.60.0",
+        "browser_use": "0.13.11"
+      },
+      {
+        "python": "3.11.15",
+        "platform": "macOS arm64",
+        "imports": "installed wheel outside checkout",
+        "passed": 603,
+        "seconds": 502.72,
+        "playwright": "1.60.0",
+        "browser_use": "0.13.11"
+      }
+    ],
+    "twine": "passed for wheel and source archive",
+    "clean_wheel_journey": [
+      "two environments and file-only startup",
+      "late connection to one shared service and separate project revisions",
+      "service restart with independent SDK lifetime and stable event IDs"
+    ],
+    "extension_archive_source_files": 9,
+    "javascript_syntax": "passed for workspace and extension entry points",
+    "dependency_consistency": "pip check passed in both installed-wheel environments"
+  },
+  "advisory_audit": {
+    "source": "https://pypi.org/pypi/<package>/<version>/json",
+    "queried_versions": 123,
+    "unavailable": [],
+    "environments": {
+      "python312_both_adapters": {
+        "packages": 117,
+        "affected": [
+          {
+            "name": "anyio",
+            "version": "4.12.1",
+            "ids": [
+              "GHSA-82r6-8w77-94w6",
+              "GHSA-5p39-cfhj-2xmp",
+              "PYSEC-2026-4025",
+              "PYSEC-2026-4024"
+            ]
+          },
+          {
+            "name": "pypdf",
+            "version": "6.16.2",
+            "ids": [
+              "GHSA-qv6h-rv94-w285",
+              "GHSA-w23x-9jrw-r45c",
+              "GHSA-fp3h-c4fm-7vvf",
+              "GHSA-5jq2-8x83-x246",
+              "GHSA-php9-fj8v-98fj",
+              "GHSA-g9cg-prrw-2r8q",
+              "GHSA-jw7q-gvrg-4vj3",
+              "GHSA-v247-6f48-mgcj",
+              "PYSEC-2026-4153",
+              "PYSEC-2026-4154",
+              "PYSEC-2026-4160",
+              "PYSEC-2026-4159",
+              "PYSEC-2026-4156",
+              "PYSEC-2026-4155",
+              "PYSEC-2026-4158",
+              "PYSEC-2026-4157"
+            ]
+          }
+        ]
+      },
+      "core_and_playwright": {
+        "packages": 31,
+        "affected": []
+      },
+      "python311_both_adapters": {
+        "packages": 119,
+        "affected": [
+          {
+            "name": "anyio",
+            "version": "4.12.1",
+            "ids": [
+              "GHSA-82r6-8w77-94w6",
+              "GHSA-5p39-cfhj-2xmp",
+              "PYSEC-2026-4025",
+              "PYSEC-2026-4024"
+            ]
+          },
+          {
+            "name": "pypdf",
+            "version": "6.16.2",
+            "ids": [
+              "GHSA-qv6h-rv94-w285",
+              "GHSA-w23x-9jrw-r45c",
+              "GHSA-fp3h-c4fm-7vvf",
+              "GHSA-5jq2-8x83-x246",
+              "GHSA-php9-fj8v-98fj",
+              "GHSA-g9cg-prrw-2r8q",
+              "GHSA-jw7q-gvrg-4vj3",
+              "GHSA-v247-6f48-mgcj",
+              "PYSEC-2026-4153",
+              "PYSEC-2026-4154",
+              "PYSEC-2026-4160",
+              "PYSEC-2026-4159",
+              "PYSEC-2026-4156",
+              "PYSEC-2026-4155",
+              "PYSEC-2026-4158",
+              "PYSEC-2026-4157"
+            ]
+          }
+        ]
+      }
+    },
+    "test_tool_repairs": {
+      "pip": "25.0.1 to 26.2.1 in dedicated core environment",
+      "setuptools": "82.0.1 to 84.0.0 in dedicated Python 3.11 environment"
+    },
+    "limitations": "Active published advisory records only; no claim that undisclosed vulnerabilities are absent"
+  },
+  "release_gates": {
+    "public_pypi_upload": "not performed",
+    "current_cross_platform_ci": "not executed: account payments or spending limit",
+    "required_publish_reviewers": "missing under private repository plan",
+    "browser_use_dependency_advisories": "unresolved exact upstream AnyIO/pypdf pins"
+  },
+  "prior_ci": {
+    "url": "https://github.com/Acira-dev/acira-sdk/actions/runs/38104664329",
+    "head_sha": "f69ab5c40a1329eb6f69071991ae7d2dfd4033f2",
+    "steps_executed": 0
+  },
+  "recovery_contract": "Failed detached or uninspectable targets dispatch no action and do not request a review. Recovery is a separate caller-requested operation with a fresh target and review."
+}

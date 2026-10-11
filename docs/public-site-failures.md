@@ -43,6 +43,7 @@ available on every page.
 | No eligible public same-host content link, or a link needs a login, download, new tab or account action. | Retain partial/unavailable coverage; this is not proof of an SDK defect. |
 | A server redirect leaves the selected document scope or resources require redirected/non-read methods. | The independent test fence can alter website behavior. Retain that limitation; do not weaken the URL/method boundary to raise pass counts. |
 | A reviewed target or required values change. | Obtain a fresh operation and approval. Never retarget or replay the approved attempt. |
+| A selected node detaches before authorization, or cannot be inspected. | The Playwright error distinguishes these conditions and explicitly states that no browser action dispatched. Detached-node and inspection-failure fixtures verify zero click effects and zero reviews for the failed attempt. Recovery is a separate caller-requested operation with a fresh target and review. |
 | A dispatched browser call has an uncertain result. | Retain an unknown outcome. Never automatically retry or label authorization as business success. |
 
 The automated approval review rejected an attempted broader same-host redirect
