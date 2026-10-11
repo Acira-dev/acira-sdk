@@ -25,6 +25,18 @@ image was available.
 Selection pins the observed DOM element rather than its index in a menu. Menu
 reordering cannot silently change the chosen link. Replaced, hidden or changed
 targets remain failures; the driver never forces a click or retargets it.
+Before selecting a link, a bounded native trial checks readiness without clicking.
+The scan briefly waits for hydrated content, skips obstructed duplicate links and
+excludes absolute same-document fragment links. These are test-driver probes;
+they do not approve operations or change SDK policy behavior.
+
+The baseline records both the selected href and its observed public landing.
+Protected cases must reach that exact landing, including client-side routes that
+change History without a document request. The network fence remains unchanged:
+HTTP redirects outside the selected document scope remain unavailable coverage.
+Error and early-return paths retain their dispatch, review and network evidence.
+Failures include a fixed diagnosis and recovery guidance; a label does not by
+itself establish whether a website, adapter or test boundary caused the issue.
 
 A complete result requires all five cases. A loaded page without an eligible
 link is partial coverage. Robots restrictions, bot checks, timeouts, server errors
@@ -49,6 +61,8 @@ per-site evidence.
   This fence changes network behavior and is also present in the baseline.
 - Contexts go offline before interception is removed during teardown, so late
   background requests cannot escape the read-only boundary.
+  In-flight callbacks drain before handler removal; cleanup remains bounded and
+  destroys the context even when offline or handler removal fails.
 - Robots rules are checked before page and selected-link navigation. Document
   requests are paced, declared slower rates are honored or skipped, and concurrency
   is limited to two workers for the recorded campaign.

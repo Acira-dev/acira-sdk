@@ -323,18 +323,23 @@ async def guarded(manager: Any, page: Any, obj: Any, method: str, args: tuple, k
 
 
 async def masked_artifact(page: Any, element: Any, *, scroll_target: bool = True) -> dict[str, Any]:
-    from acira_cdp_proxy.screenshots import capture_masked_cdp
+    from acira_cdp_proxy.screenshots import capture_masked_cdp, unavailable_capture
     session = None
     try:
         async with asyncio.timeout(5):
             if element is not None and scroll_target:
-                await trusted(element, "scroll_into_view_if_needed", timeout=2000)
+                try:
+                    await trusted(element, "scroll_into_view_if_needed", timeout=2000)
+                except Exception:
+                    return unavailable_capture("target_unavailable")
             session = await page.context.new_cdp_session(page)
             async def probe(method, params, session_id):
                 return await trusted(session, "send", method, params)
             return await capture_masked_cdp(probe, target_probe=element.bounding_box if element else None)
+    except TimeoutError:
+        return unavailable_capture("capture_timeout")
     except Exception:
-        return {"capture_status": "unavailable", "reason": "A reliably masked screenshot could not be captured"}
+        return unavailable_capture()
     finally:
         if session is not None:
             with contextlib.suppress(Exception):

@@ -77,16 +77,26 @@ def test_report_excludes_challenges_and_blank_html_from_public_coverage(tmp_path
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("unsafe_redirect", [False, True])
+@pytest.mark.parametrize("unsafe_redirect", [False, True, "client-route", "different-client-route"])
 async def test_sweep_observes_actual_effects_and_fresh_sessions(tmp_path, monkeypatch, unsafe_redirect):
     from aiohttp import web
     from aiohttp.test_utils import TestServer
     original = Browser.new_context
     requests, starting_cookies = [], []
+    initial_pages = 0
 
     async def respond(request):
+        nonlocal initial_pages
         requests.append((request.method, "https://fixture.invalid" + request.path))
         if request.path == "/":
+            initial_pages += 1
+            if unsafe_redirect in {"client-route", "different-client-route"}:
+                landing = "/guide/introduction" if initial_pages == 1 or unsafe_redirect == "client-route" else "/guide/changed"
+                return web.Response(content_type="text/html",text=f'''<h1>Public fixture</h1>
+                    <a href="/guide">Public guide</a><script>
+                    document.querySelector('a').addEventListener('click',e=>{{e.preventDefault();
+                    history.pushState({{}},'',{json.dumps(landing)});
+                    document.querySelector('h1').textContent='Guide content'}})</script>''')
             return web.Response(content_type="text/html", headers={"Set-Cookie": "anonymous=fixture; Secure"}, text='''
                 <main><h1>Fixture website</h1><a href="#main">Skip to main content</a>
                 <a href="/about">About this project</a><input type="password" value="fixture-secret"></main>
@@ -129,14 +139,27 @@ async def test_sweep_observes_actual_effects_and_fresh_sessions(tmp_path, monkey
         monkeypatch.setattr(Route, "fetch", local_transport)
         await sweep.worker(args)
     row = json.loads((args.output / "results-0.jsonl").read_text())
-    if unsafe_redirect:
+    if unsafe_redirect is True:
         assert row["status"] == "unavailable", row
         assert row["cases"][0]["requests_stopped"]["redirect_not_permitted"] == 1
         assert requests == [("GET", "https://fixture.invalid/"), ("GET", "https://fixture.invalid/about")]
         return
+    if unsafe_redirect == "different-client-route":
+        assert row["status"] == "partial"
+        assert row["cases"][0]["status"] == "verified"
+        assert row["cases"][1]["status"] == row["cases"][4]["status"] == "destination_failure"
+        assert row["cases"][2]["click_dispatches"] == row["cases"][3]["click_dispatches"] == 0
+        return
     assert row["status"] == "complete", row
     assert [case["status"] for case in row["cases"]] == ["verified"] * 5
     assert [case.get("click_dispatches") for case in row["cases"]] == [None, 1, 0, 0, 1]
+    if unsafe_redirect == "client-route":
+        assert [case.get("document_requests_after_click") for case in row["cases"]] == [0]*5
+        assert row["cases"][0]["target_url"] == "https://fixture.invalid/guide"
+        assert row["cases"][0]["landing_url"] == "https://fixture.invalid/guide/introduction"
+        assert row["cases"][1]["expected_landing"] == row["cases"][0]["landing_url"]
+        assert all(method=="GET" and url=="https://fixture.invalid/" for method,url in requests)
+        return
     assert [case.get("document_requests_after_click") for case in row["cases"]] == [2, 2, 0, 0, 2]
     assert all(case["fresh_cookie_count"] == 0 for case in row["cases"])
     assert starting_cookies == [[]] * 5
@@ -235,3 +258,91 @@ async def test_selected_link_stays_pinned_when_menu_order_changes(guarded):
         await selected.click()
         assert page.url == destination == reviewer.expected
         assert reviewer.requests == (1 if guarded else 0)
+
+
+@pytest.mark.asyncio
+async def test_selection_skips_absolute_fragment_and_obstructed_duplicate_without_clicking():
+    from acira.adapters.playwright_boundary import trusted
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        try:
+            page = await browser.new_page(viewport={"width":800,"height":600})
+            await page.route("**/*", lambda route: route.fulfill(content_type="text/html", body='''
+                <a href="https://fixture.invalid/#resources">Resources</a>
+                <div style="position:relative;width:300px;height:60px">
+                  <a href="/about" style="position:absolute;top:10px">About covered menu</a>
+                  <div style="position:absolute;inset:0;background:white;z-index:2"></div>
+                </div>
+                <a href="/about" id="content">About visible content</a>
+                <script>window.clicks=0;document.addEventListener('click',()=>window.clicks++)</script>
+            '''))
+            await page.goto("https://fixture.invalid/")
+            from collections import Counter
+            diagnostics = Counter()
+            selected, target, label = await sweep.find_link(page, diagnostics=diagnostics)
+            assert target == "https://fixture.invalid/about"
+            assert label == "About visible content"
+            assert await selected.get_attribute("id") == "content"
+            assert diagnostics == {"target_not_actionable": 1}
+            assert page.url == "https://fixture.invalid/"
+            assert await trusted(page,"evaluate","window.clicks") == 0
+        finally:
+            await browser.close()
+
+
+@pytest.mark.asyncio
+async def test_ready_link_waits_for_hydrated_public_target_without_any_click():
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        try:
+            page = await browser.new_page()
+            await page.route("**/*",lambda route: route.fulfill(content_type="text/html", body='''
+                <h1>Loading public content</h1><script>
+                setTimeout(()=>{const a=document.createElement('a');a.href='/about';
+                  a.textContent='About the project';document.body.append(a)},500)
+                </script>'''))
+            await page.goto("https://fixture.invalid/")
+            link, diagnostics = await sweep.ready_link(page)
+            assert link[1] == "https://fixture.invalid/about"
+            assert page.url == "https://fixture.invalid/"
+        finally:
+            await browser.close()
+
+
+@pytest.mark.asyncio
+async def test_failed_browser_call_retains_dispatch_review_and_navigation_evidence(tmp_path,monkeypatch):
+    from acira import protect
+    from acira.project import initialize
+    from acira.local import atomic_json
+    from acira.journal import Journal
+    from playwright.async_api import ElementHandle
+    monkeypatch.setenv("ACIRA_HOME",str(tmp_path/"private"))
+    project=initialize(tmp_path/"project",selected=[],dashboard=False)
+    document=project.document()
+    document["agents"]["default"]["guard"]={"review_actions":["click"],"terminal_log":False}
+    atomic_json(project.path,document)
+    saved_click=ElementHandle.click
+    async def failed_click(self,*args,**kwargs):
+        result=await saved_click(self,*args,**kwargs)
+        if not kwargs.get("trial"):
+            raise RuntimeError("Fixture: browser result unavailable after click")
+        return result
+    monkeypatch.setattr(ElementHandle,"click",failed_click)
+    async def response(route):
+        return await route.fulfill(content_type="text/html",body='<h1>Public fixture</h1><a href="/about">About</a>')
+    monkeypatch.setattr(sweep.Fence,"_route",lambda self,route: response(route))
+    reviewer=sweep.TestReviewer()
+    async with protect(project=project.root,dashboard=False,review_backend=reviewer) as guard, async_playwright() as p:
+        guard.patch_playwright(p)
+        browser=await p.chromium.launch()
+        try:
+            result=await sweep.case(browser,{"url":"https://fixture.invalid/"},timeout=2000,
+                mode="approved",guard=guard,journal=Journal(project.root),reviewer=reviewer)
+            assert result["status"]=="error"
+            assert result["click_dispatches"]==1
+            assert result["reviews"][0]["state"]=="approved"
+            assert result["final_url"]=="https://fixture.invalid/about"
+            assert result["document_requests_after_click"]==0  # fixture does not use live transport
+            assert result["failure"]["scope"]=="needs_investigation"
+        finally:
+            await browser.close()

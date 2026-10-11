@@ -31,6 +31,7 @@ from acira.journal import Journal
 from acira.local import atomic_json
 from acira.project import initialize
 from acira_cdp_proxy.action_gateway import AciraActionBlocked
+from acira.adapters.playwright_boundary import trusted
 
 USER_AGENT = "AciraCompatibilityTest/0.1 (+https://github.com/Acira-dev/acira-sdk)"
 UNSAFE = re.compile(r"login|log-in|sign.?in|sign.?up|logout|log-out|account|checkout|payment|purchase|buy(?:now)?|cart|basket|order|subscribe|unsubscribe|donat|delete|remove|destroy|accept|consent|authorize|oauth|auth/|register|download|export|upload|submit|reset|token|password|credential", re.I)
@@ -93,6 +94,7 @@ class Fence:
         self.limit = 400
         self.pacer = pacer
         self.active_routes = set()
+        self.closing = False
 
     def permits(self, url: str, method: str, navigation: bool) -> bool:
         if method not in {"GET", "HEAD"} or not public_url(url, document=navigation):
@@ -118,7 +120,9 @@ class Fence:
     async def _route(self, route):
         request = route.request
         navigation = request.is_navigation_request()
-        if self.allowed >= self.limit:
+        if self.closing:
+            await route.abort("blockedbyclient")
+        elif self.allowed >= self.limit:
             self.denied["request_budget"] += 1
             await route.abort("blockedbyclient")
         elif not self.permits(request.url, request.method, navigation):
@@ -207,15 +211,30 @@ async def close_context(context, fence):
     # Never remove interception from a live, network-enabled page. Background
     # scripts and pending redirects must remain unable to send mutations while
     # route tasks drain. Offline mode is per-context and is never restored.
-    await context.set_offline(True)
-    await context.unroute_all(behavior="ignoreErrors")
-    if fence.active_routes:
-        await asyncio.wait(tuple(fence.active_routes), timeout=14)
-    await asyncio.wait_for(context.close(), timeout=12)
+    try:
+        await context.set_offline(True)
+        fence.closing = True
+        # Finish callbacks while their handlers are still registered. Removing
+        # them first schedules interception updates against a closing context.
+        if fence.active_routes:
+            _, pending = await asyncio.wait(tuple(fence.active_routes), timeout=14)
+            for task in pending:
+                task.cancel()
+            if pending:
+                done, _ = await asyncio.wait(pending, timeout=2)
+                for task in done:
+                    if not task.cancelled():
+                        task.exception()
+        await context.unroute_all(behavior="ignoreErrors")
+    finally:
+        # Even a failed offline/unroute call must destroy the isolated context.
+        # If going offline failed, interception is deliberately left installed.
+        await asyncio.wait_for(context.close(), timeout=12)
     if fence.active_routes:
         await asyncio.wait(tuple(fence.active_routes), timeout=2)
 
-async def find_link(page, expected=None, robots=None):
+async def find_link(page, expected=None, robots=None, diagnostics=None):
+    diagnostics = diagnostics if diagnostics is not None else Counter()
     links = page.locator("a[href]")
     for index in range(min(await links.count(), 120)):
         try:
@@ -241,14 +260,40 @@ async def find_link(page, expected=None, robots=None):
                 continue
             if UNSAFE.search(label) or not public_url(resolved, document=True) or urlsplit(resolved).hostname != urlsplit(page.url).hostname:
                 continue
-            if clean_url(resolved) == clean_url(page.url) or not await item.is_visible():
+            # Absolute fragment links and SPA menu jumps are not public-page
+            # navigation coverage. Do not mistake a changed hash for a new page.
+            if document_key(resolved) == document_key(page.url) or not await item.is_visible():
                 continue
             if robots is not None and (not robots.can_fetch(USER_AGENT, resolved) or not robots.can_fetch("*", resolved)):
+                continue
+            # Trial performs native Playwright actionability checks without
+            # clicking or asking for approval. This test-only trusted call has
+            # fixed options; it cannot authorize a real browser operation.
+            try:
+                await trusted(item, "click", trial=True, timeout=800)
+            except Exception:
+                diagnostics["target_not_actionable"] += 1
+                continue
+            # Scrolling/hydration during the trial may replace or change a link.
+            # Scan again before any review; never substitute after approval.
+            if (await item.get_attribute("href") != href or await item.inner_text() != label
+                    or not await item.is_visible()):
+                diagnostics["target_changed"] += 1
                 continue
             return item, clean_url(resolved), label.strip()
         except Exception:
             continue
     return None
+
+async def ready_link(page, expected=None, robots=None):
+    diagnostics = Counter()
+    for attempt in range(3):
+        found = await find_link(page, expected, robots, diagnostics)
+        if found:
+            return found, dict(diagnostics)
+        if attempt != 2:
+            await asyncio.sleep(.4)
+    return None, dict(diagnostics)
 
 async def robots_check(session, url):
     origin = urlsplit(url)
@@ -283,6 +328,7 @@ async def robots_check(session, url):
 async def load_page(page, url, timeout, fence, robots=None):
     chain = []
     for _ in range(4):
+        response = None
         try:
             response = await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
         except Exception:
@@ -307,13 +353,16 @@ async def load_page(page, url, timeout, fence, robots=None):
 def event_slice(journal, run, previous):
     return journal.events(run=run, after=previous, limit=5000)
 
-async def case(browser, site, *, timeout, expected=None, mode="baseline", guard=None, journal=None, reviewer=None, robots=None, pacer=None):
+async def case(browser, site, *, timeout, expected=None, expected_landing=None, mode="baseline", guard=None, journal=None, reviewer=None, robots=None, pacer=None):
     fence = Fence(site["url"], pacer)
     context = await new_context(browser, fence)
     page = await context.new_page()
     page.set_default_timeout(6000)
     result = {"mode": mode, "fresh_cookie_count": 0}
     run = guard.runtime_control.run_id if guard else None
+    previous = None
+    prior_reviews = set()
+    before_requests = None
     try:
         result.update(await load_page(page, site["url"], timeout, fence, robots))
         result["final_url"] = clean_url(page.url)
@@ -321,12 +370,13 @@ async def case(browser, site, *, timeout, expected=None, mode="baseline", guard=
             return result
         try:
             async with asyncio.timeout(15):
-                link = await find_link(page, expected, robots)
+                link, selection = await ready_link(page, expected, robots)
+                result["selection"] = selection
         except TimeoutError:
             result["status"] = "link_scan_timeout"
             return result
         if not link:
-            result["status"] = "no_safe_link"
+            result["status"] = "target_unavailable" if result.get("selection") else "no_safe_link"
             return result
         locator, destination, label = link
         result.update(target_url=destination, target_text=label)
@@ -369,9 +419,23 @@ async def case(browser, site, *, timeout, expected=None, mode="baseline", guard=
             result["status"] = "sdk_block"
         else:
             try:
-                await page.wait_for_url(lambda url: destination_matches(str(url), destination), wait_until="domcontentloaded", timeout=timeout)
+                def reference_landing(url):
+                    url = str(url)
+                    # Do not widen the network fence. A client-side route can
+                    # change History without a document request. The baseline
+                    # may observe only a different public path on this host;
+                    # subsequent protected runs require that exact reference.
+                    return (public_url(url,document=True) and urlsplit(url).hostname in fence.hosts
+                        and document_key(url)!=document_key(initial)
+                        and (document_key(url) in fence.documents or len(fence.navigations)==before_requests)
+                        and (robots is None or (robots.can_fetch(USER_AGENT,url) and robots.can_fetch("*",url))))
+                await page.wait_for_url(lambda url: destination_matches(str(url),expected_landing) if expected_landing else reference_landing(url), wait_until="domcontentloaded",timeout=timeout)
+                await asyncio.sleep(.2)
                 observation = await observe(page)
-                result["status"] = "verified" if destination_matches(page.url, destination) and observation["text_length"] > 0 and not observation["challenge"] and all(status < 400 for status in destination_responses) else "destination_failure"
+                matches = destination_matches(page.url,expected_landing) if expected_landing else reference_landing(page.url)
+                result["status"] = "verified" if matches and observation["text_length"] > 0 and not observation["challenge"] and all(status < 400 for status in destination_responses) else "destination_failure"
+                result["landing_url"] = clean_url(page.url)
+                result["expected_landing"] = expected_landing
                 result["destination"] = observation
                 result["destination_http_statuses"] = destination_responses
             except Exception as exc:
@@ -380,12 +444,20 @@ async def case(browser, site, *, timeout, expected=None, mode="baseline", guard=
             result["reason"] = stopped
         result["final_url"] = clean_url(page.url)
         result["document_requests_after_click"] = len(fence.navigations) - before_requests
-        if journal:
+    except Exception as exc:
+        result.update(status="error", error=type(exc).__name__ + ": " + str(exc)[:600])
+    finally:
+        # Error/redirect paths need the same dispatch and review evidence as
+        # successful paths. Missing fields must never imply zero side effects.
+        if before_requests is not None:
+            result["document_requests_after_click"] = len(fence.navigations) - before_requests
+        if journal and previous is not None:
             changed = event_slice(journal, run, previous)
             operations = {e["operation_id"] for e in changed if e["type"] == "action_proposed" and e.get("action") == "click"}
             result["click_dispatches"] = sum(e["type"] == "action_dispatched" and e.get("operation_id") in operations for e in changed)
             reviews = [r for r in journal.reviews() if r["run_id"] == run and r["review_id"] not in prior_reviews]
             result["reviews"] = [{"state": r["state"], "capture": r.get("artifact", {}).get("capture_status"), "capture_reason": r.get("artifact", {}).get("reason"),
+                                  "capture_reason_code": r.get("artifact", {}).get("reason_code"),
                                   "bounding_box": r.get("artifact", {}).get("bounding_box"), "viewport": r.get("artifact", {}).get("viewport"),
                                   "artifact_id": r.get("artifact", {}).get("id")} for r in reviews]
             if result["status"] == "verified":
@@ -393,16 +465,45 @@ async def case(browser, site, *, timeout, expected=None, mode="baseline", guard=
                     result["status"] = "audit_failure"
                 if mode in {"rejected", "approved"} and (len(reviews) != 1 or reviews[0]["state"] != ("rejected" if mode == "rejected" else "approved")):
                     result["status"] = "review_failure"
-    except Exception as exc:
-        result.update(status="error", error=type(exc).__name__ + ": " + str(exc)[:600])
-    finally:
+            if mode in {"blocked", "rejected"} and result["click_dispatches"]:
+                result["status"] = "protection_failure"
         result["read_requests"] = fence.allowed
         result["requests_stopped"] = dict(fence.denied)
         result["final_url"] = clean_url(page.url)
         # The context is being destroyed; suppress only abandoned route errors,
         # after all action/effect evidence has been recorded.
-        await close_context(context, fence)
+        try:
+            await close_context(context, fence)
+        except Exception as exc:
+            result["cleanup_error"] = type(exc).__name__
+            result["status"] = "cleanup_failure" if result["status"] == "verified" else result["status"]
+        result["failure"] = failure_detail(result)
     return result
+
+def failure_detail(case):
+    """Fixed, non-sensitive diagnosis; no guessed SDK blame or recovery bypass."""
+    status, error = case.get("status"), case.get("error", "")
+    if status == "verified":
+        return None
+    if status in {"protection_failure", "audit_failure", "review_failure"}:
+        return {"kind": status, "scope": "acira_or_evidence", "recovery": "Stop and inspect the journal before further operations."}
+    if "not attached" in error:
+        kind, scope, recovery = "target_detached", "page_or_adapter", "Resolve a fresh target and obtain a new approval; do not retry the approved operation."
+    elif "intercepts pointer events" in error or "not visible" in error or status == "target_unavailable":
+        kind, scope, recovery = "target_unavailable", "page", "Use a visible, unobstructed target. Consent dialogs require a separate user decision."
+    elif "net::ERR_" in error or "Page.goto" in error:
+        kind, scope, recovery = "navigation_transport", "site_or_test_boundary", "Inspect connectivity and stopped-request counters; keep certificate and URL checks enabled."
+    elif status == "http_error":
+        kind, scope, recovery = "http_error", "site", "Respect the server response. Do not bypass access restrictions."
+    elif status == "bot_challenge":
+        kind, scope, recovery = "access_challenge", "site", "Record unavailable coverage; do not bypass the challenge."
+    elif status in {"no_safe_link", "link_scan_timeout"}:
+        kind, scope, recovery = status, "test_selection", "Provide an eligible public link in a separately recorded test."
+    elif status in {"sdk_block", "destination_failure"}:
+        kind, scope, recovery = status, "needs_investigation", "Compare with the baseline and journal. Do not force clicks or replay an uncertain operation."
+    else:
+        kind, scope, recovery = status or "unknown", "needs_investigation", "Retain the failure and investigate its evidence."
+    return {"kind": kind, "scope": scope, "recovery": recovery}
 
 async def worker(args):
     root = args.output.resolve()
@@ -478,19 +579,20 @@ async def worker(args):
                 result["cases"].append(first)
                 if first.get("status") == "verified":
                     target = first["target_url"]
+                    landing = first["landing_url"]
                     if robots is None or (robots.can_fetch(USER_AGENT, target) and robots.can_fetch("*", target)):
                         for mode, profile in (("normal", "normal"), ("blocked", "blocked"), ("rejected", "review"), ("approved", "review")):
-                            result["cases"].append(await case(browsers[profile], site, timeout=args.timeout, expected=target,
+                            result["cases"].append(await case(browsers[profile], site, timeout=args.timeout, expected=target,expected_landing=landing,
                                 mode=mode, guard=guards[profile], journal=journal, reviewer=reviewer, robots=robots, pacer=pacer))
                     else:
                         result["target_robots_disallowed"] = True
-                elif first.get("status") == "no_safe_link":
+                elif first.get("status") in {"no_safe_link", "target_unavailable"}:
                     # Count a real guarded landing-page observation without
                     # pretending an action/review workflow was covered.
                     result["cases"].append(await case(browsers["normal"], site, timeout=args.timeout,
                         mode="normal", guard=guards["normal"], journal=journal, reviewer=reviewer, robots=robots, pacer=pacer))
             statuses = [c["status"] for c in result["cases"]]
-            result["status"] = "complete" if statuses == ["verified"] * 5 else "partial" if any(s in {"verified", "no_safe_link"} for s in statuses) else "unavailable"
+            result["status"] = "complete" if statuses == ["verified"] * 5 else "partial" if any(s in {"verified", "no_safe_link", "target_unavailable"} for s in statuses) else "unavailable"
             result["elapsed_seconds"] = round(time.monotonic() - began, 2)
             with path.open("a") as output:
                 output.write(json.dumps(result, ensure_ascii=False) + "\n")
@@ -513,6 +615,7 @@ def summary(output):
                 "sites_with_guarded_html": sum(any(c["mode"] != "baseline" and observed_public_html(c) for c in r["cases"]) for r in rows),
                 "full_workflow_passes": counts["complete"],
                 "site_status": dict(counts), "cases": dict(cases),
+                "failure_kinds": dict(Counter(failure_detail(c)["kind"] for r in rows for c in r["cases"] if c.get("status") != "verified")),
                 "limits": ["Signed-out asynchronous Chromium/Playwright public-page workflows only.",
                            "Independent GET/HEAD fence changes pages requiring other network methods.",
                            "HTTP redirects are followed explicitly as new guarded navigations; resource redirects stop.",

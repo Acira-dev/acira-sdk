@@ -33,6 +33,7 @@ async def test_capture_recovers_only_after_mask_and_target_geometry_stabilize(mo
         artifact = await capture_masked_cdp(probe, target_probe=page.locator("button").bounding_box)
         if moving:
             assert artifact["capture_status"] == "unavailable"
+            assert artifact["reason_code"] == "page_unstable"
             assert "image" not in artifact and captures == 3
         else:
             assert artifact["capture_status"] == "ready" and captures == 2
@@ -72,6 +73,7 @@ async def test_capture_unresponsive_transport_has_one_total_time_budget():
         await asyncio.Event().wait()
     artifact = await asyncio.wait_for(capture_masked_cdp(unavailable), 6)
     assert artifact["capture_status"] == "unavailable" and "image" not in artifact
+    assert artifact["reason_code"] == "capture_timeout"
 
 
 @pytest.mark.asyncio
@@ -85,6 +87,7 @@ async def test_capture_omits_an_image_with_a_target_outside_its_visual_viewport(
             return await session.send(method,params)
         artifact = await capture_masked_cdp(probe,target_probe=page.locator("button").bounding_box)
         assert artifact["capture_status"] == "unavailable" and "image" not in artifact
+        assert artifact["reason_code"] == "target_unavailable"
         await browser.close()
 
 
@@ -120,6 +123,7 @@ async def test_native_capture_masks_private_rendering_that_page_javascript_canno
             artifact = await capture_masked_cdp(probe)
             if case.startswith("sensitive-"):
                 assert artifact["capture_status"] == "unavailable" and "image" not in artifact
+                assert artifact["reason_code"] == "masking_effects_unbounded"
             else:
                 assert artifact["capture_status"] == "ready"
                 pixels = Image.open(io.BytesIO(base64.b64decode(artifact["image"])))
@@ -156,6 +160,35 @@ async def test_native_masks_use_css_coordinates_on_scaled_scrolled_viewports(dev
         x,y = int((left+right)/2-5),int((top+bottom)/2-5)
         assert all(pixels.getpixel((x+dx,y+dy)) == (0,0,0) for dx in range(10) for dy in range(10))
         await browser.close()
+
+
+@pytest.mark.asyncio
+async def test_capture_diagnostics_never_emit_browser_exception_payloads():
+    async def secret_failure(*args):
+        raise ValueError("fixture-private-token-cookie-card-value")
+    artifact = await capture_masked_cdp(secret_failure)
+    assert artifact["reason_code"] == "capture_unavailable"
+    assert "fixture-private" not in str(artifact) and "image" not in artifact
+
+
+def test_capture_reason_enum_survives_durable_journal_redaction(tmp_path):
+    from acira.journal import Journal
+    from acira_cdp_proxy.screenshots import CAPTURE_REASONS,unavailable_capture
+    journal=Journal(tmp_path)
+    for code in CAPTURE_REASONS:
+        journal.event("capture_fixture",artifact=unavailable_capture(code))
+    assert [event["artifact"]["reason_code"] for event in journal.events()] == list(CAPTURE_REASONS)
+
+
+def test_capture_reason_restoration_never_preserves_arbitrary_access_codes(tmp_path):
+    from acira.journal import Journal
+    journal=Journal(tmp_path)
+    journal.event("capture_fixture",artifact={"capture_status":"unavailable",
+        "reason_code":"654321","code":"987654","reason":"Safe fixed fixture message"})
+    event=journal.events()[0]
+    assert event["artifact"]["reason_code"] == event["artifact"]["code"] == "[REDACTED]"
+    journal.event("capture_fixture",artifact={"capture_status":"ready","reason_code":"target_unavailable"})
+    assert journal.events()[1]["artifact"]["reason_code"] == "[REDACTED]"
 
 
 @pytest.mark.asyncio

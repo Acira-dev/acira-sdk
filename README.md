@@ -23,6 +23,8 @@ Follow the [step-by-step existing-project setup](docs/quickstart.md), or the
 The [signed-out public-site sweep](docs/public-site-sweep.md) provides a repeatable,
 opt-in compatibility check across hundreds of real public websites, with baseline,
 allow, block and review cases. It reports unavailable sites separately from passes.
+See the [failure investigation and repairs](docs/public-site-failures.md) for what
+was corrected and which access or test-boundary limitations remain.
 
 This checkout contains the SDK/shared-dashboard implementation. See
 [implementation and release status](docs/implementation-status.md) for verified behavior
@@ -169,6 +171,9 @@ target highlight. A thin red outline sits outside the target so it does not cove
 text. Approval dialogs focus on operation evidence and contain no mascots. The
 full-page capture and technical details remain available. Companion appearance
 elsewhere in the dashboard is configurable in Settings.
+When an image is unavailable, reviews report a fixed privacy-safe reason such as
+an unstable page, unavailable target, time limit or sensitive visual effect. An
+unavailable image never falls back to an unmasked capture.
 One approval covers one attempt. DOM targets, form values and
 policy revision are checked again before dispatch. There is no implicit approval
 reuse by policy ID.

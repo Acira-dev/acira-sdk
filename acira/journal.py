@@ -32,6 +32,13 @@ def journal_redact(value: Any) -> Any:
                     pattern = r"run-[a-f0-9]{12,32}"
                 elif key == "id" and source.get("capture_status") == "ready":
                     pattern = r"[a-f0-9]{32}\.png"
+                elif key == "reason_code" and source.get("capture_status") == "unavailable":
+                    # Preserve only Acira's fixed screenshot enum. Arbitrary
+                    # codes (OTP/access codes included) still undergo redaction.
+                    from acira_cdp_proxy.screenshots import CAPTURE_REASONS
+                    if isinstance(item, str) and item in CAPTURE_REASONS:
+                        output[key] = item
+                        continue
                 if pattern and isinstance(item, str) and re.fullmatch(pattern, item):
                     output[key] = item
                 elif key in output:
