@@ -8,6 +8,7 @@ const state = {
   catalog: [],
   busy: false,
   renderPending: false,
+  renderCompletion: Promise.resolve(),
   review: null,
   disclosures: new Map(),
 };
@@ -17,11 +18,11 @@ function el(tag, text, cls) {
   if (cls) node.className = cls;
   return node;
 }
-function notice(message, error = false) {
+function notice(message, error = false, dialogFeedback = true) {
   $("notice").hidden = false;
   $("notice").textContent = message;
   $("notice").className = error ? "error" : "";
-  if ($("dialog")?.open) {
+  if ($("dialog")?.open && dialogFeedback) {
     let feedback = $("dialog-feedback");
     if (!feedback) {
       feedback = el("p");
@@ -319,6 +320,20 @@ async function refresh() {
     activation.className = pill(profile?.state || "Saved").className;
   }
 }
+// Capture this policy dialog before the write starts. A user may close it and
+// open another dialog while the request is pending; that new dialog stays open.
+function policyDialogCompletion() {
+  const body = $("dialog-content"),
+    children = Array.from(body.childNodes),
+    isCurrent = () => children.every((node) => node.parentNode === body);
+  return async (message) => {
+    notice(message, false, isCurrent());
+    await refresh();
+    await render();
+    if ($("dialog").open && isCurrent()) $("dialog").close();
+  };
+}
+
 function updateAgents() {
   const profiles = selected()?.agents || [];
   if (!profiles.some((a) => a.name === state.agent))
@@ -360,9 +375,11 @@ async function render() {
     // Coalesce a navigation or scope change while the current view is loading.
     // Its latest selection must render as soon as that request finishes.
     state.renderPending = true;
-    return;
+    return state.renderCompletion;
   }
   state.busy = true;
+  let complete;
+  state.renderCompletion = new Promise((resolve) => { complete = resolve; });
   const focusedSection = document.activeElement?.parentElement?.dataset.disclosure;
   const previousView = $("content").dataset.view;
   $("content").querySelectorAll("details[data-disclosure]").forEach((node) =>
@@ -418,15 +435,21 @@ async function render() {
     );
     notice(error.message, true);
   } finally {
-    if (focusedSection && previousView === state.view) {
-      const same = Array.from($("content").querySelectorAll("[data-disclosure]"))
-        .find((node) => node.dataset.disclosure === focusedSection);
-      same?.querySelector("summary")?.focus();
-    }
-    state.busy = false;
-    if (state.renderPending) {
-      state.renderPending = false;
-      await render();
+    try {
+      if (focusedSection && previousView === state.view) {
+        const same = Array.from($("content").querySelectorAll("[data-disclosure]"))
+          .find((node) => node.dataset.disclosure === focusedSection);
+        same?.querySelector("summary")?.focus();
+      }
+      // Clear busy before the queued pass so it owns a new completion promise.
+      // Callers waiting on this pass complete only after that pass also settles.
+      state.busy = false;
+      if (state.renderPending) {
+        state.renderPending = false;
+        await render();
+      }
+    } finally {
+      complete();
     }
   }
 }
@@ -849,18 +872,14 @@ async function catalogDialog() {
       button(
         "Add policy",
         async () => {
+          const finish = policyDialogCompletion();
           await api(base() + "/policies", {
             agent: state.agent,
             filename: entry.filename,
             document: entry.document,
             expected: null,
           });
-          $("dialog").close();
-          notice(
-            "Saved. Connected runs will report when the policy is active.",
-          );
-          await refresh();
-          await render();
+          await finish("Saved. Connected runs will report when the policy is active.");
         },
         "primary",
       ),
@@ -896,16 +915,14 @@ function importDialog() {
     button(
       "Validate and import",
       async () => {
+        const finish = policyDialogCompletion();
         await api(base() + "/policies", {
           agent: state.agent,
           filename: name.value,
           document: JSON.parse(text.value),
           expected: null,
         });
-        $("dialog").close();
-        notice("Policy imported.");
-        await refresh();
-        await render();
+        await finish("Policy imported.");
       },
       "primary",
     ),
@@ -998,16 +1015,14 @@ function policyDialog(policy) {
     button(
       "Save policy",
       async () => {
+        const finish = policyDialogCompletion();
         const result = await api(base() + "/policies", {
           agent: state.agent,
           filename: policy.path.split(/[\\/]/).pop(),
           document: JSON.parse(editor.value),
           expected: policy.hash,
         });
-        $("dialog").close();
-        notice("Saved · affected agents: " + result.affected_agents.join(", "));
-        await refresh();
-        await render();
+        await finish("Saved · affected agents: " + result.affected_agents.join(", "));
       },
       "primary",
     ),
@@ -1069,6 +1084,7 @@ async function revisionDialog() {
             );
           }),
           button("Restore", async () => {
+            const finish = policyDialogCompletion();
             if (
               !confirm(
                 "Restore this policy snapshot? Shared policy files can affect other agents. A new revision will be created.",
@@ -1080,10 +1096,7 @@ async function revisionDialog() {
               revision: revision.revision,
               expected: current.revision,
             });
-            $("dialog").close();
-            notice("Rollback saved as a new revision.");
-            await refresh();
-            await render();
+            await finish("Rollback saved as a new revision.");
           }),
         ]),
       ),
@@ -2143,19 +2156,17 @@ async function assignmentDialog() {
     button(
       "Save assignments",
       async () => {
+        const finish = policyDialogCompletion();
         await api(
           base() + "/configuration",
           { document: data.document, expected: data.hash },
           "PUT",
         );
-        $("dialog").close();
-        notice(
+        await finish(
           "Assignments saved for " +
             state.agent +
             ". Other agents keep their own choices.",
         );
-        await refresh();
-        await render();
       },
       "primary",
     ),

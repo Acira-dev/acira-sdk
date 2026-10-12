@@ -1032,3 +1032,190 @@ async def test_agents_refresh_ended_run_even_with_control_focused(tmp_path, monk
                 await expect(ui.get_by_role("dialog").locator("pre").last).to_contain_text("run-live")
             finally:
                 await browser.close()
+
+
+async def policy_save_fixture(ui, server, ticket, *, background_refresh=None):
+    """Reach the real policy editor with keyboard controls in a local fixture."""
+    import json
+
+    await ui.goto(str(server.make_url('/')) + '#ticket=' + ticket)
+    await keyboard_activate(ui, ui.get_by_role('button', name='Policies', exact=True))
+    if background_refresh:
+        await background_refresh()
+    await keyboard_activate(ui, ui.get_by_role('button', name='Configure', exact=True))
+    await keyboard_activate(ui, ui.get_by_text('Advanced JSON', exact=True))
+    editor = ui.get_by_role('textbox', name='Advanced policy JSON')
+    policy = json.loads(await editor.input_value())
+    policy['name'] = 'Policy saved with delayed UI'
+    await keyboard_focus(ui, editor)
+    await ui.keyboard.press('ControlOrMeta+A')
+    await ui.keyboard.insert_text(json.dumps(policy))
+
+
+@pytest.mark.asyncio
+async def test_policy_save_keeps_modal_open_until_delayed_refresh_finishes(tmp_path, monkeypatch):
+    monkeypatch.setenv('ACIRA_HOME', str(tmp_path / 'private'))
+    project = initialize(tmp_path / 'Delayed policy', selected=['credentials'], dashboard=False)
+    service = Service()
+    async with TestServer(service.app(), host='127.0.0.1') as server:
+        service.port = server.port
+        async with ClientSession(headers={'Authorization': 'Bearer ' + service.admin_key}) as client:
+            ticket = (await (await client.post(server.make_url('/api/ticket'), json={})).json())['ticket']
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            ui = await browser.new_page()
+            projects_started, projects_release = asyncio.Event(), asyncio.Event()
+            policies_started, policies_release = asyncio.Event(), asyncio.Event()
+            errors = []
+            ui.on('pageerror', lambda error: errors.append(str(error)))
+
+            async def slow_projects(route):
+                projects_started.set()
+                await asyncio.wait_for(projects_release.wait(), 10)
+                await route.continue_()
+
+            async def slow_policies(route):
+                policies_started.set()
+                await asyncio.wait_for(policies_release.wait(), 10)
+                await route.continue_()
+
+            try:
+                await policy_save_fixture(ui, server, ticket)
+                await ui.route('**/api/projects', slow_projects)
+                await ui.route('**/api/projects/*/policies?*', slow_policies)
+                save = ui.get_by_role('button', name='Save policy', exact=True)
+                await keyboard_activate(ui, save)
+                await asyncio.wait_for(projects_started.wait(), 5)
+                assert project.policies('default')[0]['name'] == 'Policy saved with delayed UI'
+                await expect(ui.get_by_role('dialog')).to_be_visible()
+                await expect(save).to_be_disabled()
+                await expect(ui.locator('#dialog-feedback')).to_contain_text('Saved')
+                projects_release.set()
+                await asyncio.wait_for(policies_started.wait(), 5)
+                await expect(ui.get_by_role('dialog')).to_be_visible()
+                await expect(save).to_be_disabled()
+                policies_release.set()
+                await ui.get_by_role('dialog').wait_for(state='hidden')
+                await keyboard_activate(ui, ui.get_by_role('button', name='Agent assignments', exact=True, include_hidden=True))
+                await expect(ui.get_by_role('dialog', name='Assignments · Delayed policy / default')).to_be_visible()
+                await ui.keyboard.press('Escape')
+                await keyboard_activate(ui, ui.get_by_role('button', name='Revision history', exact=True, include_hidden=True))
+                await expect(ui.get_by_role('dialog', name='Policy revisions · Delayed policy / default')).to_be_visible()
+                assert not errors
+            finally:
+                projects_release.set()
+                policies_release.set()
+                await browser.close()
+
+
+@pytest.mark.asyncio
+async def test_policy_save_awaits_busy_render_and_its_queued_replacement(tmp_path, monkeypatch):
+    monkeypatch.setenv('ACIRA_HOME', str(tmp_path / 'private'))
+    project = initialize(tmp_path / 'Queued policy', selected=['credentials'], dashboard=False)
+    service = Service()
+    async with TestServer(service.app(), host='127.0.0.1') as server:
+        service.port = server.port
+        async with ClientSession(headers={'Authorization': 'Bearer ' + service.admin_key}) as client:
+            ticket = (await (await client.post(server.make_url('/api/ticket'), json={})).json())['ticket']
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            ui = await browser.new_page()
+            projects_started, projects_release = asyncio.Event(), asyncio.Event()
+            policies_started = [asyncio.Event(), asyncio.Event()]
+            policies_release = [asyncio.Event(), asyncio.Event()]
+            project_calls = 0
+            policy_calls = 0
+            errors = []
+            ui.on('pageerror', lambda error: errors.append(str(error)))
+
+            async def slow_projects(route):
+                nonlocal project_calls
+                project_calls += 1
+                if project_calls == 1:
+                    projects_started.set()
+                    await asyncio.wait_for(projects_release.wait(), 10)
+                await route.continue_()
+
+            async def slow_policies(route):
+                nonlocal policy_calls
+                index = policy_calls
+                policy_calls += 1
+                if index < len(policies_started):
+                    policies_started[index].set()
+                    await asyncio.wait_for(policies_release[index].wait(), 10)
+                await route.continue_()
+
+            async def start_background_refresh():
+                await ui.route('**/api/projects', slow_projects)
+                await ui.route('**/api/projects/*/policies?*', slow_policies)
+                await keyboard_activate(ui, ui.get_by_role('button', name='Refresh', exact=True))
+                await asyncio.wait_for(projects_started.wait(), 5)
+
+            try:
+                await policy_save_fixture(ui, server, ticket, background_refresh=start_background_refresh)
+                projects_release.set()
+                await asyncio.wait_for(policies_started[0].wait(), 5)
+                save = ui.get_by_role('button', name='Save policy', exact=True)
+                await keyboard_activate(ui, save)
+                await ui.wait_for_function('() => state.renderPending')
+                assert project.policies('default')[0]['name'] == 'Policy saved with delayed UI'
+                await expect(ui.get_by_role('dialog')).to_be_visible()
+                await expect(save).to_be_disabled()
+                policies_release[0].set()
+                await asyncio.wait_for(policies_started[1].wait(), 5)
+                await expect(ui.get_by_role('dialog')).to_be_visible()
+                await expect(save).to_be_disabled()
+                policies_release[1].set()
+                await ui.get_by_role('dialog').wait_for(state='hidden')
+                await keyboard_activate(ui, ui.get_by_role('button', name='Agent assignments', exact=True, include_hidden=True))
+                await expect(ui.get_by_role('dialog', name='Assignments · Queued policy / default')).to_be_visible()
+                assert not errors
+            finally:
+                projects_release.set()
+                for release in policies_release:
+                    release.set()
+                await browser.close()
+
+
+@pytest.mark.asyncio
+async def test_completed_policy_save_does_not_close_a_new_dialog(tmp_path, monkeypatch):
+    monkeypatch.setenv('ACIRA_HOME', str(tmp_path / 'private'))
+    project = initialize(tmp_path / 'Changed dialog', selected=['credentials'], dashboard=False)
+    service = Service()
+    async with TestServer(service.app(), host='127.0.0.1') as server:
+        service.port = server.port
+        async with ClientSession(headers={'Authorization': 'Bearer ' + service.admin_key}) as client:
+            ticket = (await (await client.post(server.make_url('/api/ticket'), json={})).json())['ticket']
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            ui = await browser.new_page()
+            write_started, write_release = asyncio.Event(), asyncio.Event()
+            errors = []
+            ui.on('pageerror', lambda error: errors.append(str(error)))
+
+            async def slow_write(route):
+                if route.request.method == 'POST':
+                    write_started.set()
+                    await asyncio.wait_for(write_release.wait(), 10)
+                await route.continue_()
+
+            try:
+                await policy_save_fixture(ui, server, ticket)
+                await ui.route('**/api/projects/*/policies', slow_write)
+                await keyboard_activate(ui, ui.get_by_role('button', name='Save policy', exact=True))
+                await asyncio.wait_for(write_started.wait(), 5)
+                await ui.keyboard.press('Escape')
+                await keyboard_activate(ui, ui.get_by_role('button', name='Import JSON', exact=True))
+                editor = ui.get_by_role('textbox', name='Policy JSON', exact=True)
+                await keyboard_focus(ui, editor)
+                await ui.keyboard.insert_text('Unsubmitted new dialog text')
+                write_release.set()
+                await expect(ui.locator('#content').get_by_text('Policy saved with delayed UI', exact=True)).to_be_visible()
+                assert project.policies('default')[0]['name'] == 'Policy saved with delayed UI'
+                await expect(ui.get_by_role('dialog')).to_be_visible()
+                await expect(editor).to_have_value('Unsubmitted new dialog text')
+                assert await ui.locator('#dialog-feedback').count() == 0
+                assert not errors
+            finally:
+                write_release.set()
+                await browser.close()
