@@ -98,7 +98,7 @@ jobs:
         platform: ${{ inputs.platforms == 'macos-linux' && fromJSON('["Linux","macOS"]') || fromJSON('["Linux","macOS","Windows"]') }}
         python: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","{0}","acira-release-{1}"]', matrix.platform, github.run_id)) || (matrix.platform == 'Linux' && 'ubuntu-24.04' || matrix.platform == 'macOS' && 'macos-latest' || 'windows-latest') }}
-    timeout-minutes: 45
+    timeout-minutes: 75
     env:
       ANONYMIZED_TELEMETRY: "false"
       BROWSER_USE_CLOUD_SYNC: "false"

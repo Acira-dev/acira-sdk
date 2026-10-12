@@ -1785,6 +1785,7 @@ class AciraGuardPolicy:
         self._preflight_quarantine_by_url: dict[str, PageRiskSnapshot] = {}
         self._last_preflight_snapshot: PageRiskSnapshot | None = None
         self._active_preflight_tasks: dict[str, asyncio.Task[Any]] = {}
+        self._active_preflight_task_connections: dict[asyncio.Task[Any], str] = {}
         self._approved_preflight_urls: set[str] = set()
         self._denied_preflight_urls: set[str] = set()
         self._logged_preflight_snapshots: set[tuple[str, str, str]] = set()
@@ -3200,9 +3201,11 @@ class AciraGuardPolicy:
             name=f"acira-active-page-preflight-{scope_key}",
         )
         self._active_preflight_tasks[scope_key] = task
+        self._active_preflight_task_connections[task] = context.connection_id
         task.add_done_callback(lambda completed, key=scope_key: self._finish_active_preflight_task(key, completed))
 
     def _finish_active_preflight_task(self, scope_key: str, task: asyncio.Task[Any]) -> None:
+        self._active_preflight_task_connections.pop(task, None)
         if self._active_preflight_tasks.get(scope_key) is task:
             self._active_preflight_tasks.pop(scope_key, None)
         if task.cancelled():
@@ -3215,6 +3218,18 @@ class AciraGuardPolicy:
                 trigger="active_preflight_error",
                 status=f"{exc.__class__.__name__}: {exc}",
             )
+
+    async def on_connection_closed(self, connection_id: str) -> None:
+        """Retire only active preflights owned by the disconnected CDP client."""
+        tasks = tuple(task for task, owner in self._active_preflight_task_connections.items()
+                      if owner == connection_id and not task.done())
+        for task in tasks:
+            task.cancel()
+        if not tasks:
+            return
+        _, pending = await asyncio.wait(tasks, timeout=1)
+        if pending:
+            raise RuntimeError("Acira active page preflight did not stop within its one-second shutdown bound")
 
     async def _run_active_preflight(
         self,
@@ -3814,24 +3829,24 @@ class AciraGuardPolicy:
 
         review_future: asyncio.Future[bool] = asyncio.get_running_loop().create_future()
         self._review_inflight[review_key] = review_future
-        details = {"cedar": cedar_decision.metadata or {}, "cedar_source": cedar_decision.source, "trigger": trigger}
-        classification = ActionClassification(
-            method="Acira.preflight",
-            action="page_preflight",
-            reason=f"page preflight review after {trigger}",
-            confidence=0.99,
-            read_only=False,
-            meaningful=True,
-            details=details,
-        )
-        self._terminal_decision("HITL", context, classification, snapshot.reason, color="yellow", cedar_decision=cedar_decision)
-        request = GuardReviewRequest(
-            payload=json.dumps({"method": "Acira.preflight", "params": snapshot.to_metadata()}, ensure_ascii=True),
-            context=context,
-            classification=classification,
-            reason=snapshot.reason,
-        )
         try:
+            details = {"cedar": cedar_decision.metadata or {}, "cedar_source": cedar_decision.source, "trigger": trigger}
+            classification = ActionClassification(
+                method="Acira.preflight",
+                action="page_preflight",
+                reason=f"page preflight review after {trigger}",
+                confidence=0.99,
+                read_only=False,
+                meaningful=True,
+                details=details,
+            )
+            self._terminal_decision("HITL", context, classification, snapshot.reason, color="yellow", cedar_decision=cedar_decision)
+            request = GuardReviewRequest(
+                payload=json.dumps({"method": "Acira.preflight", "params": snapshot.to_metadata()}, ensure_ascii=True),
+                context=context,
+                classification=classification,
+                reason=snapshot.reason,
+            )
             async with self.review_pause.hold():
                 if self._pause_coordinator is None:
                     allowed = await self._ask_backend(request)
@@ -3863,11 +3878,12 @@ class AciraGuardPolicy:
             )
             review_future.set_result(False)
             return False
-        except Exception:
+        except BaseException:
             review_future.cancel()
             raise
         finally:
-            self._review_inflight.pop(review_key, None)
+            if self._review_inflight.get(review_key) is review_future:
+                self._review_inflight.pop(review_key, None)
 
     async def _close_preflight_page_if_configured(
         self,

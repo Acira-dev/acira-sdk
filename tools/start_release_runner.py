@@ -247,7 +247,7 @@ def run_runner(args):
                 print(f"Temporary {platform.system()} runner is executing only release run {args.run_id}", flush=True)
                 process = subprocess.Popen(child_command(runner / ("run" + suffix)), cwd=runner, env=child_env)
                 # Bound the idle+job lifecycle, including interrupted setup.
-                code = process.wait(timeout=60 * 55)
+                code = process.wait(timeout=60 * 95)
                 if code != 0:
                     raise ValueError("Temporary runner stopped with an error; inspect this release run")
             finally:

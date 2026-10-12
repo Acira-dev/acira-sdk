@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import sys
 from dataclasses import dataclass, field
 from itertools import count
 from typing import Any
@@ -347,7 +348,21 @@ class CDPProxyServer:
                         durable("cdp_outcome_unknown", operation_id=operation,
                                 reason="Connection ended before the browser response was observed")
             finally:
-                await client_ws.close()
+                try:
+                    await client_ws.close()
+                finally:
+                    connection_closed = getattr(self.policy, "on_connection_closed", None)
+                    if callable(connection_closed):
+                        original_error = sys.exception()
+                        try:
+                            await connection_closed(connection.connection_id)
+                        except BaseException as cleanup_error:
+                            if original_error is None:
+                                raise
+                            original_error.add_note(
+                                "Acira connection preflight cleanup also failed: "
+                                f"{type(cleanup_error).__name__}: {cleanup_error}"
+                            )
 
         return client_ws
 

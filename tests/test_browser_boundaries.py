@@ -330,9 +330,9 @@ async def test_upload_changed_during_review_is_not_sent(tmp_path):
 
 @pytest.mark.asyncio
 async def test_real_cdp_connection_rejects_locator_without_http_side_effect(tmp_path):
-    import subprocess
     from aiohttp import web
     from aiohttp.test_utils import TestServer
+    from tests.subprocess_helpers import owned_subprocess
     received = []
     app = web.Application()
     async def index(request):
@@ -344,10 +344,11 @@ async def test_real_cdp_connection_rejects_locator_without_http_side_effect(tmp_
     app.router.add_post("/effect", effect)
     async with TestServer(app, host="127.0.0.1") as server, async_playwright() as p:
         profile = tmp_path / "cdp-profile"
-        process = subprocess.Popen([p.chromium.executable_path, "--headless=new", "--no-sandbox", "--remote-debugging-port=0",
-                                    "--no-first-run", "--user-data-dir="+str(profile), str(server.make_url("/"))],
-                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        try:
+        async with owned_subprocess(
+            [p.chromium.executable_path, "--headless=new", "--no-sandbox", "--remote-debugging-port=0",
+             "--no-first-run", "--user-data-dir="+str(profile), str(server.make_url("/"))],
+            stderr_path=tmp_path / "chromium-stderr.log",
+        ):
             for _ in range(100):
                 if (profile / "DevToolsActivePort").exists():
                     break
@@ -362,9 +363,6 @@ async def test_real_cdp_connection_rejects_locator_without_http_side_effect(tmp_
                     await page.locator("#act").click()
                 assert received == []
                 await browser.close()
-        finally:
-            process.terminate()
-            process.wait(timeout=10)
 
 
 @pytest.mark.asyncio

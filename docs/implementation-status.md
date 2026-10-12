@@ -658,9 +658,49 @@ The unchanged all-extras cases affected by optional development collection guard
 also passed 27 focused tests without skips. A fresh base-only environment passed
 635 core tests; its 46 optional integration exclusions are development evidence,
 not release passes. The final native source/installed-wheel matrix must execute
-all 916 tests with no skips in each selected slot before publication.
+the full collected candidate suite with no skips in each selected slot before publication.
 
 Independent review also repaired malformed service descriptors: invalid URL/key
 types fail before authenticated connection and diagnostics do not echo private
 field values. Seventeen new regressions and ten existing authentication/diagnostic
 cases passed; the full source result above includes the integrated repair.
+
+
+## Native test setup and cleanup corrections (2026-10-12)
+
+The first expanded verification exposed Ubuntu user-namespace restrictions on
+Playwright’s default headless-shell executable. The CI setup previously permitted
+only the full Chromium executable. It now resolves both installed executables from
+the official Playwright CLI, rejects ambiguous or escaped paths, and grants only
+two literal executable profiles. Both ordinary headless and explicit full Chromium
+startup are verified with the sandbox enabled; global kernel restrictions remain
+enabled. This setup runs only in disposable CI, not during SDK installation.
+
+The external-CDP test now retains browser stderr and asynchronously terminates,
+kills when necessary, and reaps only its owned process. Cleanup no longer masks an
+original connection failure or blocks the event loop. Regression tests exercise
+normal termination, forced shutdown, failure evidence and repeated cancellation.
+The initial intermittent framework startup timeouts are retained as failed attempts;
+a later unchanged pass is diagnostic evidence, not proof of their exact cause.
+
+The native verification job budget accommodates ordinary dependency/browser setup
+and two complete suites on the retained free Linux VM. Browser startup, action,
+approval and protection assertions remain unchanged. A fresh exact-source build,
+full source/installed-wheel matrix and dependency audit are required before
+publication; earlier successful slots cannot authorize the changed candidate.
+
+The lifecycle review also reproduced an active page-preflight task surviving its
+proxy connection shutdown. The guard now tracks each task’s owning connection,
+cancels only that connection’s tasks and reports cancellation exceeding its
+one-second bound. The proxy preserves unknown-outcome recording, client closure
+and the original error when cleanup fails. Local-loopback regressions verify actual
+server stop, two-connection isolation and bounded cancellation; this does not
+establish the cause of the earlier browser startup timeouts.
+
+Pending-review ownership is also cleaned on cancellation and setup exceptions,
+including closed terminal output or interruption. Canceling a duplicate waiter
+keeps the legitimate owner review active; canceling the owner releases its shared
+waiters without approving an action. Unrelated review keys remain independent.
+The integrated candidate collects 959 tests; 109 focused lifecycle, preflight,
+browser-setup and release-gate cases passed without skips. Full exact-source
+verification remains required.
