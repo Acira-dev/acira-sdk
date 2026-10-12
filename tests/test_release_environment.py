@@ -124,6 +124,51 @@ def test_all_actual_test_and_audit_checks_are_required(case):
         release.verify_completed_run(run, jobs, SHA)
 
 
+def macos_linux_evidence():
+    run, jobs = run_record(), job_records()
+    run["display_title"] = "Acira release verification (macos-linux)"
+    jobs["jobs"] = [job for job in jobs["jobs"] if "Windows" not in job["name"]]
+    jobs["total_count"] = len(jobs["jobs"])
+    return run, jobs
+
+
+def test_explicit_macos_linux_release_requires_all_four_native_slots():
+    run, jobs = macos_linux_evidence()
+    release.verify_completed_run(run, jobs, SHA, "macos-linux")
+    # The full-platform default still requires the Windows slots.
+    with pytest.raises(ValueError, match="missing"):
+        release.verify_completed_run(run, jobs, SHA)
+
+
+@pytest.mark.parametrize("case", [
+    "wrong-scope", "missing-title", "unknown-scope", "missing-mac311",
+    "missing-linux312", "missing-audit", "skipped-source", "skipped-installed",
+    "failed-audit", "other-commit", "other-attempt", "in-progress",
+])
+def test_smaller_release_never_accepts_partial_or_relabelled_evidence(case):
+    run, jobs = macos_linux_evidence()
+    scope = "macos-linux"
+    if case == "wrong-scope": run["display_title"] = "Acira release verification (all)"
+    elif case == "missing-title": run.pop("display_title")
+    elif case == "unknown-scope": scope = "mac-only"
+    elif case in ("missing-mac311", "missing-linux312", "missing-audit"):
+        name = {"missing-mac311": "verify-macOS-py3.11", "missing-linux312": "verify-Linux-py3.12", "missing-audit": "dependency-audit"}[case]
+        jobs["jobs"] = [job for job in jobs["jobs"] if job["name"] != name]
+        jobs["total_count"] = len(jobs["jobs"])
+    elif case in ("skipped-source", "skipped-installed", "failed-audit"):
+        audit = case == "failed-audit"
+        name = "dependency-audit" if audit else "verify-Linux-py3.12"
+        job = next(job for job in jobs["jobs"] if job["name"] == name)
+        step_name = "Require no known dependency advisories" if audit else ("Test source checkout" if case == "skipped-source" else "Test installed distribution")
+        step = next(step for step in job["steps"] if step["name"] == step_name)
+        step["conclusion"] = "failure" if audit else "skipped"
+    elif case == "other-commit": jobs["jobs"][0]["head_sha"] = "b" * 40
+    elif case == "other-attempt": jobs["jobs"][0]["run_attempt"] = 2
+    elif case == "in-progress": run["status"] = "in_progress"
+    with pytest.raises(ValueError):
+        release.verify_completed_run(run, jobs, SHA, scope)
+
+
 @pytest.mark.parametrize("case", ["expired", "missing", "duplicate", "different-run", "different-sha", "oversize", "incomplete-page"])
 def test_invalid_artifact_record_blocks_download(case):
     response = artifact_record()
@@ -200,6 +245,18 @@ def test_complete_post_verification_owner_approval(monkeypatch, tmp_path):
     _, _, args.wheel_sha256, args.sdist_sha256 = files(tmp_path)
     args.artifact_directory = tmp_path
     assert release.verify_approval(args) == 50
+
+
+def test_platform_scope_is_checked_in_actual_owner_approval(monkeypatch):
+    args, responses = mock_approval(monkeypatch)
+    run, jobs = macos_linux_evidence()
+    responses["repos/Acira-dev/acira-sdk/actions/runs/10"] = run
+    responses["repos/Acira-dev/acira-sdk/actions/runs/10/jobs?filter=latest&per_page=100"] = jobs
+    args.platforms = "macos-linux"
+    assert release.verify_approval(args) == 50
+    args.platforms = "all"
+    with pytest.raises(ValueError, match="missing"):
+        release.verify_approval(args)
 
 
 @pytest.mark.parametrize("case", ["early-approval", "main-moved", "invalid-run", "invalid-hash", "owner-rerun"])

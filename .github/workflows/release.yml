@@ -1,5 +1,5 @@
 name: SDK release
-run-name: Acira approval to publish verified run ${{ inputs.verification_run }}
+run-name: Acira approval to publish verified run ${{ inputs.verification_run }} (${{ inputs.platforms }})
 
 on:
   workflow_dispatch:
@@ -14,6 +14,11 @@ on:
         type: choice
         options: [hosted, self-hosted]
         default: hosted
+      platforms:
+        description: "Must match the completed verification's supported platform scope"
+        type: choice
+        options: [all, macos-linux]
+        default: all
       verification_run:
         description: "Successful SDK release verification run ID"
         required: true
@@ -44,11 +49,12 @@ env:
   SOURCE_SHA: ${{ inputs.source_sha }}
   WHEEL_SHA256: ${{ inputs.wheel_sha256 }}
   SDIST_SHA256: ${{ inputs.sdist_sha256 }}
+  RELEASE_PLATFORMS: ${{ inputs.platforms }}
 
 jobs:
   release-authorization:
     if: github.repository == 'Acira-dev/acira-sdk' && github.repository_owner_id == '286463772' && github.actor_id == '286463772' && github.triggering_actor == 'Acira-dev' && github.ref == 'refs/heads/main'
-    runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","macOS","acira-release-{0}"]', github.run_id)) || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","macOS","acira-release-{0}"]', github.run_id)) || 'ubuntu-24.04' }}
     timeout-minutes: 5
     permissions:
       contents: read
@@ -72,7 +78,7 @@ jobs:
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python tools/verify_release_environment.py --environment "$RELEASE_TARGET" --verification-run "$VERIFICATION_RUN" --source-sha "$SOURCE_SHA" --wheel-sha256 "$WHEEL_SHA256" --sdist-sha256 "$SDIST_SHA256"
+        run: python tools/verify_release_environment.py --environment "$RELEASE_TARGET" --platforms "$RELEASE_PLATFORMS" --verification-run "$VERIFICATION_RUN" --source-sha "$SOURCE_SHA" --wheel-sha256 "$WHEEL_SHA256" --sdist-sha256 "$SDIST_SHA256"
         shell: bash
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -84,12 +90,12 @@ jobs:
       - name: Verify downloaded distributions match approval
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python tools/verify_release_environment.py --environment "$RELEASE_TARGET" --verification-run "$VERIFICATION_RUN" --source-sha "$SOURCE_SHA" --wheel-sha256 "$WHEEL_SHA256" --sdist-sha256 "$SDIST_SHA256" --artifact-directory dist
+        run: python tools/verify_release_environment.py --environment "$RELEASE_TARGET" --platforms "$RELEASE_PLATFORMS" --verification-run "$VERIFICATION_RUN" --source-sha "$SOURCE_SHA" --wheel-sha256 "$WHEEL_SHA256" --sdist-sha256 "$SDIST_SHA256" --artifact-directory dist
         shell: bash
 
   publish:
     needs: release-authorization
-    runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","macOS","acira-release-{0}"]', github.run_id)) || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","macOS","acira-release-{0}"]', github.run_id)) || 'ubuntu-24.04' }}
     timeout-minutes: 10
     environment: ${{ inputs.publish }}
     permissions:

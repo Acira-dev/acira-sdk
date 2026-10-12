@@ -29,6 +29,20 @@ REQUIRED_JOBS = {
     "dependency-audit": {"Install audited release", "Check dependency consistency", "Require no known dependency advisories"},
     **{f"verify-{system}-py{version}": MATRIX_STEPS for system in ("Linux", "macOS", "Windows") for version in ("3.11", "3.12")},
 }
+PLATFORM_SCOPES = {
+    "all": ("Linux", "macOS", "Windows"),
+    "macos-linux": ("Linux", "macOS"),
+}
+
+
+def required_jobs(platforms: str) -> dict:
+    if platforms not in PLATFORM_SCOPES:
+        raise ValueError("Unknown release platform scope")
+    return {
+        name: steps for name, steps in REQUIRED_JOBS.items()
+        if not name.startswith("verify-")
+        or any(name.startswith(f"verify-{system}-") for system in PLATFORM_SCOPES[platforms])
+    }
 
 
 def verify_owner_request(repository: dict, request: dict, source_sha: str, path: str) -> None:
@@ -67,14 +81,19 @@ def verify_environment(environment: dict, branches: dict) -> None:
         raise ValueError("The publishing branch rule must name main exactly, without tags or wildcards")
 
 
-def verify_completed_run(run: dict, jobs: dict, source_sha: str) -> None:
+def verify_completed_run(run: dict, jobs: dict, source_sha: str, platforms: str = "all") -> None:
+    required = required_jobs(platforms)
+    # The trusted workflow records the owner's selected scope in its run name.
+    # A partial all-platform run cannot be relabelled as a smaller release.
+    if platforms != "all" and run.get("display_title") != f"Acira release verification ({platforms})":
+        raise ValueError("Verification was not requested for the approved platform scope")
     if run.get("status") != "completed" or run.get("conclusion") != "success":
         raise ValueError("The verification run has not passed")
     records = jobs.get("jobs")
     if not isinstance(records, list) or jobs.get("total_count") != len(records):
         raise ValueError("Incomplete verification-job evidence")
     names = [job.get("name") for job in records]
-    if len(set(names)) != len(names) or not REQUIRED_JOBS.keys() <= set(names):
+    if len(set(names)) != len(names) or not required.keys() <= set(names):
         raise ValueError("Required verification jobs are missing or duplicated")
     for job in records:
         if (job.get("status") != "completed" or job.get("conclusion") != "success"
@@ -82,7 +101,7 @@ def verify_completed_run(run: dict, jobs: dict, source_sha: str) -> None:
                 or job.get("run_attempt") != run.get("run_attempt") or not job.get("started_at")
                 or not job.get("completed_at")):
             raise ValueError("A verification job did not execute and pass for this commit and attempt")
-        for name in REQUIRED_JOBS.get(job.get("name"), set()):
+        for name in required.get(job.get("name"), set()):
             matches = [step for step in job.get("steps", []) if step.get("name") == name]
             if (len(matches) != 1 or matches[0].get("conclusion") != "success"
                     or matches[0].get("status") != "completed"
@@ -162,7 +181,7 @@ def verify_approval(args) -> int:
     verify_owner_request(repository, verification, args.source_sha, VERIFICATION_PATH)
     if datetime.fromisoformat(verification["updated_at"].replace("Z", "+00:00")) >= datetime.fromisoformat(publishing["created_at"].replace("Z", "+00:00")):
         raise ValueError("Owner approval must be requested after verification finishes")
-    verify_completed_run(verification, github_json(f"{base}/actions/runs/{args.verification_run}/jobs?filter=latest&per_page=100"), args.source_sha)
+    verify_completed_run(verification, github_json(f"{base}/actions/runs/{args.verification_run}/jobs?filter=latest&per_page=100"), args.source_sha, getattr(args, "platforms", "all"))
     environment = f"{base}/environments/{args.environment}"
     verify_environment(github_json(environment), github_json(environment + "/deployment-branch-policies?per_page=100"))
     artifact_id = verify_artifact_record(github_json(f"{base}/actions/runs/{args.verification_run}/artifacts?per_page=100"), verification)
@@ -174,6 +193,7 @@ def verify_approval(args) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--environment", required=True, choices=["pypi", "testpypi"])
+    parser.add_argument("--platforms", choices=PLATFORM_SCOPES, default="all")
     parser.add_argument("--verification-run", required=True, type=int)
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--wheel-sha256", required=True)
@@ -187,7 +207,7 @@ def main() -> None:
     if output := os.environ.get("GITHUB_OUTPUT"):
         with open(output, "a", encoding="utf-8") as handle:
             handle.write(f"artifact_id={artifact_id}\n")
-    print("Verified Acira owner approval, complete test matrix, audit and main-only environment" +
+    print(f"Verified Acira owner approval, complete {args.platforms} test matrix, audit and main-only environment" +
           ("; exact artifact hashes match" if args.artifact_directory else "; artifact download still required"))
 
 
