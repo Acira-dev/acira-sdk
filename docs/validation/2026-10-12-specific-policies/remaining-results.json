@@ -1,0 +1,220 @@
+{
+  "scope": "Remaining hosts without a complete control-bound journey after recorded follow-ups; external and selection limitations are not SDK safety passes.",
+  "remaining_host_count": 23,
+  "diagnoses": {
+    "capture_control_changed_or_unavailable": 11,
+    "protected_case_control_identity_unavailable": 5,
+    "source_or_destination_unavailable": 5,
+    "approved_browser_call_outcome_unknown": 1,
+    "mapping_rejected_changed_control_after_locale_redirect": 1
+  },
+  "hosts": [
+    {
+      "host": "about.gitlab.com",
+      "latest_status": "partial",
+      "diagnosis": "capture_control_changed_or_unavailable",
+      "result": "incomplete",
+      "note": "Baseline and capture did not establish the same stable, visible control. No capture-export or protected-action pass is claimed. Re-select or recapture a currently visible control in a new run; do not force a click or relax identity checks."
+    },
+    {
+      "host": "arstechnica.com",
+      "latest_status": "partial",
+      "diagnosis": "capture_control_changed_or_unavailable",
+      "result": "incomplete",
+      "note": "Baseline and capture did not establish the same stable, visible control. No capture-export or protected-action pass is claimed. Re-select or recapture a currently visible control in a new run; do not force a click or relax identity checks."
+    },
+    {
+      "host": "home.dartmouth.edu",
+      "latest_status": "partial",
+      "diagnosis": "protected_case_control_identity_unavailable",
+      "result": "incomplete",
+      "note": "Capture and some protected cases were verified, but at least one fresh context could not establish the identical DOM/control hash. Only verified individual cases count; no complete host journey is claimed."
+    },
+    {
+      "host": "www.apple.com",
+      "latest_status": "partial",
+      "diagnosis": "capture_control_changed_or_unavailable",
+      "result": "incomplete",
+      "note": "Baseline and capture did not establish the same stable, visible control. No capture-export or protected-action pass is claimed. Re-select or recapture a currently visible control in a new run; do not force a click or relax identity checks."
+    },
+    {
+      "host": "www.bl.uk",
+      "latest_status": "unavailable",
+      "diagnosis": "source_or_destination_unavailable",
+      "result": "incomplete",
+      "note": "A fresh follow-up could not complete the harmless baseline within robots, read-only routing, actionability or transport boundaries. Earlier partial results remain partial; this is not a protection pass."
+    },
+    {
+      "host": "www.cam.ac.uk",
+      "latest_status": "partial",
+      "diagnosis": "protected_case_control_identity_unavailable",
+      "result": "incomplete",
+      "note": "Capture and some protected cases were verified, but at least one fresh context could not establish the identical DOM/control hash. Only verified individual cases count; no complete host journey is claimed."
+    },
+    {
+      "host": "www.coursera.org",
+      "latest_status": "partial",
+      "diagnosis": "protected_case_control_identity_unavailable",
+      "result": "incomplete",
+      "note": "Capture and some protected cases were verified, but at least one fresh context could not establish the identical DOM/control hash. Only verified individual cases count; no complete host journey is claimed."
+    },
+    {
+      "host": "www.dropbox.com",
+      "latest_status": "partial",
+      "diagnosis": "capture_control_changed_or_unavailable",
+      "result": "incomplete",
+      "note": "Baseline and capture did not establish the same stable, visible control. No capture-export or protected-action pass is claimed. Re-select or recapture a currently visible control in a new run; do not force a click or relax identity checks."
+    },
+    {
+      "host": "www.figma.com",
+      "latest_status": "partial",
+      "diagnosis": "capture_control_changed_or_unavailable",
+      "result": "incomplete",
+      "note": "Baseline and capture did not establish the same stable, visible control. No capture-export or protected-action pass is claimed. Re-select or recapture a currently visible control in a new run; do not force a click or relax identity checks."
+    },
+    {
+      "host": "www.gatech.edu",
+      "latest_status": "partial",
+      "diagnosis": "capture_control_changed_or_unavailable",
+      "result": "incomplete",
+      "note": "Baseline and capture did not establish the same stable, visible control. No capture-export or protected-action pass is claimed. Re-select or recapture a currently visible control in a new run; do not force a click or relax identity checks."
+    },
+    {
+      "host": "www.icrc.org",
+      "latest_status": "partial",
+      "diagnosis": "approved_browser_call_outcome_unknown",
+      "result": "unknown",
+      "note": "Captured-policy Block and rejected Ask produced zero dispatches. The approved click dispatched once but the browser call timed out without a confirmed result. It was recorded as unknown and not automatically retried."
+    },
+    {
+      "host": "www.kaist.ac.kr",
+      "latest_status": "unavailable",
+      "diagnosis": "source_or_destination_unavailable",
+      "result": "incomplete",
+      "note": "A fresh follow-up could not complete the harmless baseline within robots, read-only routing, actionability or transport boundaries. Earlier partial results remain partial; this is not a protection pass."
+    },
+    {
+      "host": "www.moma.org",
+      "latest_status": "partial",
+      "diagnosis": "capture_control_changed_or_unavailable",
+      "result": "incomplete",
+      "note": "Baseline and capture did not establish the same stable, visible control. No capture-export or protected-action pass is claimed. Re-select or recapture a currently visible control in a new run; do not force a click or relax identity checks."
+    },
+    {
+      "host": "www.nationaltrust.org.uk",
+      "latest_status": "unavailable",
+      "diagnosis": "source_or_destination_unavailable",
+      "result": "incomplete",
+      "note": "A fresh follow-up could not complete the harmless baseline within robots, read-only routing, actionability or transport boundaries. Earlier partial results remain partial; this is not a protection pass."
+    },
+    {
+      "host": "www.opensearch.org",
+      "latest_status": "partial",
+      "diagnosis": "protected_case_control_identity_unavailable",
+      "result": "incomplete",
+      "note": "Capture and some protected cases were verified, but at least one fresh context could not establish the identical DOM/control hash. Only verified individual cases count; no complete host journey is claimed."
+    },
+    {
+      "host": "www.petsmart.com",
+      "latest_status": "partial",
+      "diagnosis": "capture_control_changed_or_unavailable",
+      "result": "incomplete",
+      "note": "Baseline and capture did not establish the same stable, visible control. No capture-export or protected-action pass is claimed. Re-select or recapture a currently visible control in a new run; do not force a click or relax identity checks."
+    },
+    {
+      "host": "www.rijksmuseum.nl",
+      "latest_status": "partial",
+      "diagnosis": "capture_control_changed_or_unavailable",
+      "result": "incomplete",
+      "note": "Baseline and capture did not establish the same stable, visible control. No capture-export or protected-action pass is claimed. Re-select or recapture a currently visible control in a new run; do not force a click or relax identity checks."
+    },
+    {
+      "host": "www.samsung.com",
+      "latest_status": "partial",
+      "diagnosis": "mapping_rejected_changed_control_after_locale_redirect",
+      "result": "fail_closed",
+      "note": "The captured Learn more control was not the proposed Galaxy S26 Ultra link on the locale page. The bounded reviewer rejected that mismatch; the run entered security lockdown. Later cases in that run remained blocked, not separately exercised. No complete journey is claimed."
+    },
+    {
+      "host": "www.theacropolismuseum.gr",
+      "latest_status": "partial",
+      "diagnosis": "capture_control_changed_or_unavailable",
+      "result": "incomplete",
+      "note": "Baseline and capture did not establish the same stable, visible control. No capture-export or protected-action pass is claimed. Re-select or recapture a currently visible control in a new run; do not force a click or relax identity checks."
+    },
+    {
+      "host": "www.tomtom.com",
+      "latest_status": "partial",
+      "diagnosis": "capture_control_changed_or_unavailable",
+      "result": "incomplete",
+      "note": "Baseline and capture did not establish the same stable, visible control. No capture-export or protected-action pass is claimed. Re-select or recapture a currently visible control in a new run; do not force a click or relax identity checks."
+    },
+    {
+      "host": "www.u-tokyo.ac.jp",
+      "latest_status": "unavailable",
+      "diagnosis": "source_or_destination_unavailable",
+      "result": "incomplete",
+      "note": "A fresh follow-up could not complete the harmless baseline within robots, read-only routing, actionability or transport boundaries. Earlier partial results remain partial; this is not a protection pass."
+    },
+    {
+      "host": "www.ucsd.edu",
+      "latest_status": "partial",
+      "diagnosis": "protected_case_control_identity_unavailable",
+      "result": "incomplete",
+      "note": "Capture and some protected cases were verified, but at least one fresh context could not establish the identical DOM/control hash. Only verified individual cases count; no complete host journey is claimed."
+    },
+    {
+      "host": "www.ufl.edu",
+      "latest_status": "unavailable",
+      "diagnosis": "source_or_destination_unavailable",
+      "result": "incomplete",
+      "note": "A fresh follow-up could not complete the harmless baseline within robots, read-only routing, actionability or transport boundaries. Earlier partial results remain partial; this is not a protection pass."
+    }
+  ],
+  "unknown_operations": [
+    {
+      "host": "bulma.io",
+      "action": "click",
+      "outcome": "unknown",
+      "automatic_retry": false,
+      "fresh_followup": "complete"
+    },
+    {
+      "host": "www.sydney.edu.au",
+      "action": "click",
+      "outcome": "unknown",
+      "automatic_retry": false,
+      "fresh_followup": "complete"
+    },
+    {
+      "host": "www.u-tokyo.ac.jp",
+      "action": "navigation",
+      "outcome": "unknown",
+      "automatic_retry": false,
+      "fresh_followup": "unavailable"
+    },
+    {
+      "host": "www.cbsnews.com",
+      "action": "navigation",
+      "outcome": "unknown",
+      "automatic_retry": false,
+      "fresh_followup": "complete"
+    },
+    {
+      "host": "www.icrc.org",
+      "action": "click",
+      "outcome": "unknown",
+      "automatic_retry": false,
+      "fresh_followup": "partial"
+    }
+  ],
+  "getty_approval_invalidation": {
+    "result": "blocked_before_dispatch",
+    "click_dispatches": 0,
+    "reason": "Reviewed operation or policy changed before dispatch; fresh review required",
+    "fresh_followup": "complete"
+  },
+  "prohibited_workarounds": [
+    "No forced clicks, lowered mapping thresholds, unsafe approval reuse, disabled page security, CAPTCHA bypass or automatic retry of unknown operations."
+  ]
+}

@@ -27,7 +27,7 @@ See the [failure investigation and repairs](docs/public-site-failures.md) for wh
 was corrected and which access or test-boundary limitations remain.
 
 For captured policies, use the [terminal-first policy guide](docs/specific-policies.md).
-The [specific-policy validation report](docs/validation/2026-10-11-specific-policies/README.md)
+The [specific-policy validation report](docs/validation/2026-10-12-specific-policies/README.md)
 records the extension-to-SDK journey, real-site results, original failures, repairs,
 and remaining checks.
 
@@ -395,6 +395,11 @@ python -m pytest -q
 python -m build --wheel
 python tools/verify_wheel.py dist/acira-0.1.0-py3-none-any.whl
 ```
+
+Full development/release checks also require Node.js 22 or newer for tests of the
+extension's background channel. Node.js is a test prerequisite; installing and
+using the SDK does not require it. Release verification must install both adapters
+and Chromium and must not skip their tests.
 
 The wheel check creates two clean environments and projects outside the checkout,
 starts agents first, verifies one shared service, changes one project's policies and

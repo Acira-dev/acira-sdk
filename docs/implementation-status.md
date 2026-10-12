@@ -1,6 +1,6 @@
 # SDK and shared-dashboard implementation status
 
-Updated 2026-10-11. The entire approved feature set remains committed. This is an
+Updated 2026-10-12. The entire approved feature set remains committed. This is an
 implementation ledger, not a claim that every release gate or the customer pilot is
 complete. Local SDK/extension release artifacts are built. Publication and platform results
 are recorded separately below; a local build is not proof of PyPI publication.
@@ -17,12 +17,12 @@ are recorded separately below; a local build is not proof of PyPI publication.
 | browser-use | Per-run event/CDP enforcement, exact target revalidation, event-argument binding, isolated review, existing JIT secret integration, exact frame-node activation, bounded fills, request contracts and related-target interception | Real reviewed/rejected type, element/frame activation, dropdown, upload, tabs, grouped fields and critical requests; worker/popup escapes and changed values blocked |
 | Approvals | One-attempt binding, five-minute timeout, first-response-wins journal, per-run pause, explicit routine grants, bounded Playwright/browser-use form fill and single HTTP submission contracts | Changed values/files blocked; HTTP mismatch/retry blocked; scoped grants and atomic responses tested |
 | Images | Existing screenshot/highlight feature retained, masks before persistence, omission on unreliable capture, visual-viewport/frame coordinates | Pixel privacy checks; scroll/frame/zoom/device-scale tests; UI screenshots visually inspected |
-| Extension | Offline JSON, pairing/reconnection proof, explicit destination, narrow capability, revocation, direct import, sanitized capture URLs/handler literals | Loaded Chromium extension captures/imports only into the selected project without fixture secrets; unchanged manifest in disposable native Chrome correctly handles denied consent, then allowed consent and authenticated pairing |
+| Extension | Offline JSON, pairing/reconnection proof, explicit destination, narrow capability, revocation, direct import, sanitized capture URLs/handler literals | Packaged extension captures/imports only into the selected project without fixture secrets; historical native consent/pairing checks passed, while the current 0.1.8 native toolbar/consent recheck remains unexecuted |
 | Secrets | Metadata-only reference editor, private runtime resolution, existing providers retained, bounded shared-process redaction | .env values absent from API metadata; same-name references stay masked across integrations and long runs; numeric codes/cards redacted before journal, transport and audit persistence |
 | Activity | Durable redacted events, distinct authorization/dispatch/outcome states, resumable IDs, filtered pagination, streaming retained-history export, age/physical-database/image limits and combined legacy archive quota | Runtime tests, finalized/active archive quota checks, service restart without duplicate IDs |
 | Replay | Same configured evaluator with frozen normalized facts, revision comparisons, policy decision distinct from human response, explicit indeterminate results | Replay parity and missing-fact tests; separate policy/authorization test |
 | Dashboard | Agents, Approvals, Policies, Activity, Backtesting, Settings, interactive assignment graph/table, policy copying/shared folders, raw JSON, references, grants, controls, recovery messages | Live review journey and rendered highlight pixels; critical facts visible directly; same-agent runs identified and approvals isolated; keyboard setup/edit/assignment/rollback/recovery; safe Enter behavior |
-| CI/docs | Core, Chromium and wheel jobs for macOS/Windows/Linux; migration, protection contracts, schemas, pilot protocol, wheel/source/extension artifacts, checksums and publication workflow | Executed full six-combination installed-wheel matrix and all-platform core/clean-wheel jobs; sandbox-enabled Linux startup verified |
+| CI/docs | Core, Chromium and wheel jobs for macOS/Windows/Linux; migration, protection contracts, schemas, pilot protocol, wheel/source/extension artifacts, checksums and publication workflow | Historical six-combination installed-wheel and all-platform core/clean-wheel jobs passed; current formal Windows/exact-source gates remain pending; sandbox-enabled Linux startup verified |
 
 The previous installed wheel passed **408 tests on each of Python 3.11 and 3.12** on macOS,
 with Playwright 1.60.0/Chromium and browser-use 0.12.9 installed. Both full runs import
@@ -503,3 +503,55 @@ runners and Linux/Windows retain their official setup-python step. Real native
 selection and GitHub environment activation were exercised locally. After this
 repair, the complete suite passed **689 tests in 586.07 seconds**, without skips;
 the focused release checks passed **92 tests**. Workflow validation also passed.
+
+## Specific-policy capture repairs — 2026-10-12
+
+The captured-policy workflow has further repairs for wrong-kind candidate ranking,
+unchanged identity under score ties, early page input listeners, authenticated
+extension selection routing, and document listeners swallowing the capture panel.
+The extension is now **0.1.8**. It pauses visibly after selector failure and keeps
+exportable drafts; it does not fall back to activating a website control.
+
+The installed-wheel campaign uses actual extension exports and terminal imports
+and configuration. Its driver now requires the same control identity across the
+baseline, capture and protected actions. A duplicate-destination regression prevents
+capturing one link and claiming another link was protected. Stage/cleanup evidence
+also distinguishes a completed export from failed teardown. Original failures,
+interruptions, unavailable sites and uncertain outcomes remain recorded in the
+[new specific-policy report](validation/2026-10-12-specific-policies/README.md).
+
+The final SDK runtime passed **731 tests, without skips**, in each installed-wheel
+environment on macOS and Linux with Python 3.11 and 3.12. After adding five driver
+regressions, the full source suite passed **736 tests** on macOS/Python 3.12;
+all **17 current driver tests** also passed against the installed wheel. Two fresh
+base-wheel environments passed setup/assets, file-only enforcement, late shared
+service connection, separate revisions, restart and event identity checks. A real
+terminal PTY verified capture/import idempotency, rejection without navigation,
+and approval with exactly one observed navigation. Four real documentation sites
+also completed that workflow through actual terminal prompts; explicit mapping
+reviews remained separate from action reviews. The 118-version dependency
+advisory query had no remaining findings or unavailable results after updating
+cached Linux build tools. No paid API, new model or new VM was downloaded.
+
+These are preview checks. They do not establish the current Windows gate, exact-head
+formal release verification, every website, authenticated workflows or transactions.
+Public PyPI publication is still pending the full release gates and owner approval.
+Native Chrome setup was not credited: the UI tool could not select the isolated
+signed-out process, and the existing user's profile was left unchanged. Follow the
+[terminal-first guide](specific-policies.md) to replace an older same-version preview
+wheel and reload or first-load the exported extension.
+
+A TechCrunch export timeout was reproduced and traced to its response's CSP
+sandbox lacking `allow-downloads`. The existing Copy JSON export completed the
+full installed-wheel policy journey there with genuine clipboard readback;
+no page restriction or production extension permission was changed. The setup
+guide now explains this recovery path. Original download failures remain recorded.
+
+The final control-bound campaign attempted all **393 distinct catalog hosts**:
+**199 complete journeys**, **23 partial** and **171 unavailable**. It includes
+430 attempts and 201 completed attempts after follow-ups. Every completed attempt
+passed its exact-control/specific-policy audit check. Final journals contain zero
+blocked or rejected click dispatches and zero duplicate dispatches. Five browser
+calls remain unknown and are not retroactively marked successful. Per-host
+results and the remaining diagnoses are in the validation report; these public
+content checks do not establish authenticated or transaction coverage.

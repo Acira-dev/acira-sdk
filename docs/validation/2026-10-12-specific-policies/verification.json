@@ -1,0 +1,156 @@
+{
+  "runtime_source_commit": "c6c93e9a5ec4d3ddcaa3c559bc8444d09e3df708",
+  "preview_artifacts": [
+    {
+      "file": "acira-0.1.0-py3-none-any.whl",
+      "sha256": "d1b3d48c22cdff5f3dc42acded4b308e2de662426f57de19efa41040bddd7b04",
+      "bytes": 848739
+    },
+    {
+      "file": "acira-0.1.0.tar.gz",
+      "sha256": "d8c29abe29e31845a86c2336efc6f57b5394837a8560c6dea96dd1b85d799c0e",
+      "bytes": 1028135
+    },
+    {
+      "file": "acira-capture-0.1.8.zip",
+      "sha256": "3c8e2fd1b06195ea060b2c63740f8e819de0a56a4224a343386fa762c7e98be2",
+      "bytes": 25723
+    }
+  ],
+  "runtime_bytes": "123 shipped runtime files matched the source runtime",
+  "completed_full_runs": [
+    {
+      "check": "source macOS Python 3.12",
+      "tests_passed": 731,
+      "seconds": 1208.3,
+      "skipped": 0,
+      "installed": false,
+      "scope": "Final SDK runtime c6c93e9; before four control-identity tests and one capture-cleanup test were added",
+      "log_sha256": "2e3c8ae79b18bb756fd94a73aa37fd200fc7bd21fc4e147c8f6a3f082a848187"
+    },
+    {
+      "check": "wheel macOS Python 3.12",
+      "tests_passed": 731,
+      "seconds": 1210.55,
+      "skipped": 0,
+      "installed": true,
+      "scope": "Final SDK runtime c6c93e9; before four control-identity tests and one capture-cleanup test were added",
+      "log_sha256": "fb8228d306004065973a956150f4a21b8f12bb9acabe1067d3872c1dda0625dd"
+    },
+    {
+      "check": "wheel macOS Python 3.11",
+      "tests_passed": 731,
+      "seconds": 989.95,
+      "skipped": 0,
+      "installed": true,
+      "scope": "Final SDK runtime c6c93e9; before four control-identity tests and one capture-cleanup test were added",
+      "log_sha256": "48c3c9dc480ff4acac309f9685fb95b21f401ebba128174ed4bf4af3476140ae"
+    },
+    {
+      "check": "wheel Linux Python 3.12",
+      "tests_passed": 731,
+      "seconds": 1273.74,
+      "skipped": 0,
+      "installed": true,
+      "scope": "Final SDK runtime c6c93e9; before four control-identity tests and one capture-cleanup test were added",
+      "log_sha256": "093285e73b90cdd8ad9f1484b57f63c884336e85871988f967147a6a03bf4843"
+    },
+    {
+      "check": "wheel Linux Python 3.11",
+      "tests_passed": 731,
+      "seconds": 707.02,
+      "skipped": 0,
+      "installed": true,
+      "scope": "Final SDK runtime c6c93e9; before four control-identity tests and one capture-cleanup test were added",
+      "log_sha256": "0b0e6329339a2fc4c0058745ed868513c229407af067d5438579f25ddc853c3c"
+    },
+    {
+      "check": "source macOS Python 3.12 current diagnostic fixtures",
+      "tests_passed": 736,
+      "seconds": 646.92,
+      "skipped": 0,
+      "installed": false,
+      "log_sha256": "2759007a936ad6285678d66ec393398a6c962d30f2d409173290ee89671531f7"
+    }
+  ],
+  "terminal": "Real PTY verified capture/import idempotency, Block/rejected Ask with zero navigation and approved Ask with one navigation",
+  "packaging": "Wheel and sdist passed Twine; two clean offline wheel installations passed file-only operation, late connection, shared server across environments, independent revisions and restart identity checks",
+  "current_suite_tests": 736,
+  "current_suite_status": "736 source tests passed on macOS/Python 3.12, no skips",
+  "publication": "Not published; Windows and formal source/installed release gates plus Acira-owner approval remain required",
+  "dependency_audit": "118 third-party package versions across Mac/full/light and Linux test environments; no active advisory findings or unavailable queries after updating cached Linux build tools",
+  "capture_stage_diagnostic": {
+    "site": "https://svelte.dev/",
+    "capture": "verified",
+    "selection_document_requests": 0,
+    "export_identity": "stable",
+    "cleanup": "complete",
+    "note": "Capture-only diagnostic, not counted as a complete policy journey."
+  },
+  "focused_current_driver": {
+    "check": "installed wheel macOS Python 3.12",
+    "tests_passed": 17,
+    "seconds": 17.53,
+    "skipped": 0,
+    "log_sha256": "bcc2bb9114772aec7900dce620c48d3e2c0c901e4c67b4892a8375f0b6c2cf55",
+    "scope": "Current same-control and cleanup regressions against the installed runtime wheel"
+  },
+  "native_chrome_setup": {
+    "status": "unexecuted",
+    "browser": "Google Chrome 154.0.8037.98",
+    "reason": "Native UI tool could not select the separately launched signed-out Chrome process; it binds the pre-existing process. Existing profile permissions and extensions were left unchanged.",
+    "production_manifest": "No debugger or broad host permission added; exported extension version 0.1.8"
+  },
+  "real_site_terminal": {
+    "completed_distinct_hosts": [
+      "go.dev",
+      "flask.palletsprojects.com",
+      "www.sphinx-doc.org",
+      "docs.python.org"
+    ],
+    "workflow": "Actual packaged capture, CLI imports twice, live target configuration, Block/reject with zero click dispatches, approved Ask with one verified navigation; real terminal stdin and prompts, no custom reviewer backend",
+    "mapping": "Concrete source/label/control-kind/destination evidence checked before explicit mapping approval on Flask/Sphinx/Python; mapping approval did not override Block or approve the action",
+    "original_incomplete_attempts": "Python mapping deliberately rejected; Sphinx initial attempt exceeded the test helper's 40-second action deadline. Preserved; fresh follow-up gives manual review enough time without changing SDK defaults.",
+    "logs": [
+      {
+        "file": "specific-repair-stage-terminal-initial-pty.log",
+        "sha256": "8455bed60f15d36d03eb2223930db2775c2b181fcb38ba90e6e170cdc5b3aa34"
+      },
+      {
+        "file": "specific-repair-stage-terminal-followup-pty.log",
+        "sha256": "b9e1f60e280a206548f35c8b9fcbcc08bb943f420e1203dcdfdd345e7b594a90"
+      },
+      {
+        "file": "specific-repair-stage-terminal-reviewtime-pty.log",
+        "sha256": "dc99fcfd676bc89e1b46e95b82fa132b6e16557ed574f5098fd098233df5acb4"
+      }
+    ]
+  },
+  "script_validation": {
+    "background.js": "node --check passed",
+    "content.js": "node --check passed",
+    "selection.js": "node --check passed"
+  },
+  "page_restricted_export": {
+    "site": "https://techcrunch.com/",
+    "diagnosis": "Source CSP sandbox lacks allow-downloads; trusted Mark/Download inputs observed; Download timeout reproduced",
+    "recovery": "Existing genuine Copy JSON \u2192 native clipboard readback \u2192 file \u2192 two CLI imports \u2192 Block/rejected Ask zero dispatches \u2192 approved Ask one verified navigation",
+    "production_permissions": "Unchanged; clipboard readback granted only in disposable test profile",
+    "diagnostic_sha256": "ce2e77fa5f64142bea9901b0e6ec373dd2ba93c6fe470a682a0af089375aa4c5"
+  },
+  "diagnostic_source_commit": "dc647232372630a593a1bde54b2895f13ae82105",
+  "artifact_source_boundary": "Preview runtime bytes match c6c93e9. The source archive also contains diagnostic/docs working changes from its build time; it is not an exact final-HEAD release artifact. Formal release must build and test its exact approved source commit.",
+  "final_campaign": {
+    "distinct_hosts": 393,
+    "complete_distinct_hosts": 199,
+    "partial_distinct_hosts": 23,
+    "unavailable_distinct_hosts": 171,
+    "attempts_including_retests": 430,
+    "complete_attempts": 201,
+    "captured_policy_and_control_audit_failures": 0,
+    "prohibited_guard_dispatches": 0,
+    "duplicate_dispatch_operations": 0,
+    "unknown_browser_calls": 5,
+    "catalog_entries_unattempted": 0
+  }
+}

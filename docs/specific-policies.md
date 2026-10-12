@@ -52,9 +52,24 @@ acira policy configure
 acira policy validate
 ```
 
-The selection click is intercepted rather than dispatched to the selected
-control. Test capture on an inert page first. Capture is not a sandbox for
-untrusted website scripts or an authorization to transact on a real website.
+Some websites prohibit file downloads through their page security policy. If no
+file appears after Download, choose **Copy JSON**, save the copied text as
+`acira-capture.json`, and import that file with the same command. Do not disable
+Chrome or website security settings. TechCrunch's complete copied-JSON journey
+is recorded separately from its failed Download attempts in the validation report.
+
+Close Acira Capture when finished before letting an agent use that same page.
+
+While capturing, a transparent extension frame receives pointer input and selects
+the control underneath it. The page's earlier click/pointer listeners do not
+receive that selection input. Scrolling still works; Escape pauses selection.
+Selection messages travel through an authenticated extension channel. Website
+messages cannot select or export a target. If the selector cannot load or its
+connection is lost, Acira pauses and keeps the recovery message visible. Close
+and reopen capture to reconnect; an already captured draft can still be exported.
+Acira does not fall back to clicking the page. Test capture on an inert page first.
+Capture is not a sandbox for untrusted website scripts or an authorization to
+transact on a real website.
 
 The terminal distinguishes general protections from specific policies and lists
 their names, IDs, JSON filenames, and enabled state. Configuration offers captured
@@ -88,6 +103,9 @@ another page; Acira does not combine unrelated page targets under one scope.
 After upgrading the SDK, update the exported installation with
 `acira extension install --replace`, then reload its card in Chrome's extensions
 page. Acira refuses to overwrite unrelated files in that folder.
+When replacing another `0.1.0` preview, use the
+[explicit wheel replacement command](quickstart.md#2-install-the-sdk-there);
+pip otherwise may keep the previously installed build with the same version.
 
 ## Run and review from the terminal
 
@@ -100,6 +118,16 @@ On a new or changed page, Acira may first request a **target mapping review** if
 captured fingerprint cannot be identified unambiguously. This is separate from
 approval to execute an action. Rejecting an unsafe mapping stops that run; do not
 retry or bypass it. Repair the capture or investigate the page in a new run.
+
+An unchanged target can map directly when its page, DOM position, stable identity
+attributes, control kind, label facts, and recorded state agree. A score tie with
+an unrelated or ineligible control no longer creates an unnecessary mapping
+review. Link syntax or other recorded identity differences can still require mapping
+review even when the destination looks familiar. Review the actual proposed
+control and destination; a mapping approval only identifies the control.
+This establishes the target only: an Ask policy still requires approval,
+and a Block policy still prevents the action. Changed or uncertain targets retain
+the normal resolver and mapping-review rules.
 
 Ask policies then request an operation review. Rejecting it produces no guarded
 browser side effect. Approval authorizes the reviewed attempt, subject to the
@@ -131,7 +159,7 @@ The ordinary offline browser tests cover extension pairing/export, terminal
 imports and configuration, dashboard editing, and observed browser effects:
 
 ```sh
-python -m pytest -q tests/test_terminal_policies.py tests/test_extension_browser.py tests/test_specific_policy_journey.py tests/test_specific_controls.py tests/test_specific_mapping_boundary.py
+python -m pytest -q tests/test_terminal_policies.py tests/test_extension_browser.py tests/test_specific_policy_journey.py tests/test_specific_controls.py tests/test_specific_mapping_boundary.py tests/test_capture_mapping_regressions.py tests/test_specific_policy_sweep.py
 ```
 
 `tools/specific_policy_sweep.py` is an opt-in, installed-wheel campaign for
@@ -150,6 +178,6 @@ reported as limitations rather than protection passes.
 Use a new output folder for each campaign and keep its private journals and images
 local. Public links cannot establish authenticated, payment, or every-site safety.
 
-See the [recorded validation campaign](validation/2026-10-11-specific-policies/README.md)
+See the [recorded validation campaign](validation/2026-10-12-specific-policies/README.md)
 for verified workflows, capture repairs, unavailable sites, and remaining manual
 and platform checks.

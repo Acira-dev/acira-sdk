@@ -54,6 +54,19 @@ do not install Chromium or download a model. This release's integration tests us
 Playwright 1.60.0 and browser-use 0.11.12. Other versions are not established by
 those tests; check the [protection coverage](protection.md) when evaluating them.
 
+If you already installed an earlier `0.1.0` preview, its version number is the
+same. Replace it explicitly, then check dependency consistency:
+
+```sh
+python -m pip install --force-reinstall "/absolute/path/to/acira-0.1.0-py3-none-any.whl"
+python -m pip check
+```
+
+Update an exported capture extension separately with
+`acira extension install --replace`, then reload its existing card at
+`chrome://extensions`. On a first installation, follow the
+[capture setup steps](specific-policies.md#capture-an-application-specific-target).
+
 Reuse your existing Chromium installation or connection and your existing model.
 For Playwright, install its Chromium build only if your workflow needs it:
 
