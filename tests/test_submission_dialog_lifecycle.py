@@ -260,17 +260,21 @@ async def test_browser_use_multiple_attachments_deduplicate_only_the_same_pendin
     if same_target:
         state.records["focused"].target_id = state.records["detecting"].target_id
     await dialogs.on_TabCreatedEvent(state.watchdog, SimpleNamespace(target_id="one"))
-    finish = asyncio.Event()
+    expected = 1 if same_target else 2
+    finish, entered = asyncio.Event(), asyncio.Event()
     async def unfinished(**kwargs):
         state.dismissals.append(kwargs)
+        if len(state.dismissals) == expected:
+            entered.set()
         await finish.wait()
     state.root.send.Page.handleJavaScriptDialog = unfinished
     handler = state.root._event_registry._handlers["Page.javascriptDialogOpening"]
     handler({"type": "confirm"}, "detecting")
     handler({"type": "confirm"}, "focused")
-    expected = 1 if same_target else 2
     try:
-        await asyncio.sleep(0)
+        # wait_for schedules its child differently across Python versions;
+        # observe actual dismissal entry while both operations remain pending.
+        await asyncio.wait_for(entered.wait(), 1)
         assert len(state.dismissals) == expected
         assert len(state.events) == expected
         assert state.dismissals[0] == {"params": {"accept": False}, "session_id": "detecting"}
