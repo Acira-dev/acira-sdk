@@ -1,17 +1,20 @@
-# Try Acira on real public documentation
+# Optional: try Acira on real public documentation
 
-Install the local release wheel with its `[playwright]` extra in Python 3.11+:
+This test drive is optional after integrating Acira into your own project. In your
+Python 3.11/3.12 environment, install Playwright separately if it is missing, then
+add Acira from PyPI:
 
 ```sh
-python -m pip install "/absolute/path/acira-0.1.0-py3-none-any.whl[playwright]"
+python -m pip install playwright==1.60.0
+# Only if the matching Chromium build is missing:
 python -m playwright install chromium
+python -m pip install acira
 acira demo --public-sites
 ```
 
-Until an Acira distribution has actually been published to PyPI, plain
-`pip install acira` is unavailable. Registering a pending publisher does not upload
-a package. The local wheel provides the real `acira` command, including this journey,
-outside the repository checkout.
+If the compatible Playwright package and browser are already present, keep them.
+The base Acira package provides this optional journey outside the source checkout;
+it does not replace your application's entry point or require a cloned SDK repository.
 
 Keep the terminal open. The command opens a test-drive page and the shared local
 dashboard. Select Python documentation, MDN's JavaScript guide, or Playwright's

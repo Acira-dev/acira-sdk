@@ -576,3 +576,28 @@ Preparing these controls or registering a pending publisher does not establish
 that an upload occurred. Confirm public versions on the
 [Acira PyPI page](https://pypi.org/project/acira/); only an actual successful upload
 makes public pip installation available.
+
+## Public release and separate Playwright setup (2026-10-12)
+
+Acira **0.1.0** was published successfully on
+[PyPI](https://pypi.org/project/acira/0.1.0/) from commit
+`6c9f6f495780621c126445b58f5e1daca8a51601`. The
+[verification run](https://github.com/Acira-dev/acira-sdk/actions/runs/38239393380)
+passed all four Linux/macOS and Python 3.11/3.12 combinations: 750 source tests
+and 750 installed-wheel tests in each combination, totaling 6,000 passes with
+zero skips. The audit covered 128 installed packages with no known advisories.
+The separate
+[publication run](https://github.com/Acira-dev/acira-sdk/actions/runs/38244760852)
+passed owner approval and exact-artifact checks, then uploaded through trusted
+publishing. Fresh public-index installations passed on macOS and Linux, including
+the CLI, policy initialization and extension export. GitHub stayed private, no
+payment or spending change was made, and temporary runners were removed.
+
+The **0.1.1** documentation update makes the normal setup explicit: use or install
+official Playwright independently, then install `acira` in the same project
+environment and add the protection snippet to the actual application. The demo
+remains optional after integration; `acira[playwright]` remains a secondary
+convenience shortcut. Runtime protection and dependency constraints are unchanged.
+PyPI stores the first uploaded description for a version, so this README change
+requires a patch release. Version 0.1.1 must pass fresh verification and publication
+before it is described as uploaded. Windows validation remains pending.

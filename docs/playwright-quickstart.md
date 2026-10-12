@@ -4,28 +4,34 @@ Start with your actual project, browser configuration and entry point. The
 [general setup guide](quickstart.md) covers environment activation and installation.
 The bundled test drive is optional and appears after the integration steps below.
 
-## Install the release build
+## Install Playwright separately, then add Acira
 
-Use Python 3.11+ in your existing project environment. Before PyPI publication,
-install a supplied Acira preview wheel:
-
-```sh
-python -m pip install "/absolute/path/acira-0.1.0-py3-none-any.whl[playwright]"
-```
-
-If you have no wheel, [Start here](setup.md) explains repository access and
-environment setup. Install directly from its checkout path in your project's
-environment:
+Activate your existing project's Python 3.11/3.12 environment. If Playwright is
+already installed, keep that compatible installation and skip its setup below.
+For a new Playwright project, install the official package first:
 
 ```sh
-python -m pip install "/absolute/path/to/acira-sdk[playwright]"
+python -m pip install playwright==1.60.0
+# Only if this compatible Chromium build is not already installed:
+python -m playwright install chromium
 ```
 
-If Playwright is already installed, the base wheel without `[playwright]` is
-sufficient to install the SDK; verify your framework version against the tested
-versions. Reuse your existing Chromium setup. Install a browser only if needed with
-`python -m playwright install chromium`. Acira does not silently download browsers.
-Playwright automation needs no model, paid API or cloud account.
+Keep your actual Playwright workflow and browser settings. Add Acira to the same
+environment using its published package:
+
+```sh
+python -m pip install acira
+python -m pip check
+```
+
+Playwright 1.60.0 is the version tested for this release. Acira supplies the protection
+adapter for your application's Playwright calls; the Playwright package remains
+separate. Acira does not silently install browsers, download a model, or replace your
+entry point. Playwright automation needs no model, paid API or cloud account.
+
+The optional `acira[playwright]` shortcut installs both official packages together.
+It is not required. For source or wheel installation, see
+[alternative installation methods](setup.md#alternative-installation-methods).
 
 ## Use Acira in your existing project
 

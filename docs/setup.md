@@ -1,246 +1,286 @@
-# Start here: set up Acira in your own project
+# Start here: add Acira to your own project
 
-> The first public release supports macOS and Linux on Python 3.11/3.12.
-> Windows instructions are available for contributors, but Windows support
-> remains pending its release tests.
+Acira is available on [PyPI](https://pypi.org/project/acira/). The supported release
+platforms are macOS and Linux with Python 3.11/3.12. Windows examples are provided
+for contributors; Windows support remains pending its release tests.
 
-This guide is for Fouad and other developers installing the SDK on a new computer.
-The normal journey is **get the SDK → install in your agent's environment → initialize
-→ integrate → run**. The dashboard and demo are optional.
+The normal journey is **use your browser framework → install Acira → initialize →
+integrate → run your own agent**. The dashboard and demo are optional.
 
-For a published release, install directly from PyPI in your existing agent
-environment, then continue at step 3:
+Playwright stays a separate package. Acira provides the adapter that checks your
+application's supported Playwright actions. If you already have a compatible
+Playwright project, install Acira alone; no SDK checkout or supplied wheel is required.
 
-```sh
-python -m pip install "acira[playwright]"
-python -m pip check
-```
+## 1. Open your existing agent project
 
-Use plain `acira` if you already have the supported browser integration installed.
-Check the [Acira PyPI page](https://pypi.org/project/acira/) for available versions;
-a pending publisher is not yet an installable release. No PyPI account is needed
-to install a published SDK.
+Use the Python environment that runs your application. Activate it before installing
+Acira or running its commands. In macOS/Linux:
 
-The repository stays private during release preparation. Invited collaborators
-can follow the source installation below using their own invited GitHub account.
-Once the repository becomes public, this same clone and install path remains usable.
-
-## 1. Get the SDK
-
-Have Git and Python 3.11 or newer installed. The current test environments use
-Python 3.11 and 3.12. For capture, also have Chrome or Edge available. Playwright's
-Chromium installation is a separate step below. Node.js is needed for development
-tests, not ordinary SDK use.
-
-In a folder where you keep source checkouts:
-
-```sh
-git clone https://github.com/Acira-dev/acira-sdk.git
-```
-
-If GitHub says the repository is unavailable, check that your own account has
-accepted its invitation and that Git is authenticated as that account. The
-repository is private; the error does not mean you need a paid subscription.
-If you use GitHub CLI and Git is not yet authenticated, sign in locally and
-configure Git's credential helper before retrying the clone:
-
-```sh
-gh auth login --hostname github.com
-gh auth setup-git
-```
-
-Keep this checkout separate from the project containing your browser agent.
-Remember its full location, such as `/path/to/acira-sdk` or `C:\src\acira-sdk`.
-
-If you already have a supplied preview wheel, you can instead use the
-[wheel installation instructions](quickstart.md#2-install-the-sdk-there) and
-continue at step 3. Build output is not committed to Git; cloning does not give
-you a `dist` folder or download a published release automatically.
-
-## 2. Install into the environment that runs your agent
-
-Open a terminal in **your existing agent project**, not the SDK checkout. Activate
-its existing environment. If you need a new one, these examples use Python 3.12;
-use your installed Python 3.11 instead if appropriate.
-
-macOS/Linux:
-
-```sh
+~~~sh
 cd /path/to/your-agent-project
-# Only if this project does not already have an environment:
+source .venv/bin/activate
+~~~
+
+If this project has no environment yet, create one first with your installed Python
+3.11 or 3.12, then activate it:
+
+~~~sh
 python3.12 -m venv .venv
 source .venv/bin/activate
-python -m pip install "/path/to/acira-sdk[playwright]"
-python -m pip check
-```
+~~~
 
-Windows PowerShell:
+Existing Conda, uv and other environments also work. Installation and execution must
+use the same interpreter. Node.js is needed for SDK development tests, not normal use.
 
-```powershell
+Windows contributor equivalent:
+
+~~~powershell
 cd C:\path\to\your-agent-project
-# Only if this project does not already have an environment:
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install "C:\src\acira-sdk[playwright]"
-python -m pip check
-```
+~~~
 
-Replace both paths with your actual folders. This installs the SDK and its tested
-Playwright version from the checkout; it does not modify your application code.
-If Playwright is already installed, the base path without `[playwright]` installs
-Acira alone. For an existing browser-use agent, choose `[browser-use]` instead and
-keep its existing model configuration. Extras can change framework dependencies;
-check pip's output and the [supported versions](quickstart.md#2-install-the-sdk-there).
+Create the environment only when one does not already exist. If PowerShell blocks
+activation, use its Python directly, such as
+`.\.venv\Scripts\python.exe -m acira --help`, without changing system execution policies.
 
-If PowerShell blocks activation, use the environment's Python directly instead
-of changing system execution policies:
+## 2. Install Playwright only if your project needs it
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install "C:\src\acira-sdk[playwright]"
-.\.venv\Scripts\python.exe -m acira --help
-```
+**Already using Playwright?** Keep your compatible installation and existing browser
+configuration, and continue to step 3. This release is tested with Playwright 1.60.0;
+other framework versions need their own compatibility verification.
 
-The same `python -m acira` form works for every command below. Install your
-application's own dependencies using its existing setup instructions as well.
+**Starting a Playwright project?** Install the official package separately:
 
-If the intended Playwright browser build is missing, install it explicitly:
+~~~sh
+python -m pip install playwright==1.60.0
+~~~
 
-```sh
+Install the matching Chromium build only if it is missing:
+
+~~~sh
 python -m playwright install chromium
-```
+~~~
 
-On a supported Linux system, if Playwright reports missing browser libraries:
+For a supported Linux system that reports missing browser libraries:
 
-```sh
+~~~sh
 python -m playwright install --with-deps chromium
-```
+~~~
 
-This may request administrator access to install operating-system dependencies.
-Keep the browser sandbox enabled. Reuse a compatible existing browser setup when
-available. Playwright requires no model
-or paid API; Acira does not download a model during installation.
+The Linux dependency installer may request administrator access. Keep the browser
+sandbox enabled. Reuse a compatible existing browser when available.
 
-## 3. Initialize and integrate your existing workflow
+Keep your own script, URLs and launch settings. Playwright's
+[official getting-started guide](https://playwright.dev/python/docs/intro) explains its
+independent setup. Playwright automation requires no model, paid API or cloud account.
 
-Stay in your agent project's folder and run:
+For an existing browser-use project, keep its framework and model configuration
+instead. Follow the [browser-use integration guide](browser-use-quickstart.md) for
+the tested versions and optional dependency setup.
 
-```sh
+## 3. Install Acira in that same environment
+
+~~~sh
+python -m pip install acira
+python -m pip check
+~~~
+
+The base package includes the CLI, policy engine, starter policies, local dashboard
+and Chrome capture extension. It does not install Playwright, Chromium or a model.
+No PyPI account or access to the private GitHub repository is needed.
+
+Acira does not automatically change your application code. The next step adds its
+protection to the workflow you already run.
+
+## 4. Initialize and integrate your actual entry point
+
+Stay in your agent project's folder:
+
+~~~sh
 acira init
 acira doctor
 acira policy validate
-```
+~~~
 
-The wizard asks for the integration, policy folders, starter protections and
-optional dashboard connection. It prints the integration snippet. **Add that
-snippet to your actual entry point**: initialization by itself does not protect
-your application, and Acira does not rewrite it for you.
+The wizard asks for the integration, policy folders, starter protections and optional
+dashboard connection. It prints the integration snippet. Add it to your existing entry
+point; initialization alone does not protect application actions.
 
-For Playwright, enter `protect()` and call `guard.patch_playwright(p)` before
-launching or connecting to the browser. For browser-use, construct and run the
-existing session/agent inside `protect()`. Use the complete examples in the
-[existing-project quickstart](quickstart.md#4-add-acira-to-your-existing-entry-point),
-[Playwright guide](playwright-quickstart.md), or
+For Playwright, enter `protect()` and patch before launching or connecting:
+
+~~~python
+import asyncio
+from acira import protect
+from playwright.async_api import async_playwright
+
+async def main():
+    async with protect() as guard:
+        async with async_playwright() as p:
+            guard.patch_playwright(p)
+            browser = await p.chromium.launch(headless=False)
+            try:
+                await run_existing_workflow(browser)
+            finally:
+                await browser.close()
+
+asyncio.run(main())
+~~~
+
+`run_existing_workflow(browser)` stands for your application's existing function.
+Keep its actual browser actions, URLs and compatible launch settings, or place your
+existing browser code inside the protection context. It is not an Acira demo function.
+Use `headless=False` if you want to see the browser.
+
+For browser-use, create and run your existing session/agent inside `protect()`.
+Complete examples are in the [existing-project quickstart](quickstart.md),
+[Playwright guide](playwright-quickstart.md) and
 [browser-use guide](browser-use-quickstart.md).
 
-Run your application's usual command from this same environment. Use
-`headless=False` in your Playwright launch if you want to see Chromium. Acira
-protects supported agent actions, not manual human clicks.
+Acira guards supported SDK actions; manual human clicks and unrelated browser
+connections are outside that boundary. Read the [protection contracts](protection.md)
+before relying on a sensitive operation.
 
-## 4. Choose general policies and capture specific ones
+## 5. Choose general policies and capture specific ones
 
 These commands work entirely in the terminal:
 
-```sh
+~~~sh
 acira policy add
 acira policy list
 acira policy configure
 acira extension install
-```
+~~~
 
-The first command offers the general starter protections. The last exports the
-bundled capture extension and prints its folder. In `chrome://extensions`, enable
-Developer mode and choose **Load unpacked** with that folder. On the intended
-website, open **Acira Capture**, select a control, mark it **Ask first** or
-**Block target**, and export JSON.
+The first command offers general starter protections. The last exports the bundled
+capture extension and prints its folder. In `chrome://extensions`, enable Developer
+mode and choose **Load unpacked** with that folder.
 
-Then, in your agent project:
+On the intended website, open **Acira Capture**, select a control, choose **Ask first**
+or **Block target**, then export JSON. Import it in your agent project:
 
-```sh
+~~~sh
 acira policy import /path/to/acira-capture.json
 acira policy configure
 acira policy validate
-```
+~~~
 
 Use the actual JSON path, quoted when it contains spaces. If the website prohibits
-Download, choose **Copy JSON**, save the copied text in a JSON file, and import it
-the same way. Close capture before letting an agent use that page. The
-[terminal-first policy guide](specific-policies.md) covers target selection,
-idempotent imports, updates, mapping reviews and configuration without editing
-fingerprint JSON manually.
+Download, choose **Copy JSON**, save that text as a JSON file, and import it the same
+way. Close capture before letting an agent use that page.
 
-## 5. Run and review, with or without the dashboard
+The [terminal-first policy guide](specific-policies.md) covers target selection,
+idempotent imports, mapping reviews, and configuration without manually editing
+fingerprints.
 
-Run your integrated application normally in an interactive terminal. An Ask
-policy pauses the guarded operation for review. Check the actual target and
-operation details before answering. Rejection blocks the operation; approval
-allows one reviewed attempt. If a target mapping review appears first, it only
-identifies the control and is separate from approval to execute the action.
+## 6. Run your application and review its actions
+
+Use your application's usual launch command in this environment. Protection begins
+when execution enters `protect()`. An Ask policy pauses the guarded operation for
+review; inspect its target and actual operation details before responding.
+
+Rejection blocks the operation. Approval allows one reviewed attempt. A target
+mapping review only identifies the control and is separate from permission to act.
 
 For file-only use, select no dashboard during initialization or use
-`protect(dashboard=False)`. Without an available reviewer, review-required
-operations block; leaving the terminal unattended never approves them.
+`protect(dashboard=False)`. Terminal review works in an interactive terminal.
+Without an available reviewer, review-required actions block; an unattended terminal
+never approves them.
 
-To use the optional dashboard, open a **second terminal in the same project**,
-activate its environment, and run:
+## 7. Open the optional dashboard whenever you need it
 
-```sh
+Keep your application running. Open a second terminal in the same project, activate
+its environment, then run:
+
+~~~sh
 acira status
 acira open
-```
+~~~
 
-Keep the first terminal running your agent. The browser dashboard can connect to
-opted-in agents that started earlier. One dashboard serves projects and virtual
-environments on the same computer and OS account. A run ends when its protection
-context exits; opening the dashboard does not run your application for you.
+The dashboard connects to opted-in agents that started earlier. One dashboard serves
+different projects and virtual environments on the same computer and OS account.
+Opening it does not launch your application; a run ends when its protection context exits.
 
-For additional projects, repeat initialization in each project's own folder and
-environment. For an additional named agent in one project, use
-`acira init --agent research` and `protect(agent="research")`. Policy edits apply
-at the next guarded boundary; **Saved** is persisted and **Active** is acknowledged
-by the selected run. See [project configuration](project-configuration.md).
+For another project, initialize in that project's own folder and environment.
+For another agent configuration in one project, use `acira init --agent research`
+and `protect(agent="research")`.
+
+Policy saves write to the configured project files. **Saved** means persisted;
+**Active** means acknowledged by the selected run at its next guarded boundary.
+See [project configuration](project-configuration.md).
 
 ## Update and troubleshoot
 
-To update a repository installation, pull the intended source revision in the
-SDK checkout, then reinstall from that path in your **agent's environment**:
+For a PyPI installation:
 
-```sh
-python -m pip install --force-reinstall "/path/to/acira-sdk[playwright]"
+~~~sh
+python -m pip install --upgrade acira
 python -m pip check
 acira extension install --replace
-```
+~~~
 
-Reload the existing extension card in Chrome/Edge. Replacing the SDK package does
-not automatically replace an extension folder already exported by an older
-installation. Current previews share version `0.1.0`, so a version label alone
-does not prove you installed the latest build.
+Reload the existing extension card in Chrome/Edge after replacing its exported folder.
+Updating the SDK does not automatically replace a previously exported extension.
 
 | Problem | Check |
 | --- | --- |
-| `acira` not found | Activate the environment used for installation, or use that environment's `python -m acira`. |
-| No project found | Run inside the initialized project, or pass `--project PATH` to the CLI and `protect(project=PATH)` in code. |
-| Missing integration/browser | Run `acira doctor`; install the chosen extra or the missing Chromium build in the same environment. |
-| No dashboard run | Ensure the application enters `protect()`, is still running, and has dashboard connection enabled. |
-| No review request | The action may be allowed or blocked by policy; inspect its decision. A missing request is not proof of protection. |
-| Capture cannot connect | Close and reopen capture; check extension reload and permission status. Use offline JSON when dashboard pairing is unavailable. |
-| Mapping rejected or outcome unknown | Investigate and repair the capture/workflow in a new run; do not force the same action or automatically replay an uncertain operation. |
+| `acira` not found | Activate the installation environment, or use its `python -m acira`. |
+| No project found | Run in the initialized project, or pass `--project PATH` and `protect(project=PATH)`. |
+| Missing integration/browser | Run `acira doctor`; install Playwright separately or its matching Chromium build in the same environment. |
+| No dashboard run | Ensure your application enters `protect()`, is still running, and has dashboard connection enabled. |
+| No review request | Inspect the decision; policy may allow or block it. No request is not proof of protection. |
+| Capture cannot connect | Reload/reopen the extension and check permissions. Offline JSON works without pairing. |
+| Mapping rejected or outcome unknown | Investigate in a new run; do not force or automatically replay an uncertain action. |
 
-Read the [protection boundary](protection.md) before relying on a sensitive
-operation. The [validation report](validation/2026-10-12-specific-policies/README.md)
-distinguishes complete, partial and unavailable site results. Current Windows,
-native toolbar/consent rechecks and formal publication gates remain separate;
-setup commands do not establish every-site or transaction protection.
+The [validation report](validation/2026-10-12-specific-policies/README.md) separates
+complete, partial and unavailable website results. Package installation does not
+establish protection for every possible browser path.
 
-SDK maintainers can use [the release guide](release.md) to build and verify a
-distributable wheel. That owner-approved process is separate from installing or
-using this preview. Do not run publication workflows merely to try the SDK.
+## Alternative installation methods
+
+The normal setup above installs Playwright and Acira separately. The existing extra
+is only a convenience option for users who prefer to install them together:
+
+~~~sh
+python -m pip install "acira[playwright]"
+~~~
+
+This installs Acira and the official tested Playwright package; it does not install
+a custom Playwright build or Chromium. Browser-use and Vertex extras remain available
+for their documented integrations.
+
+Invited collaborators can install from the private SDK checkout instead of PyPI:
+
+~~~sh
+git clone https://github.com/Acira-dev/acira-sdk.git
+# In your agent project's environment, use the actual checkout path:
+python -m pip install "/path/to/acira-sdk"
+~~~
+
+If cloning fails, confirm that your own GitHub account has accepted its invitation.
+If needed, use `gh auth login --hostname github.com` and `gh auth setup-git` locally.
+Once GitHub becomes public, the same source-installation method still works.
+
+A supplied wheel also works without copying it into your project:
+
+~~~sh
+python -m pip install "/path/to/acira-0.1.1-py3-none-any.whl"
+~~~
+
+For source updates, pull the intended SDK revision and reinstall its base path with
+`--force-reinstall`, then run `python -m pip check`. Keep the browser framework installed
+separately in your agent environment.
+
+## Optional: try the demo after integration
+
+~~~sh
+acira demo
+~~~
+
+This is a separate, optional test drive using local fake-data pages. It does not
+replace your application or become a prerequisite for setup. It requires the supported
+Playwright package and its matching Chromium build.
+
+The [Playwright guide](playwright-quickstart.md#optional-run-the-bundled-journey) explains
+its review journey. The browser-use guide describes a separate optional local-model
+demo; no model download is needed for normal Playwright integration.

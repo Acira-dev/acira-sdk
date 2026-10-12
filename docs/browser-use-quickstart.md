@@ -9,8 +9,8 @@ the real-project integration below.
 
 ## Install outside the repository
 
-Use Python 3.11+ and activate your existing project environment. For the private preview,
-install a supplied Acira wheel:
+Use Python 3.11/3.12 and activate the environment that already runs your compatible
+browser-use agent. Install Acira alone from PyPI:
 
 ```sh
 # Create a .venv only if your project does not already have an environment.
@@ -19,18 +19,20 @@ install a supplied Acira wheel:
 source .venv/bin/activate
 # Windows PowerShell instead:
 # .\.venv\Scripts\Activate.ps1
-python -m pip install "/absolute/path/acira-0.1.0-py3-none-any.whl"
+python -m pip install acira
+python -m pip check
 ```
 
-If you have no wheel, follow [Start here](setup.md) to obtain the checkout and
-install from its path in your project's environment. Use the base path when your
-compatible framework is already installed, or choose its extra:
+If browser-use is missing, the optional dependency extra supplies the tested framework
+and integration libraries. This is an alternative for new environments, not a required
+step for an existing compatible agent:
 
 ```sh
-python -m pip install "/absolute/path/to/acira-sdk[browser-use]"
+python -m pip install "acira[browser-use]"
 ```
 
-If browser-use is missing, install the wheel with `[browser-use]`. This release
+For source or wheel installation, follow
+[alternative installation methods](setup.md#alternative-installation-methods). This release
 is tested with browser-use 0.11.12; check your version with `acira doctor` after
 initializing. Keep your existing Chromium executable/session options. The SDK
 does not silently install browsers, download models or rewrite application code.

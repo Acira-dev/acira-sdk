@@ -3,7 +3,8 @@
 For terminal policy selection and Chrome capture, see the
 [general and specific policy guide](specific-policies.md).
 
-The normal setup is **install → initialize → integrate → run your agent**.
+The normal setup is **use your browser framework → install Acira → initialize →
+integrate → run your agent**. Playwright is installed separately from Acira.
 The optional dashboard opens with `acira open`. You can complete this setup without
 running a demo or creating a sample application.
 
@@ -30,38 +31,34 @@ environments also work; installing and running must use the same interpreter.
 
 ## 2. Install the SDK there
 
-For the private preview, use the wheel supplied with the release build. It can remain
-in Downloads or any other folder; it need not be copied into your project.
-If you have no wheel, follow [Start here](setup.md) to clone and install directly
-from the SDK checkout into this environment. No PyPI publication is required for
-that private-repository installation.
-
-If your browser framework is already installed:
+If your compatible Playwright or browser-use framework is already installed, keep
+that installation and add the published Acira SDK:
 
 ```sh
-python -m pip install "/absolute/path/to/acira-0.1.0-py3-none-any.whl"
+python -m pip install acira
+python -m pip check
 ```
 
-If you also need a framework, choose its extra instead:
+If you need Playwright for a new project, install it independently first. Use the
+version tested for this release and install Chromium only if its build is missing:
 
 ```sh
-# Playwright
-python -m pip install "/absolute/path/to/acira-0.1.0-py3-none-any.whl[playwright]"
-# Or browser-use
-python -m pip install "/absolute/path/to/acira-0.1.0-py3-none-any.whl[browser-use]"
+python -m pip install playwright==1.60.0
+python -m playwright install chromium
+python -m pip install acira
+python -m pip check
 ```
 
-Replace the path with the actual downloaded wheel path. The base SDK includes the
-CLI, dashboard and starter policies. Extras install the selected framework; they
-do not install Chromium or download a model. This release's integration tests use
+The SDK's adapter guards the official Playwright API used by your application.
+The base SDK includes the CLI, dashboard, starter policies and capture extension;
+it does not install your browser framework. This release's integration tests use
 Playwright 1.60.0 and browser-use 0.11.12. Other versions are not established by
 those tests; check the [protection coverage](protection.md) when evaluating them.
 
-If you already installed an earlier `0.1.0` preview, its version number is the
-same. Replace it explicitly, then check dependency consistency:
+To update an earlier Acira installation from PyPI:
 
 ```sh
-python -m pip install --force-reinstall "/absolute/path/to/acira-0.1.0-py3-none-any.whl"
+python -m pip install --upgrade acira
 python -m pip check
 ```
 
@@ -70,12 +67,9 @@ Update an exported capture extension separately with
 `chrome://extensions`. On a first installation, follow the
 [capture setup steps](specific-policies.md#capture-an-application-specific-target).
 
-Reuse your existing Chromium installation or connection and your existing model.
-For Playwright, install its Chromium build only if your workflow needs it:
-
-```sh
-python -m playwright install chromium
-```
+Reuse your existing compatible Chromium installation or connection and your existing
+model. Source/wheel installations and optional one-command framework extras remain
+available under [alternative installation methods](setup.md#alternative-installation-methods).
 
 Playwright automation requires no model or paid API. Acira adds no model dependency
 to an existing browser-use agent. An optional local Ollama setup is described in

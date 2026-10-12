@@ -149,7 +149,7 @@ Local build:
 python -m pip install build twine
 python -m build --outdir dist
 python -m twine check dist/*.whl dist/*.tar.gz
-python tools/verify_wheel.py dist/acira-0.1.0-py3-none-any.whl
+python tools/verify_wheel.py dist/acira-0.1.1-py3-none-any.whl
 python tools/prepare_release.py dist
 ```
 
@@ -185,11 +185,11 @@ checkout:
 ```sh
 python -m venv /tmp/acira-public-install
 /tmp/acira-public-install/bin/python -m pip install --upgrade pip
+/tmp/acira-public-install/bin/python -m pip install playwright==1.60.0
 /tmp/acira-public-install/bin/python -m pip install acira
 /tmp/acira-public-install/bin/python -m pip check
 /tmp/acira-public-install/bin/acira --help
-# In an existing agent project, install its integration and initialize normally:
-/tmp/acira-public-install/bin/python -m pip install "acira[playwright]"
+# In an existing agent project, initialize and add the printed protection snippet:
 /tmp/acira-public-install/bin/acira init
 ```
 

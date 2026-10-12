@@ -13,15 +13,20 @@ Acira enforces policies inside the SDK. Its optional browser dashboard manages s
 projects and agents on the same computer and operating-system account. Project files
 remain the policy authority; stopping the dashboard does not stop enforcement.
 
-**Start with your own project.** Install Acira in its Python environment, run
-`acira init`, add the SDK to your existing entry point, then run your agent normally.
-Open `acira open` whenever you want the dashboard. A demo, model download and separate
-sample project are not part of this setup.
+**Start with your own project and browser framework.** If you already use Playwright,
+keep that installation and your existing script, then install Acira in the same Python
+environment. If you are starting from scratch, install the official Playwright package
+first, then add Acira. Acira contains the protection adapter; Playwright remains a
+separate dependency.
+
+Run `acira init`, add the printed protection snippet to your existing entry point, and
+run your agent normally. Open `acira open` whenever you want the optional dashboard.
+The demo is an optional test drive after integration; it is not an installation step.
 
 **New computer or first installation?** Follow [Start here](docs/setup.md) for
-repository access, macOS/Linux/Windows installation, integration, terminal policies,
-Chrome capture, reviews, updates and troubleshooting. No supplied wheel is required
-for an invited collaborator to install from the checkout.
+environment setup, separate framework installation, integration, terminal policies,
+Chrome capture, reviews, updates and troubleshooting. Normal PyPI installation
+requires no repository access or supplied wheel.
 
 Then use the [step-by-step existing-project setup](docs/quickstart.md), or the
 [Playwright](docs/playwright-quickstart.md) and
@@ -44,37 +49,37 @@ and remaining release gates. Do not infer full adapter coverage from package ins
 
 ## Install and initialize
 
-Python 3.11 or newer is required. After the first PyPI release, install in your
-existing agent environment:
+Use your existing agent project's Python 3.11/3.12 environment. Acira is available
+on [PyPI](https://pypi.org/project/acira/); installation requires no GitHub access.
+
+**Already using Playwright or browser-use?** Keep the compatible framework installed
+in your project and add Acira alone:
 
 ```sh
 python -m pip install acira
-# When your project also needs the tested Playwright integration:
-python -m pip install "acira[playwright]"
+python -m pip check
 ```
 
-During release preparation, install this checkout or its built wheel. Check the
-[Acira PyPI page](https://pypi.org/project/acira/) for published versions.
-
-Activate the environment that runs your existing agent. If Playwright or browser-use
-is already installed, install the base SDK wheel there:
+**Starting a new Playwright project?** Install Playwright separately, using the
+version tested for this release. Install its Chromium build only if it is missing:
 
 ```sh
-python -m pip install "/absolute/path/to/acira-0.1.0-py3-none-any.whl"
+python -m pip install playwright==1.60.0
+python -m playwright install chromium
 ```
 
-If you also need Playwright, install the wheel with `[playwright]`. From this checkout,
-the equivalent installation is:
+Use Playwright's normal setup and your application's existing entry point. Then add
+Acira to that same environment:
 
 ```sh
-python -m pip install ".[playwright]"
+python -m pip install acira
+python -m pip check
 ```
 
-Alternatively build with `python -m build --wheel`, then install
-`/absolute/path/to/acira-0.1.0-py3-none-any.whl[playwright]` in your existing project's
-environment. The base wheel includes the CLI, policies, dashboard and capture extension. The
-`playwright`, `browser-use` and `vertex` dependencies are separate optional extras.
-The Google Cloud stack is not required for an ordinary Playwright project.
+The base SDK includes the CLI, policies, dashboard and capture extension. It does not
+install Playwright, a browser or a model. No supplied wheel, cloned SDK repository,
+demo or cloud account is required for this setup. Existing browser-use agents keep
+their existing model configuration.
 
 Inside your existing project:
 
@@ -101,6 +106,11 @@ For a reproducible setup:
 ```sh
 acira init --yes --adapter playwright --policies payment,credentials,destructive-actions,downloads
 ```
+
+`python -m pip install "acira[playwright]"` remains an **optional convenience shortcut**
+for installing Acira and the official tested Playwright package together. The normal
+setup above installs them separately. Source/wheel installations and optional extras
+are explained in [Start here](docs/setup.md).
 
 ## Protect an existing Playwright workflow
 
@@ -135,9 +145,10 @@ elsewhere, use `protect(project="/absolute/project", agent="checkout")`.
 `protect(config="acira.json")` also recognizes project configurations.
 Existing `protect(config="legacy-config.json")` remains supported.
 
-For browser-use, select `--adapter browser_use`, install the `browser-use` extra,
-and construct/run your existing agent inside `async with protect() as guard:`.
-Your existing model provider configuration stays in your application.
+For browser-use, select `--adapter browser_use` and construct/run your existing
+compatible agent inside `async with protect() as guard:`. Your existing model provider
+configuration stays in your application. The `browser-use` extra is optional dependency
+setup for projects that need it; see the browser-use guide before changing versions.
 
 **Chromium and asynchronous integrations are the supported family.** Read the
 [capability matrix and boundaries](docs/protection.md) before relying on an operation.
@@ -408,7 +419,7 @@ python -m pip install ".[dev,playwright,browser-use]" build
 python -m playwright install chromium
 python -m pytest -q
 python -m build --wheel
-python tools/verify_wheel.py dist/acira-0.1.0-py3-none-any.whl
+python tools/verify_wheel.py dist/acira-0.1.1-py3-none-any.whl
 ```
 
 Full development/release checks also require Node.js 22 or newer for tests of the

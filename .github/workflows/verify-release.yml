@@ -133,7 +133,7 @@ jobs:
       - name: Install release and check dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "./dist/acira-0.1.0-py3-none-any.whl[dev,playwright,browser-use]"
+          python -m pip install "./dist/acira-0.1.1-py3-none-any.whl[dev,playwright,browser-use]"
           python -m pip check
       - name: Install Chromium
         run: |
@@ -147,7 +147,7 @@ jobs:
           ACIRA_TEST_INSTALLED: "1"
         run: python -m pytest -q "${{ github.workspace }}/tests" --import-mode=importlib --basetemp="${{ runner.temp }}/acira-pytest"
       - name: Verify clean installation journey
-        run: python tools/verify_wheel.py dist/acira-0.1.0-py3-none-any.whl
+        run: python tools/verify_wheel.py dist/acira-0.1.1-py3-none-any.whl
       - name: Check dashboard and extension scripts
         run: |
           node --check acira_dashboard/static/workspace.js
@@ -177,7 +177,7 @@ jobs:
       - name: Install audited release
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "./dist/acira-0.1.0-py3-none-any.whl[playwright,browser-use]" pip-audit
+          python -m pip install "./dist/acira-0.1.1-py3-none-any.whl[playwright,browser-use]" pip-audit
       - name: Check dependency consistency
         run: python -m pip check
       - name: Require no known dependency advisories
