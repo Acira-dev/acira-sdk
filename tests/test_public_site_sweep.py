@@ -16,6 +16,26 @@ _spec.loader.exec_module(sweep)
 
 
 @pytest.mark.asyncio
+async def test_readiness_emits_no_pointer_input_or_click_on_an_actionable_link():
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        try:
+            context = await browser.new_context()
+            await context.route("https://fixture.invalid/**", lambda route: route.fulfill(content_type="text/html", body='''
+              <a href="/guide"><span>Guide</span></a>
+              <script>window.inputs=[];for(const type of ['pointerdown','mousedown','click'])
+                window.addEventListener(type,()=>inputs.push(type),true);</script>'''))
+            page = await context.new_page()
+            await page.goto("https://fixture.invalid/")
+            found, _ = await sweep.ready_link(page)
+            assert found and found[1] == "https://fixture.invalid/guide"
+            assert page.url == "https://fixture.invalid/"
+            assert await page.evaluate("inputs") == []
+        finally:
+            await browser.close()
+
+
+@pytest.mark.asyncio
 async def test_readiness_rejects_a_page_changed_by_scrolling_before_any_click():
     async with async_playwright() as p:
         browser = await p.chromium.launch()
@@ -44,6 +64,8 @@ async def test_readiness_rejects_a_page_changed_by_scrolling_before_any_click():
     ("https://person:secret@fixture.invalid/about", "GET", True),
     ("https://fixture.invalid/%2561ccount", "GET", True),
     ("https://fixture.invalid/about?confirm=true", "GET", True),
+    ("https://fixture.invalid/guide#checkout", "GET", True),
+    ("https://fixture.invalid/guide#access_token=private", "GET", True),
     ("https://other.invalid/about", "GET", True),
     ("https://127.0.0.1/about", "GET", False),
     ("https://[::1]/about", "GET", False),
@@ -199,13 +221,13 @@ async def test_teardown_keeps_background_mutations_off_the_network(monkeypatch):
     from aiohttp.test_utils import TestServer
     import asyncio
 
-    received_posts = []
+    received_posts = {"unsafe": [], "protected": []}
     async def respond(request):
         if request.method == "POST":
-            received_posts.append(request.path)
+            received_posts[request.path.split("/")[1]].append(request.path)
             return web.Response(text="fixture only")
         return web.Response(content_type="text/html", text='''<h1>Local fixture</h1>
-            <script>setInterval(() => fetch('/payment', {method:'POST',body:'fixture'})
+            <script>setInterval(() => fetch('payment', {method:'POST',body:'fixture'})
                 .catch(() => {}), 20);</script>''')
     app = web.Application()
     app.router.add_route("*", "/{tail:.*}", respond)
@@ -219,8 +241,11 @@ async def test_teardown_keeps_background_mutations_off_the_network(monkeypatch):
         browser = await p.chromium.launch()
         try:
             for control in (True, False):
-                received_posts.clear()
-                url = str(server.make_url("/"))
+                phase = "unsafe" if control else "protected"
+                # Deliberately leaked requests can reach the HTTP server after
+                # their context closes. Distinct endpoints keep that control
+                # from contaminating the protected context's effect assertion.
+                url = str(server.make_url("/" + phase + "/"))
                 fence = sweep.Fence("https://fixture.invalid/")
                 # Only this local, inert fixture uses HTTP/loopback. Live site
                 # traffic retains the normal HTTPS/public-URL checks.
@@ -229,16 +254,16 @@ async def test_teardown_keeps_background_mutations_off_the_network(monkeypatch):
                 page = await context.new_page()
                 await page.goto(url)
                 await asyncio.sleep(.15)
-                assert received_posts == []
+                assert received_posts[phase] == []
                 if control:
                     # Demonstrate that the old cleanup order really leaks a
                     # background request, using only the inert local endpoint.
                     await context.unroute_all(behavior="ignoreErrors")
                     await context.close()
-                    assert received_posts, "Negative control did not exercise the gap"
+                    assert received_posts[phase], "Negative control did not exercise the gap"
                 else:
                     await sweep.close_context(context, fence)
-                    assert received_posts == []
+                    assert received_posts[phase] == []
         finally:
             await browser.close()
 

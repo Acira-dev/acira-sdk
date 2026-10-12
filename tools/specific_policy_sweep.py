@@ -21,7 +21,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from aiohttp import ClientSession, ClientTimeout
-from playwright.async_api import async_playwright
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError, async_playwright
 
 import public_site_sweep as safe
 from acira import protect
@@ -48,7 +48,16 @@ class CaptureReviewer(safe.TestReviewer):
             original = self.policy["targets"][0]["fingerprint"]
             from urllib.parse import urljoin
             exact_destination = safe.clean_url(urljoin(candidate.get("url") or self.expected, candidate.get("href") or "")) == self.expected
-            exact_label = " ".join(str(candidate.get("text") or "").split()) == " ".join(str(original.get("text") or "").split())
+            # Browser-visible text can differ from the captured accessible name
+            # (aria-label) or a hover tooltip. Compare exact recorded label facts,
+            # not loose similarity, while retaining the exact destination gate.
+            def labels(value):
+                facts = value.get("labels") or {}
+                values = [value.get(key) for key in ("text", "aria_label", "nearby_text", "title")]
+                values += [facts.get(key) for key in ("accessible", "associated")]
+                return {" ".join(item.split()).casefold() for item in values
+                        if isinstance(item, str) and item.strip() and "[REDACTED]" not in item}
+            exact_label = bool(labels(candidate).intersection(labels(original)))
             if (mapping.get("skill_id") == self.policy["id"] and mapping.get("target_id") == self.policy["targets"][0]["id"]
                     and exact_destination and exact_label and mapping.get("evidence_gate", {}).get("concrete")
                     and safe.public_url(self.expected, document=True)):
@@ -58,7 +67,16 @@ class CaptureReviewer(safe.TestReviewer):
         return await super().ask(request)
 
 
-async def capture(p, site, expected, root, *, timeout, robots, pacer, headed):
+class CaptureCleanupError(RuntimeError):
+    """A capture worker cannot claim success after uncertain browser teardown."""
+
+
+async def capture(p, site, expected, root, *, timeout, robots, pacer, headed, expected_control=None, progress=None):
+    progress = progress if progress is not None else {}
+    began=time.monotonic()
+    def stage(name):
+        progress["last_operation_stage"]=name
+        progress.setdefault("stages",[]).append({"stage":name,"elapsed_seconds":round(time.monotonic()-began,2)})
     fence = safe.Fence(site["url"], pacer)
     with tempfile.TemporaryDirectory(prefix="capture-", dir=root) as temporary:
         directory = Path(temporary)
@@ -68,6 +86,7 @@ async def capture(p, site, expected, root, *, timeout, robots, pacer, headed):
         # Chrome toolbar/permission UX is a separate, explicitly recorded check.
         manifest["host_permissions"] = ["https://"+host+"/*" for host in sorted(fence.hosts)]
         (extension / "manifest.json").write_text(json.dumps(manifest))
+        stage("launch_browser")
         context = await p.chromium.launch_persistent_context(directory / "profile", channel="chromium",
             headless=not headed, viewport={"width":1280,"height":900}, permissions=[],
             service_workers="block", user_agent=safe.USER_AGENT,
@@ -77,26 +96,78 @@ async def capture(p, site, expected, root, *, timeout, robots, pacer, headed):
             await context.route("**/*", fence.route)
             await context.route_web_socket("**/*", fence.websocket)
             worker = context.service_workers[0] if context.service_workers else await context.wait_for_event("serviceworker", timeout=10000)
+            # These two installed extension resources are local files, not
+            # public network destinations. Keep the public fence on all other
+            # requests, including the page and every external resource.
+            extension_origin = worker.url.rsplit("/", 1)[0]
+            for name in ("selection.html", "selection.js"):
+                await context.route(extension_origin + "/" + name, lambda route: route.continue_())
             page = await context.new_page()
+            stage("load_source")
             loaded = await safe.load_page(page, site["url"], timeout, fence, robots)
             if loaded["status"] != "loaded":
                 return {"status": loaded["status"]}, None
-            found, diagnostics = await safe.ready_link(page, expected, robots)
+            stage("resolve_same_control")
+            found, diagnostics = await safe.ready_link(page, expected, robots, expected_control=expected_control)
             if not found:
                 return {"status":"target_unavailable","selection":diagnostics}, None
             target, destination, label = found
+            control = await safe.link_control_identity(target)
+            if expected_control and control["sha256"] != expected_control:
+                return {"status":"target_identity_unavailable"}, None
             before, initial = len(fence.navigations), page.url
+            stage("open_capture")
             await worker.evaluate("""async url=>{const tab=(await chrome.tabs.query({})).find(t=>t.url===url);
               await chrome.scripting.insertCSS({target:{tabId:tab.id},files:['capture.css']});
               await chrome.scripting.executeScript({target:{tabId:tab.id},files:['content.js']});}""", page.url)
             await page.locator("#acira-capture-panel").wait_for(state="visible")
             panel = page.locator("#acira-capture-panel")
-            await target.click(timeout=6000)
+            stage("wait_for_selector")
+            try:
+                await page.locator(".acira-capture-shield[data-ready='true']").wait_for(state="visible", timeout=6000)
+            except PlaywrightTimeoutError:
+                return {"status":"capture_selector_unavailable",
+                    "selector_status":await panel.locator("#acira-capture-status").inner_text()}, None
+            for selection_attempt in range(3):
+                stage("select_control")
+                # Fonts/hydration can shift a control while the selector loads.
+                # Reobserve the same DOM node; never mark a different control.
+                await target.wait_for_element_state("stable", timeout=2000)
+                if (await safe.link_control_identity(target))["sha256"] != control["sha256"]:
+                    return {"status":"target_identity_changed_before_capture"}, None
+                if not await page.locator(".acira-capture-shield[data-ready='true']").is_visible():
+                    return {"status":"capture_selector_unavailable"}, None
+                box = await target.bounding_box()
+                if not box or box["width"] <= 0 or box["height"] <= 0:
+                    return {"status":"target_unavailable"}, None
+                await page.mouse.click(box["x"] + box["width"]/2, box["y"] + box["height"]/2)
+                try:
+                    await page.wait_for_function("""({destination,label,path}) => {
+                      const raw=document.querySelector('#acira-capture-facts')?.textContent;
+                      if (!raw) return false;
+                      const fp=JSON.parse(raw), actual=new URL(fp.href,location.href), expected=new URL(destination);
+                      const normalize=s=>typeof s==='string' ? s.replace(/\\s+/g,' ').trim().toLowerCase() : '';
+                      // Captures intentionally omit URL query/fragment data.
+                      // Verify the exact document plus the observed control's
+                      // label; actual action reviews still bind the full link.
+                      return fp.dom_path===path && fp.tag==='a' && actual.origin===expected.origin && actual.pathname===expected.pathname
+                        && [fp.text,fp.aria_label,fp.title,fp.labels?.accessible,fp.labels?.associated]
+                          .some(value=>normalize(value)===normalize(label));
+                    }""", arg={"destination":destination,"label":label,"path":control["capture_path"]}, timeout=2000)
+                    break
+                except PlaywrightTimeoutError:
+                    if page.url != initial or len(fence.navigations) != before:
+                        return {"status":"capture_selection_activated_target"}, None
+                    if selection_attempt == 2:
+                        return {"status":"target_moved_during_selection",
+                            "selector_status":await panel.locator("#acira-capture-status").inner_text()}, None
             if page.url != initial or len(fence.navigations) != before:
                 return {"status":"capture_selection_activated_target"}, None
+            stage("mark_control")
             await panel.get_by_role("button",name="Block target",exact=True).click()
             if page.url != initial or len(fence.navigations) != before:
                 return {"status":"capture_selection_activated_target"}, None
+            stage("download_export")
             async with page.expect_download(timeout=10000) as download:
                 await panel.get_by_role("button",name="Download",exact=True).click()
             output = directory / "capture.json"
@@ -108,16 +179,32 @@ async def capture(p, site, expected, root, *, timeout, robots, pacer, headed):
             expected_scope = source.scheme + "://" + source.netloc + (source.path or "/")
             if value["scope"]["url_patterns"] != [expected_scope]:
                 return {"status":"capture_scope_changed"}, None
+            stage("repeat_export")
             async with page.expect_download(timeout=10000) as again:
                 await panel.get_by_role("button",name="Download",exact=True).click()
             second = json.loads(Path(await (await again.value).path()).read_text())
             assert second["id"] == value["id"] and second["targets"] == value["targets"]
-            return {"status":"verified","target_text":label,"target_url":destination,
+            stage("exports_verified")
+            return {"status":"verified","target_text":label,"target_url":destination,"target_control_sha256":control["sha256"],
                     "capture_selection_document_requests":len(fence.navigations)-before,
                     "fresh_cookie_count":0,"repeat_export_identity":"stable",
                     "extension_permission_fixture":"selected origins only; production manifest unchanged"}, value
         finally:
-            await safe.close_context(context, fence)
+            progress["cleanup_status"]="started"
+            try:
+                await safe.close_context(context, fence)
+                progress["cleanup_status"]="complete"
+            except (Exception,asyncio.CancelledError) as error:
+                progress["cleanup_status"]="failed"
+                progress["cleanup_error"]=type(error).__name__
+                browser=context.browser
+                if browser is not None:
+                    try:
+                        await asyncio.wait_for(browser.close(),timeout=10)
+                        progress["emergency_browser_close"]="complete" if not browser.is_connected() else "unconfirmed"
+                    except (Exception,asyncio.CancelledError):
+                        progress["emergency_browser_close"]="unconfirmed"
+                raise CaptureCleanupError("Capture teardown failed; worker must stop without claiming a completed journey") from error
 
 
 def cli(*arguments):
@@ -144,7 +231,7 @@ async def campaign(args):
         "catalog_sha256":hashlib.sha256(args.catalog.read_bytes()).hexdigest(),
         "signed_out":"Fresh empty browser context/profile for every baseline, capture and policy case.",
         "network":"Read-only GET/HEAD, robots rules, no accounts/forms/purchases/download links/WebSockets; no challenge bypass.",
-        "approval":"Test reviewer permits only the selected public content link, and explicit page mappings with exactly its captured label/destination; every other request is rejected.",
+        "approval":"Test reviewer permits only the selected public content link, and explicit page mappings with an exact recorded control-label fact and destination; every other request is rejected.",
         "extension":"Bundled ManifestV3 extension in Chromium; narrowly pregranted site permissions for automation, separate native Chrome UI check."}
     (root / "metadata.json").write_text(json.dumps(metadata,indent=2)+"\n")
     results = root / "results.jsonl"
@@ -177,8 +264,9 @@ async def campaign(args):
                 row["cases"].append(first)
                 if first["status"] == "verified":
                     try:
+                        row["capture_progress"]={}
                         captured, policy = await asyncio.wait_for(capture(p,site,first["target_url"],root,
-                            timeout=args.timeout,robots=robots,pacer=pacer,headed=args.headed),120)
+                            timeout=args.timeout,robots=robots,pacer=pacer,headed=args.headed,expected_control=first["target_control_sha256"],progress=row["capture_progress"]),120)
                         row["capture"] = captured
                         if policy:
                             project = initialize(root / ("project-"+hashlib.sha256(site["url"].encode()).hexdigest()[:12]),
@@ -199,7 +287,7 @@ async def campaign(args):
                                     for mode, decision in (("blocked","block"),("rejected","ask"),("approved","ask")):
                                         cli("policy","configure",policy["id"],"--target",str(policy["targets"][0]["id"]),"--decision",decision,*options)
                                         tested = await safe.bounded_case(browser,site,timeout=args.timeout,expected=first["target_url"],
-                                            expected_landing=first["landing_url"],mode=mode,guard=guard,journal=Journal(project.root),
+                                            expected_landing=first["landing_url"],expected_control=captured["target_control_sha256"],mode=mode,guard=guard,journal=Journal(project.root),
                                             reviewer=reviewer,robots=robots,pacer=pacer)
                                         tested["policy_revision"] = guard.guard_policy.policy_revision
                                         tested["control"] = "captured specific policy; no generic blocked/review action settings"
@@ -211,13 +299,15 @@ async def campaign(args):
                                     await browser.close()
                     except Exception as error:
                         row["error"] = type(error).__name__+": "+str(error)[:600]
+                        if isinstance(error,CaptureCleanupError):
+                            row["worker_failure"]="capture_cleanup_failure"
             statuses = [case["status"] for case in row["cases"]]
             row["status"] = "complete" if statuses == ["verified"]*4 and row.get("capture",{}).get("status")=="verified" else "partial" if "verified" in statuses else "unavailable"
             row["elapsed_seconds"] = round(time.monotonic()-tick,2)
             with results.open("a") as output:
                 output.write(json.dumps(row,ensure_ascii=False)+"\n")
             print(json.dumps({"site":site["url"],"status":row["status"],"capture":row.get("capture",{}).get("status"),"cases":statuses,"error":row.get("error")}),flush=True)
-            if any(status in {"protection_failure","audit_failure","review_failure"} for status in statuses) or row.get("capture",{}).get("status") in {"capture_selection_activated_target", "capture_scope_changed"}:
+            if row.get("worker_failure") or any(status in {"protection_failure","audit_failure","review_failure"} for status in statuses) or row.get("capture",{}).get("status") in {"capture_selection_activated_target", "capture_scope_changed"}:
                 raise RuntimeError("Safety/evidence failure; campaign stopped without weakening protections")
             await asyncio.sleep(.5)
     summary(root, time.monotonic()-began)

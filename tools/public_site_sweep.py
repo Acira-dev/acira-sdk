@@ -52,7 +52,7 @@ def public_url(url: str, *, document: bool = False) -> bool:
             return False  # The curated sweep uses named public websites only.
         except ValueError:
             pass
-        decoded = unquote(unquote(parsed.path + "?" + parsed.query))
+        decoded = unquote(unquote(parsed.path + "?" + parsed.query + "#" + parsed.fragment))
         return not UNSAFE.search(decoded) and (not document or (not parsed.query and not NON_PAGE.search(parsed.path)))
     except ValueError:
         return False
@@ -115,6 +115,9 @@ class Fence:
         self.active_routes.add(task)
         try:
             await self._route(route)
+        except Exception:
+            if not self.closing:
+                raise
         finally:
             self.active_routes.discard(task)
 
@@ -214,14 +217,13 @@ async def observe(page):
     return {"title": title, "text_length": len(body), "challenge": bool(CHALLENGE.search(title + "\n" + body))}
 
 async def close_context(context, fence):
-    # Never remove interception from a live, network-enabled page. Background
-    # scripts and pending redirects must remain unable to send mutations while
-    # route tasks drain. Offline mode is per-context and is never restored.
+    # Keep interception attached until the context is destroyed. Unrouting a
+    # live page creates an avoidable gap even when offline mode was requested.
+    # Offline mode is per-context and is never restored.
+    fence.closing = True
     try:
         await context.set_offline(True)
-        fence.closing = True
-        # Finish callbacks while their handlers are still registered. Removing
-        # them first schedules interception updates against a closing context.
+        # Finish callbacks while their handlers are still registered.
         if fence.active_routes:
             _, pending = await asyncio.wait(tuple(fence.active_routes), timeout=14)
             for task in pending:
@@ -231,10 +233,9 @@ async def close_context(context, fence):
                 for task in done:
                     if not task.cancelled():
                         task.exception()
-        await context.unroute_all(behavior="ignoreErrors")
     finally:
-        # Even a failed offline/unroute call must destroy the isolated context.
-        # If going offline failed, interception is deliberately left installed.
+        # Even a failed offline call must destroy the isolated context. Its
+        # routes disappear with the context; they are never detached beforehand.
         await asyncio.wait_for(context.close(), timeout=12)
     if fence.active_routes:
         await asyncio.wait(tuple(fence.active_routes), timeout=2)
@@ -242,7 +243,28 @@ async def close_context(context, fence):
 def scan_timeout(deadline, maximum=1000):
     return maximum if deadline is None else max(1,min(maximum,int((deadline-time.monotonic())*1000)))
 
-async def find_link(page, expected=None, robots=None, diagnostics=None, deadline=None):
+async def link_control_identity(item):
+    """Private, bounded evidence of one link; equal destinations are not identity."""
+    control = await trusted(item, "evaluate", """el => {
+      const parts=[];let node=el;
+      while(node && node.nodeType===Node.ELEMENT_NODE && parts.length<64) {
+        const tag=node.tagName.toLowerCase(),parent=node.parentElement;
+        if(!parent){parts.unshift(tag);break;}
+        const siblings=Array.from(parent.children).filter(n=>n.tagName===node.tagName);
+        parts.unshift(`${tag}:nth-of-type(${siblings.indexOf(node)+1})`);node=parent;
+      }
+      if(node && node.parentElement && parts.length>=64) return null;
+      const attrs={};for(const name of ['id','name','role','aria-label','title','data-testid','data-test','data-cy'])
+        attrs[name]=(el.getAttribute(name)||'').slice(0,256);
+      return {tag:el.tagName.toLowerCase(),href:el.href,text:el.innerText.replace(/\\s+/g,' ').trim().slice(0,180),
+        dom_path:parts.join('>'),capture_path:parts.slice(-8).join('>'),attrs};
+    }""")
+    if control is None:
+        raise ValueError("Control ancestry exceeds the bounded identity check")
+    control["sha256"] = hashlib.sha256(json.dumps(control,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
+    return control
+
+async def find_link(page, expected=None, robots=None, diagnostics=None, deadline=None, expected_control=None):
     diagnostics = diagnostics if diagnostics is not None else Counter()
     source_url = page.url
     links = page.locator("a[href]")
@@ -278,21 +300,34 @@ async def find_link(page, expected=None, robots=None, diagnostics=None, deadline
                 continue
             if robots is not None and (not robots.can_fetch(USER_AGENT, resolved) or not robots.can_fetch("*", resolved)):
                 continue
-            # Trial performs native Playwright actionability checks without
-            # clicking or asking for approval. This test-only trusted call has
-            # fixed options; it cannot authorize a real browser operation.
+            if expected_control and (await link_control_identity(item))["sha256"] != expected_control:
+                diagnostics["target_identity_mismatch"] += 1
+                continue
+            # Readiness must not dispatch pointer inputs, even through a trial
+            # click. Observe the actual node after native scrolling/stability
+            # checks; the guarded click itself performs final actionability.
             try:
-                await trusted(item, "click", trial=True, timeout=scan_timeout(deadline,800))
+                await trusted(item, "scroll_into_view_if_needed", timeout=scan_timeout(deadline,800))
+                await trusted(item, "wait_for_element_state", "stable", timeout=scan_timeout(deadline,800))
+                if not await item.is_enabled() or not await trusted(item, "evaluate", """el => {
+                    const r=el.getBoundingClientRect();
+                    const x=Math.max(0,r.left)+Math.min(r.right,innerWidth);
+                    const y=Math.max(0,r.top)+Math.min(r.bottom,innerHeight);
+                    const hit=document.elementFromPoint(x/2,y/2);
+                    return r.width>0 && r.height>0 && hit && (hit===el || el.contains(hit));
+                }"""):
+                    diagnostics["target_not_actionable"] += 1
+                    continue
             except Exception:
                 diagnostics["target_not_actionable"] += 1
                 continue
-            # Native trial may scroll. Give scroll/history callbacks a bounded
+            # Native scrolling can move the page. Give history callbacks a bounded
             # turn before deciding this is still the observed source page.
             await asyncio.sleep(.075 if deadline is None else min(.075, max(0, deadline-time.monotonic())))
             if page.url != source_url:
                 diagnostics["source_changed"] += 1
                 return None
-            # Scrolling/hydration during the trial may replace or change a link.
+            # Scrolling/hydration may replace or change a link.
             # Scan again before any review; never substitute after approval.
             if (await item.get_attribute("href") != href or await item.inner_text() != label
                     or not await item.is_visible()):
@@ -303,11 +338,11 @@ async def find_link(page, expected=None, robots=None, diagnostics=None, deadline
             continue
     return None
 
-async def ready_link(page, expected=None, robots=None, budget_seconds=15):
+async def ready_link(page, expected=None, robots=None, budget_seconds=15, expected_control=None):
     diagnostics = Counter()
     deadline = time.monotonic()+budget_seconds
     for attempt in range(3):
-        found = await find_link(page, expected, robots, diagnostics,deadline)
+        found = await find_link(page, expected, robots, diagnostics,deadline,expected_control)
         if found:
             return found, dict(diagnostics)
         if diagnostics.get("source_changed"):
@@ -378,7 +413,7 @@ async def load_page(page, url, timeout, fence, robots=None):
 def event_slice(journal, run, previous):
     return journal.events(run=run, after=previous, limit=5000)
 
-async def case(browser, site, *, timeout, expected=None, expected_landing=None, mode="baseline", guard=None, journal=None, reviewer=None, robots=None, pacer=None, state=None):
+async def case(browser, site, *, timeout, expected=None, expected_landing=None, expected_control=None, mode="baseline", guard=None, journal=None, reviewer=None, robots=None, pacer=None, state=None):
     fence = Fence(site["url"], pacer)
     result = {"mode": mode, "fresh_cookie_count": 0}
     if state is not None:
@@ -398,7 +433,7 @@ async def case(browser, site, *, timeout, expected=None, expected_landing=None, 
         if result["status"] != "loaded":
             return result
         source_url = page.url
-        link, selection = await ready_link(page, expected, robots)
+        link, selection = await ready_link(page, expected, robots, expected_control=expected_control)
         result["selection"] = selection
         result["source_url"] = source_url
         if selection.get("source_changed") or page.url != source_url:
@@ -409,10 +444,15 @@ async def case(browser, site, *, timeout, expected=None, expected_landing=None, 
             result["status"] = "link_scan_timeout"
             return result
         if not link:
-            result["status"] = "target_unavailable" if result.get("selection") else "no_safe_link"
+            result["status"] = "target_identity_unavailable" if selection.get("target_identity_mismatch") else "target_unavailable" if result.get("selection") else "no_safe_link"
             return result
         locator, destination, label = link
         result.update(target_url=destination, target_text=label)
+        control = await link_control_identity(locator)
+        result["target_control_sha256"] = control["sha256"]
+        if expected_control and control["sha256"] != expected_control:
+            result["status"] = "target_identity_unavailable"
+            return result
         # Restrict all document navigation during the operation to the observed
         # start and selected public content page, including a fragment route.
         fence.documents = {document_key(page.url), document_key(destination)}
