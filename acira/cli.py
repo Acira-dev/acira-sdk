@@ -27,7 +27,7 @@ def parser() -> argparse.ArgumentParser:
     init.add_argument("--adapter", type=normalize_adapter, choices=["playwright", "browser_use"])
     init.add_argument("--general")
     init.add_argument("--specific")
-    init.add_argument("--policies", help="Comma-separated bundled policy names, or none")
+    init.add_argument("--policies", help="Comma-separated bundled names, or none; submissions gates every native form, including unsupported GET/search requests")
     init.add_argument("--no-dashboard", action="store_true")
     init.add_argument("--yes", action="store_true", help="Use defaults without interactive questions")
     demo = commands.add_parser("demo", help="Optional separate test drive; not required to integrate Acira")
@@ -128,12 +128,13 @@ def run(argv: list[str] | None = None) -> None:
                     if (root / value).resolve() == (root / general).resolve():
                         raise ValueError("General and specific policy folders must be different")
                 specific = args.specific or (prompt_choice("Captured policy folder", base + "/specific", valid_specific) if interactive else base + "/specific")
-                print("Starter choices: payment submissions ask after a verified guard.submit() contract; credentials ask; destructive actions block; downloads ask. Page presence alone does not ask.")
+                print("Starter choices: payment submissions ask after a verified guard.submit() contract; credentials ask; destructive actions block; downloads ask; submissions ask after a verified request contract. Page presence alone does not ask.")
+                print('Submissions gates every native form (including GET/search) and direct Submit/Send/Post/Publish/Apply/Finalize controls. Verified GET requests are unsupported, so GET/search submissions block while enabled. Plain clicks block when request evidence is missing; use guard.submit(...) for supported POST/PUT/PATCH/DELETE requests. Choose narrower protections by omitting submissions.')
                 def valid_policies(value):
                     if value.strip().lower() != "none":
                         for name in value.split(","):
                             catalog_policy(name.strip())
-                selected = args.policies or (prompt_choice("Policies: payment,credentials,destructive-actions,downloads; or none", ",".join(CATALOG), valid_policies) if interactive else ",".join(CATALOG))
+                selected = args.policies or (prompt_choice("Policies: " + ",".join(CATALOG) + "; or none", ",".join(CATALOG), valid_policies) if interactive else ",".join(CATALOG))
                 connect = not args.no_dashboard
                 if interactive and not args.no_dashboard:
                     def valid_connection(value):
@@ -273,6 +274,8 @@ def run(argv: list[str] | None = None) -> None:
             except (ValueError, TypeError) as exc:
                 origin = args.source if args.operation == "import" else "Policy " + args.source
                 raise ValueError(f"{origin}: {exc}") from None
+            if policy_id == "acira.general.form_submission":
+                print('Submissions gates every native form (including GET/search) and direct Submit/Send/Post/Publish/Apply/Finalize controls. Verified GET requests are unsupported, so GET/search submissions block while enabled. Plain clicks block when request evidence is missing; use guard.submit(...) for supported POST/PUT/PATCH/DELETE requests. Choose narrower protections by omitting submissions.')
             filename = (CATALOG.get(args.source, args.source.removeprefix("acira.general.")) if args.operation == "add" and not remote else "import-" + digest({"id": policy_id})[:16]) + ".json"
             for existing in project.policies(args.agent):
                 if existing["id"] == policy_id:

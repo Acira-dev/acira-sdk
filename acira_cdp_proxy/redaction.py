@@ -266,6 +266,7 @@ def redact_value(value: Any) -> Any:
     if isinstance(value, tuple):
         return tuple(redact_value(item) for item in value)
     if isinstance(value, dict):
+        value = _redact_dialog_protocol_fields(value)
         redacted: dict[str, Any] = {}
         for key, item in value.items():
             key_text = str(key)
@@ -334,9 +335,15 @@ def value_classes(value: Any) -> tuple[str, ...]:
     return tuple(sorted(classes))
 
 
+def _api_key_is_sensitive(key: str) -> bool:
+    # Match API-key aliases, including scoped/header names, without treating
+    # every ordinary "key" field as sensitive. Camel-cased apiKey is included.
+    return bool(re.search(r"(?:^|[^a-z0-9])api[_-]?key(?:$|[^a-z0-9])", key.lower()))
+
+
 def _key_is_sensitive(key: str) -> bool:
     lowered = key.lower()
-    if lowered in SECRET_KEYS:
+    if lowered in SECRET_KEYS or _api_key_is_sensitive(key):
         return True
     parts = {part for part in re.split(r"[^a-z0-9]+|_", lowered) if part}
     return bool(parts & SECRET_KEYS)
@@ -422,8 +429,34 @@ def _redact_payload_value(value: Any, *, redact_generic: bool = True) -> Any:
     if isinstance(value, list):
         return [_redact_payload_value(item, redact_generic=redact_generic) for item in value]
     if isinstance(value, dict):
-        return {str(key): _redact_payload_value(item, redact_generic=redact_generic) for key, item in value.items()}
+        # Generic redaction is the persistence/diagnostic mode. The guard's
+        # browser-wire projection passes False and retains ordinary dialog
+        # contents; known released secrets keep their existing masking.
+        if redact_generic:
+            value = _redact_dialog_protocol_fields(value)
+        return {str(key): "[REDACTED]" if redact_generic and _api_key_is_sensitive(str(key))
+                else _redact_payload_value(item, redact_generic=redact_generic)
+                for key, item in value.items()}
     return value
+
+
+def _redact_dialog_protocol_fields(value: dict[str, Any]) -> dict[str, Any]:
+    """Never persist free-text native modal contents, including nested CDP contexts."""
+    method = value.get("method")
+    if method == "Page.javascriptDialogOpening":
+        fields = ("message", "defaultPrompt")
+    elif method == "Page.handleJavaScriptDialog":
+        fields = ("promptText",)
+    elif method == "Page.javascriptDialogClosed":
+        fields = ("userInput",)
+    else:
+        return value
+    params = value.get("params")
+    if not isinstance(params, dict) or not any(field in params for field in fields):
+        return value
+    # Copy rather than changing the caller's actual request/event object.
+    return {**value, "params": {key: "[REDACTED:dialog]" if key in fields else item
+                              for key, item in params.items()}}
 
 
 def _redact_secret_field_payload_value(value: Any, *, top_level: bool = True) -> Any:

@@ -23,7 +23,9 @@ _DECISION_CTORS = {"CDPPolicyDecision", "blocked_result", "_known_secret_payload
 # a new decision_source is needed, then update DECISION_SOURCES (+ SCHEMA_VERSION) and this
 # number in the same change.
 # Invalid live policy configuration uses the existing security_lockdown source.
-EXPECTED_DECISION_SITES = 26
+# Uncontracted native dialog acceptance is an explicit core prohibition, using
+# the existing explicit_rule audit source; no schema enum or field is changed.
+EXPECTED_DECISION_SITES = 27
 
 
 def _decision_site_count() -> int:

@@ -1,0 +1,127 @@
+{
+  "schema": "acira.general_skill.v3",
+  "id": "acira.general.form_submission",
+  "name": "Submit, Send And Post Protection",
+  "version": 1,
+  "requires": [
+    "target",
+    "action"
+  ],
+  "risks": [
+    {
+      "id": "submission.outbound_attempt",
+      "context": "action",
+      "severity": "high",
+      "description": "The agent is attempting a native form submission or activating a Submit, Send, Post, Publish, Apply or Finalize control. Review the actual destination, method and complete request values before one attempt.",
+      "decisions": [
+        "allow",
+        "ask",
+        "block"
+      ],
+      "detection": {
+        "when": [
+          "outbound_submission"
+        ],
+        "reason": "Acira detected a form submission or outbound commit control. A screenshot alone does not establish the request destination or payload."
+      }
+    }
+  ],
+  "acira_review": {
+    "submission.outbound_attempt": {
+      "request_binding": true
+    }
+  },
+  "lexicons": {
+    "outbound_commit": [
+      "submit",
+      "send",
+      "post",
+      "publish",
+      "apply",
+      "finalize"
+    ]
+  },
+  "rules": {
+    "mutating_action": {
+      "in": {
+        "path": "action.action",
+        "values": [
+          "click",
+          "submit",
+          "form_control_activation",
+          "dom_mutation"
+        ]
+      }
+    },
+    "native_form_submission": {
+      "any": [
+        {
+          "equals": {
+            "path": "action.action",
+            "value": "submit"
+          }
+        },
+        {
+          "equals": {
+            "path": "target.is_native_submit",
+            "value": true
+          }
+        }
+      ]
+    },
+    "outbound_commit_control": {
+      "all": [
+        {
+          "equals": {
+            "path": "target.is_button",
+            "value": true
+          }
+        },
+        {
+          "token_match": {
+            "paths": [
+              "target.identity_tokens"
+            ],
+            "lexicon": "outbound_commit",
+            "min_matches": 1,
+            "confidence": 0.9
+          }
+        }
+      ]
+    },
+    "outbound_submission": {
+      "all": [
+        {
+          "rule": "mutating_action"
+        },
+        {
+          "any": [
+            {
+              "rule": "native_form_submission"
+            },
+            {
+              "rule": "outbound_commit_control"
+            },
+            {
+              "rule": "unknown_native_button"
+            }
+          ]
+        }
+      ]
+    },
+    "unknown_native_button": {
+      "all": [
+        {
+          "equals": {
+            "path": "target.is_button",
+            "value": true
+          }
+        },
+        {
+          "missing": "target.is_native_submit"
+        }
+      ]
+    }
+  },
+  "description": "Review native form submissions and Submit/Send/Post/Publish/Apply/Finalize controls using the actual request. All native forms are gated, including GET/search; verified GET requests are unsupported and block. Plain clicks without a supported guard.submit(...) contract block. One fresh review covers one attempt; reusable grants cannot authorize it. Buttons with unknown native form association are conservatively gated."
+}

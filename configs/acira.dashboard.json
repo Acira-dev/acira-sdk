@@ -78,6 +78,12 @@
         "download.export_controls_present": "allow",
         "download.export_attempt": "ask"
       }
+    },
+    "acira.general.form_submission": {
+      "path": "../skills/general/form_submission.json",
+      "risks": {
+        "submission.outbound_attempt": "ask"
+      }
     }
   },
   "audit": { "mode": "volatile" }

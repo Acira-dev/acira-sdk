@@ -10,7 +10,7 @@ import re
 import sys
 import time
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields as dataclass_fields, replace
 from typing import Any, Protocol
 
 from .config import AciraGuardConfig, AciraGuardRule
@@ -20,7 +20,7 @@ from .facts import build_browser_event_facts, build_page_preflight_facts
 from .framework_adapters import FrameworkAdapterRegistry, FrameworkAdapterSpec, RuntimeHelperContext
 from .pause import ReviewPauseState, PauseCoordinator
 from .policy import AGENT_TO_BROWSER, BROWSER_TO_AGENT, CDPMessageContext, CDPPolicyDecision
-from .redaction import SECRET_REDACTION_REGISTRY, contains_known_secret, redact_payload, redact_value
+from .redaction import SECRET_REDACTION_REGISTRY, _key_is_sensitive, contains_known_secret, redact_payload, redact_value
 from .skills import (
     SpecificSkillTarget,
     expected_actions_for_fingerprint,
@@ -292,6 +292,7 @@ _POINT_PROBE_JS_TEMPLATE = r"""
       isFormControl: ["button", "input", "select", "textarea"].includes(tag) || editable,
       isSelect: tag === "select" || role === "combobox" || role === "listbox" || role === "option",
       isSubmit: type === "submit" || (tag === "button" && (!type || type === "submit")) || (buttonLike && submitText),
+      isNativeSubmit: Boolean(target.form && ((tag === "button" && target.type === "submit") || (tag === "input" && ["submit", "image"].includes(target.type)))),
       confidence: target === node ? 0.82 : 0.72,
       source
     };
@@ -455,6 +456,7 @@ function() {
       isFormControl: ["button", "input", "select", "textarea"].includes(tag) || editable,
       isSelect: tag === "select" || role === "combobox" || role === "listbox" || role === "option",
       isSubmit: type === "submit" || (tag === "button" && (!type || type === "submit")) || (buttonLike && submitText),
+      isNativeSubmit: Boolean(target.form && ((tag === "button" && target.type === "submit") || (tag === "input" && ["submit", "image"].includes(target.type)))),
       confidence: target === node ? 0.84 : 0.74,
       source
     };
@@ -641,6 +643,7 @@ ACTIVE_ELEMENT_PROBE_JS = r"""
     isFormControl: ["button", "input", "select", "textarea"].includes(tag) || editable,
     isSelect: tag === "select" || role === "combobox" || role === "listbox" || role === "option",
     isSubmit: type === "submit" || (tag === "button" && (!type || type === "submit")) || (buttonLike && submitText),
+    isNativeSubmit: Boolean(node.form && ((tag === "button" && node.type === "submit") || (tag === "input" && ["submit", "image"].includes(node.type)))),
     confidence: 0.78,
     source: "js.activeElement"
   };
@@ -804,6 +807,7 @@ _OLD_PAGE_TARGETS_PROBE_JS_UNUSED = r"""
       isFormControl: ["button", "input", "select", "textarea"].includes(tag) || editable,
       isSelect: tag === "select" || role === "combobox" || role === "listbox" || role === "option",
       isSubmit: type === "submit" || (tag === "button" && (!type || type === "submit")) || (buttonLike && submitText),
+      isNativeSubmit: Boolean(target.form && ((tag === "button" && target.type === "submit") || (tag === "input" && ["submit", "image"].includes(target.type)))),
       confidence: 0.86,
       source: "js.pageTargets"
     };
@@ -1141,6 +1145,7 @@ PAGE_TARGETS_PROBE_JS = r"""
       isFormControl: ["button", "input", "select", "textarea"].includes(tag) || editable || Boolean(role),
       isSelect: tag === "select" || ["combobox", "listbox", "option"].includes(role),
       isSubmit: type === "submit" || (tag === "button" && (!type || type === "submit")) || (buttonLike && /\b(submit|send|continue|confirm|save|approve|authorize|request)\b/i.test(primary)),
+      isNativeSubmit: Boolean(element.form && ((tag === "button" && element.type === "submit") || (tag === "input" && ["submit", "image"].includes(element.type)))),
       confidence: 0.9,
       source: "js.pageTargets"
     };
@@ -1204,6 +1209,7 @@ PAGE_TARGETS_PROBE_JS = r"""
       isFormControl: false,
       isSelect: false,
       isSubmit: false,
+      isNativeSubmit: false,
       confidence: 0.88,
       source: "js.pageTargets.informational"
     };
@@ -1386,6 +1392,7 @@ class GuardTarget:
     is_form_control: bool = False
     is_select: bool = False
     is_submit: bool = False
+    is_native_submit: bool | None = None
     confidence: float = 0.0
     source: str = "unknown"
 
@@ -1422,6 +1429,7 @@ class GuardTarget:
             "is_form_control": self.is_form_control,
             "is_select": self.is_select,
             "is_submit": self.is_submit,
+            "is_native_submit": self.is_native_submit,
             "confidence": self.confidence,
             "source": self.source,
         }
@@ -1459,6 +1467,88 @@ class GuardReviewRequest:
     context: CDPMessageContext
     classification: ActionClassification
     reason: str
+
+
+def _review_message_projection(message: Any, *, redact_secret_fields: bool = False) -> Any:
+    """Mask message content while keeping exact CDP routing identifiers."""
+    projected = (json.loads(redact_payload(json.dumps(message), redact_secret_fields=True))
+                 if redact_secret_fields else redact_value(message))
+    if isinstance(message, dict) and isinstance(projected, dict):
+        for name in ("id", "method", "sessionId"):
+            if name in message:
+                projected[name] = message[name]
+    return projected
+
+
+def _review_payload_projection(payload: str | bytes, *, redact_secret_fields: bool = False) -> str | bytes:
+    try:
+        original = json.loads(payload)
+    except (ValueError, UnicodeDecodeError):
+        return redact_payload(payload, redact_secret_fields=redact_secret_fields)
+    parsed = _review_message_projection(original, redact_secret_fields=redact_secret_fields)
+    if parsed == original:
+        return payload
+    text = json.dumps(parsed, ensure_ascii=True, separators=(",", ":"))
+    return text.encode("utf-8") if isinstance(payload, bytes) else text
+
+
+def _review_is_sensitive_entry(classification: ActionClassification) -> bool:
+    target = classification.target
+    if classification.action != "form_input" or target is None:
+        return False
+    identifiers = (target.name, target.id, target.aria_label, target.title,
+                   (target.attributes or {}).get("autocomplete"))
+    return (str(target.type or "").lower() == "password"
+            or any(isinstance(item, str) and _key_is_sensitive(item) for item in identifiers))
+
+
+def _review_path_projection(path: str) -> str:
+    projected = redact_value(path)
+    if projected != path or not path.startswith("/"):
+        return projected
+    # websocket_path is normally relative; use a fixed parsing origin only in
+    # its display copy so the shared URL-query redactor can mask aliases.
+    prefix = "https://acira.invalid"
+    projected = redact_value(prefix + path)
+    return projected[len(prefix):] if projected.startswith(prefix) else "[REDACTED]"
+
+
+def _review_details_projection(value: Any) -> Any:
+    # Full page probes are runtime-only, as in durable review records. Keep
+    # selected targets/mapping evidence; never forward every editable value.
+    def bounded_observations(item: Any) -> Any:
+        if isinstance(item, dict):
+            return {key: {"omitted": True, "candidate_count": len(entry),
+                          "reason": "Full page observations are runtime-only; selected targets and mapping evidence are recorded separately"}
+                    if key == "page_targets" and isinstance(entry, list)
+                    else bounded_observations(entry) for key, entry in item.items()}
+        if isinstance(item, list):
+            return [bounded_observations(entry) for entry in item]
+        return item
+    return redact_value(bounded_observations(value))
+
+
+def redact_review_request(request: GuardReviewRequest) -> GuardReviewRequest:
+    """Return a reviewer-only view; retain the private request for authorization.
+
+    Scope hashing, operation binding and browser dispatch must use the original
+    request. The copied context retains its exact session and probe routing.
+    """
+    target = request.classification.target
+    projected_target = replace(target, **{
+        item.name: redact_value(getattr(target, item.name)) for item in dataclass_fields(target)
+    }) if target is not None else None
+    replacement = request.classification.replacement_payload
+    sensitive_entry = _review_is_sensitive_entry(request.classification)
+    classification = replace(request.classification,
+        reason=redact_value(request.classification.reason), target=projected_target,
+        details=_review_details_projection(request.classification.details),
+        replacement_payload=_review_payload_projection(replacement, redact_secret_fields=sensitive_entry) if replacement is not None else None)
+    context = replace(request.context,
+        parsed_message=_review_message_projection(request.context.parsed_message, redact_secret_fields=sensitive_entry),
+        websocket_path=_review_path_projection(request.context.websocket_path))
+    return replace(request, payload=_review_payload_projection(request.payload, redact_secret_fields=sensitive_entry),
+        context=context, classification=classification, reason=redact_value(request.reason))
 
 
 class ReviewBackend(Protocol):
@@ -1510,6 +1600,7 @@ class TerminalReviewBackend:
         return answer.strip().lower()
 
     def prompt_for(self, request: GuardReviewRequest) -> str:
+        request = redact_review_request(request)
         if request.classification.action == "unknown_js":
             return _color(_runtime_js_review_prompt(request), "yellow")
         if _is_mapping_review(request):
@@ -2301,6 +2392,15 @@ class AciraGuardPolicy:
         if lockdown_decision is not None:
             return lockdown_decision
 
+        # A prior click/text transaction must never implicitly authorize a
+        # native confirmation or prompt, which can dispatch another operation.
+        if self.config.enabled and classification.action == "dialog_confirmation":
+            reason = classification.reason
+            self._terminal_decision("BLOCK", context, classification, reason, color="red")
+            return CDPPolicyDecision(allow=False, reason=self._blocked_reason(reason, classification),
+                metadata={"guard": "acira", "decision": "block_uncontracted_confirmation",
+                          "policy_decision": "block", "classification": classification.to_metadata()})
+
         action_transaction_decision = self._action_transaction_policy_decision(context, classification)
         if action_transaction_decision is not None:
             if (
@@ -2336,7 +2436,10 @@ class AciraGuardPolicy:
         if classification.action == "navigation":
             self._note_preflight_navigation(context, classification)
 
-        if action_decision not in {"block", "ask"}:
+        if action_decision != "block":
+            # A page denial cannot be overridden by an action-specific review.
+            # A page review is acknowledged separately before reevaluating the
+            # original action, including its captured or core review requirement.
             page_decision = await self._preflight_gate_decision(context, classification)
             if page_decision is not None:
                 if page_decision.decision in {"block", "ask"}:
@@ -2408,6 +2511,31 @@ class AciraGuardPolicy:
                 reason = missing_target_decision.reason
                 rule = None
                 cedar_decision = missing_target_decision
+        page_acknowledgement = cedar_decision if (
+            action_decision == "ask" and cedar_decision is not None
+            and cedar_decision.source == "general_skill_preflight") else None
+        preflight_followup = classification
+        # Reconciliation can refine a captured target, but it must never erase
+        # another policy's block or required request evidence. Apply the same
+        # final combination used for frozen replay facts.
+        action_decision, reason, rule, cedar_decision = self._combine_general_decision(
+            classification, context, action_decision, reason, rule, cedar_decision)
+        if (action_decision == "ask" and page_acknowledgement is not None
+                and cedar_decision is not None):
+            combined_details = {**(classification.details or {}), "cedar": cedar_decision.metadata or {}}
+            combined_review = replace(classification, details=combined_details)
+            if self._general_review_missing_evidence(combined_review) is None:
+                # A page acknowledgement is distinct from the proposed operation.
+                # Cache only the original page scope, then reevaluate the action
+                # through the existing continuation and its fresh review boundary.
+                page_details = dict(classification.details or {})
+                page_details.pop("operation_evidence", None)
+                page_details["cedar"] = page_acknowledgement.metadata or {}
+                page_details["cedar_source"] = page_acknowledgement.source
+                classification = replace(classification, action="page_preflight", target=None,
+                    reason=page_acknowledgement.reason, details=page_details)
+                cedar_decision = page_acknowledgement
+                reason = page_acknowledgement.reason
         metadata = {
             "guard": "acira",
             "decision": action_decision,
@@ -2430,10 +2558,14 @@ class AciraGuardPolicy:
             reusable_review = _review_result_is_reusable(classification, cedar_decision)
             if cedar_decision is not None and cedar_decision.metadata:
                 details = dict(classification.details or {})
-                details.setdefault("cedar", cedar_decision.metadata)
-                details.setdefault("cedar_source", cedar_decision.source)
+                # Only the current policy decision owns review requirements;
+                # a previous page review or caller's details cannot mask them.
+                details["cedar"] = cedar_decision.metadata
+                details["cedar_source"] = cedar_decision.source
                 if cedar_decision.skill_decision_id:
-                    details.setdefault("skill_decision_id", cedar_decision.skill_decision_id)
+                    details["skill_decision_id"] = cedar_decision.skill_decision_id
+                else:
+                    details.pop("skill_decision_id", None)
                 classification = replace(classification, details=details)
             if reusable_review and review_key in self._review_approved_keys:
                 mapped_block_reason = self._mapped_block_reason_after_review_approval(classification, cedar_decision)
@@ -2450,7 +2582,7 @@ class AciraGuardPolicy:
                     return await self._continue_after_preflight_review_approval(
                         payload,
                         context,
-                        classification,
+                        preflight_followup,
                         metadata,
                     )
                 else:
@@ -2513,7 +2645,7 @@ class AciraGuardPolicy:
                             return await self._continue_after_preflight_review_approval(
                                 payload,
                                 context,
-                                classification,
+                                preflight_followup,
                                 metadata,
                             )
                         else:
@@ -2843,6 +2975,14 @@ class AciraGuardPolicy:
         if method in READ_ONLY_METHODS or method.startswith(READ_ONLY_PREFIXES):
             return ActionClassification(method=method, action="read_only_cdp", reason="read-only CDP method", read_only=True)
 
+        if method == "Page.handleJavaScriptDialog":
+            if params.get("accept") is False and not params.get("promptText"):
+                return ActionClassification(method=method, action="dialog_dismissal",
+                    reason="dismiss a native browser dialog without confirming it", read_only=True, confidence=1.0)
+            return ActionClassification(method=method, action="dialog_confirmation",
+                reason="Native dialog acceptance has no verified operation contract; dismiss the dialog instead",
+                meaningful=True, confidence=1.0)
+
         if method in {"Runtime.evaluate", "Runtime.callFunctionOn"}:
             return await self._classify_runtime(method, params, context)
 
@@ -2929,13 +3069,10 @@ class AciraGuardPolicy:
             # reviews take precedence, then evaluate general action facts.
             decision, reason, rule, cedar = self._configured_decision(classification, context,
                 include_general=False, recorded_specific_facts=recorded_specific_facts)
-            if decision == "allow":
-                general = self._general_skill_decision(classification, context, recorded_facts=recorded_general_facts)
-                if general is not None:
-                    if general.decision in {"block", "ask"}:
-                        return general.decision, general.reason, None, general
-                    cedar = general
-            return decision, reason, rule, cedar
+            return self._combine_general_decision(classification, context,
+                decision, reason, rule, cedar, recorded_facts=recorded_general_facts)
+        if classification.action == "dialog_confirmation":
+            return "block", classification.reason, None, None
         if getattr(self, "require_bound_review", False) and classification.action in {"unknown_cdp", "meaningful_cdp"}:
             return "block", "Unclassified CDP mutation has no supported action contract", None, None
         if classification.action == "navigation":
@@ -2947,6 +3084,13 @@ class AciraGuardPolicy:
 
         if classification.action in HELPER_INSPECTION_ACTIONS:
             return "allow", classification.reason, None, None
+
+        # An explicit denial must not be replaced by a secret/captured-target
+        # review. No reviewer can override a matching configured block.
+        rules = self.config.matching_rules(classification.action)
+        blocked_rule = next((rule for rule in rules if rule.decision == "block"), None)
+        if blocked_rule is not None:
+            return "block", blocked_rule.reason or classification.reason, blocked_rule, None
 
         secret_decision = self._secret_policy_decision(classification)
         if secret_decision is not None and secret_decision.decision == "block":
@@ -2996,6 +3140,28 @@ class AciraGuardPolicy:
             return "ask", "Low-confidence meaningful browser action requires review.", None, cedar_decision
 
         return "allow", classification.reason, None, cedar_decision
+
+    def _combine_general_decision(
+        self, classification: ActionClassification, context: CDPMessageContext | None,
+        decision: str, reason: str, rule: AciraGuardRule | None,
+        cedar: CedarDecision | None, *, recorded_facts: dict[str, Any] | None = None,
+    ) -> tuple[str, str, AciraGuardRule | None, CedarDecision | None]:
+        if decision == "block":
+            return decision, reason, rule, cedar
+        general = self._general_skill_decision(classification, context, recorded_facts=recorded_facts)
+        if general is None:
+            return decision, reason, rule, cedar
+        combined = {**(cedar.metadata or {}), **(general.metadata or {})} if cedar else general.metadata
+        if general.decision == "block":
+            return "block", general.reason, None, replace(general, metadata=combined)
+        if decision == "ask":
+            # Keep captured/secret/mapping identity for existing review code,
+            # while carrying every general detection's evidence requirements.
+            selected = cedar if cedar is not None else general
+            return decision, reason, rule, replace(selected, metadata=combined)
+        if general.decision == "ask":
+            return "ask", general.reason, None, replace(general, metadata=combined)
+        return decision, reason, rule, replace(cedar or general, metadata=combined)
 
     def _general_skill_decision(
         self,
@@ -5146,7 +5312,7 @@ class AciraGuardPolicy:
         is_activation = event_type in {"mousePressed", "mouseReleased", "touchStart", "touchEnd"} or pointer_kind == "touch"
 
         if target and is_activation:
-            if target.is_submit:
+            if target.is_native_submit is True or (target.is_native_submit is None and target.is_submit):
                 return ActionClassification(method=method, action="submit", reason=f"{pointer_kind} submit activation", confidence=target.confidence, meaningful=True, target=target)
             if target.is_checkbox:
                 return ActionClassification(method=method, action="check", reason=f"{pointer_kind} checkbox activation", confidence=target.confidence, meaningful=True, target=target)
@@ -5398,9 +5564,49 @@ class AciraGuardPolicy:
             if binding is not None:
                 await binding.release()
 
+    def _general_review_missing_evidence(
+        self, classification: ActionClassification,
+    ) -> tuple[dict[str, Any], list[str]] | None:
+        details = classification.details or {}
+        evidence = details.get("operation_evidence") or {}
+        cedar = details.get("cedar") or {}
+        detections = (cedar.get("general_skills") or {}).get("detections") or []
+        skills = {skill.id: skill for skill in self.config.general_skills}
+        for detection in detections:
+            skill = skills.get(detection.get("skill_id"))
+            requirement = skill.review_requirements.get(detection.get("risk"), {}) if skill else {}
+            verified = evidence.get("verified_fields") or {}
+            missing = [name for name in requirement.get("required_fields", [])
+                       if verified.get(name) in (None, "", "[REDACTED]")]
+            if requirement.get("request_binding") and evidence.get("request_bound") is not True:
+                missing.append("verified request binding")
+            if missing:
+                return detection, missing
+        return None
+
     async def _ask_backend(self, request: GuardReviewRequest) -> bool:
+        # Apply declared evidence requirements before every reviewer, including
+        # legacy config/custom callbacks which do not use ProjectRuntime.
+        incomplete = self._general_review_missing_evidence(request.classification)
+        if incomplete is not None:
+            detection, missing = incomplete
+            reason = "Required operation evidence missing: " + ", ".join(missing) + ". Use guard.submit(...) to bind the actual destination and values."
+            durable = getattr(self, "durable_event", None)
+            if durable is not None:
+                durable("review_evidence_missing", missing=missing,
+                    policy_id=detection.get("skill_id"), risk=detection.get("risk"),
+                    reason="Use the supported submit() contract to bind the reviewed destination and values")
+            self._terminal_decision("BLOCK", request.context, request.classification, reason, color="red")
+            return False
         if self.review_backend is not None:
-            result = await self.review_backend.ask(request)
+            # ProjectRuntime owns the private scope hash and projects its
+            # external reviewer only after authorization data has been read.
+            private_scope_owner = False
+            if getattr(self.review_backend, "_acira_private_review_scope", False) is True:
+                from acira.runtime import ProjectRuntime
+                private_scope_owner = isinstance(self.review_backend, ProjectRuntime)
+            view = request if private_scope_owner else redact_review_request(request)
+            result = await self.review_backend.ask(view)
             return _review_result_allows(result)
 
         return await self._terminal_review(request)
@@ -5441,8 +5647,8 @@ class AciraGuardPolicy:
         text = (
             "[Acira Guard] PAGE_PREFLIGHT "
             f"decision={snapshot.decision} trigger={trigger} status={snapshot.status} "
-            f"url={json.dumps(snapshot.url or '', ensure_ascii=True)} "
-            f"title={json.dumps(snapshot.title or '', ensure_ascii=True)} "
+            f"url={json.dumps(redact_value(snapshot.url or ''), ensure_ascii=True)} "
+            f"title={json.dumps(redact_value(snapshot.title or ''), ensure_ascii=True)} "
             f"risks={json.dumps(risks, ensure_ascii=True)} "
             f"policy={json.dumps(policy, ensure_ascii=True)} "
             f"elapsed_ms={elapsed if isinstance(elapsed, (int, float)) else 'n/a'} "
@@ -5550,7 +5756,7 @@ class AciraGuardPolicy:
             f"method={classification.method} action={classification.action}{target_text} "
             f"reason={reason}{detail_text}{cedar_text}"
         )
-        print(_color(text, color), file=sys.stderr, flush=True)
+        print(_color(redact_value(text), color), file=sys.stderr, flush=True)
 
     def _terminal_submit_block_message(
         self,
@@ -6904,6 +7110,11 @@ def _review_result_is_reusable(
     classification: ActionClassification,
     cedar_decision: CedarDecision | None,
 ) -> bool:
+    # A mapping/page acknowledgement must not carry a later action-level risk
+    # across review or skip that risk's required operation evidence.
+    detections = (((cedar_decision.metadata or {}).get("general_skills") or {}).get("detections") or []) if cedar_decision else []
+    if any(item.get("context") == "action" for item in detections):
+        return False
     # A policy/target identity is not an authorization for future operations.
     # Page mapping acknowledgements are distinct from action approvals.
     return bool(cedar_decision and cedar_decision.source in {
@@ -7128,6 +7339,7 @@ def _target_from_probe_value(value: Any) -> GuardTarget | None:
         is_form_control=bool(_probe_value(value, "isFormControl", "is_form_control")),
         is_select=bool(_probe_value(value, "isSelect", "is_select")),
         is_submit=bool(_probe_value(value, "isSubmit", "is_submit")),
+        is_native_submit=_optional_bool(_probe_value(value, "isNativeSubmit", "is_native_submit")),
         confidence=float(value.get("confidence") or 0.0),
         source=_string_or_none(value.get("source")) or "js.probe",
     )
@@ -7148,6 +7360,10 @@ def _merge_probe_extras(metadata: dict[str, Any], value: dict[str, Any]) -> None
             if source_key in value:
                 metadata[target_key] = value.get(source_key)
                 break
+
+
+def _optional_bool(value: Any) -> bool | None:
+    return value if isinstance(value, bool) else None
 
 
 def _probe_value(value: dict[str, Any], *keys: str) -> Any:

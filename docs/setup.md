@@ -109,6 +109,21 @@ The wizard asks for the integration, policy folders, starter protections and opt
 dashboard connection. It prints the integration snippet. Add it to your existing entry
 point; initialization alone does not protect application actions.
 
+The wizard explains its default `submissions` offer before policy selection:
+it gates every native form and direct Submit/Send/Post/Publish/Apply/Finalize
+control. GET/search forms are blocked because verified GET approval is not
+supported yet. Other matched controls require a supported `guard.submit(...)`
+request contract. Omit `submissions` if this is broader than your intended
+policy; existing initialized projects are preserved. See the
+[form submission guide](form-submissions.md) before enabling it.
+
+With `submissions` enabled, Enter/Return/NumpadEnter on resolved controls is
+also treated as a possible submission, even outside native forms. Browser-use
+key activation has the same conservative limit. The current `guard.submit(...)`
+contract verifies a control activation and exact JSON/form request; it cannot
+approve an unknown keyboard-only transport. See the
+[keyboard activation boundary](form-submissions.md#keyboard-activation).
+
 For Playwright, enter `protect()` and patch before launching or connecting:
 
 ~~~python
@@ -154,7 +169,14 @@ acira policy configure
 acira extension install
 ~~~
 
-The first command offers general starter protections. The last exports the bundled
+The first command offers general starter protections, including `submissions` for
+native forms and Submit/Send/Post/Publish/Apply/Finalize controls. Add it explicitly
+with `acira policy add submissions`. This conservative policy includes GET/search
+forms and requires verified request evidence; a plain final click is blocked when
+that evidence is unavailable. Read the [form submission guide](form-submissions.md)
+for the supported `guard.submit(...)` integration and its limits.
+
+The last command exports the bundled
 capture extension and prints its folder. In `chrome://extensions`, enable Developer
 mode and choose **Load unpacked** with that folder.
 

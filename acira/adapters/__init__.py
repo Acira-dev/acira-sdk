@@ -24,7 +24,8 @@ class AciraAdapterConfigurationError(RuntimeError):
 
 #: Modules under ``acira.adapters`` that are infrastructure, not adapters.
 _NON_ADAPTER_MODULES = {"contract", "playwright_boundary", "playwright_operations",
-                        "playwright_submission", "playwright_uploads", "browser_use_operations"}
+                        "playwright_submission", "playwright_uploads", "browser_use_operations",
+                        "playwright_dialogs", "browser_use_dialogs"}
 
 
 def _normalize_adapter_id(value: str) -> str:

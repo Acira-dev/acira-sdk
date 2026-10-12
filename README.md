@@ -104,8 +104,16 @@ versions, so use your project's environment and review pip's dependency changes.
 
 For a reproducible setup:
 
+The `submissions` starter below gates all native forms and
+Submit/Send/Post/Publish/Apply/Finalize controls. **GET/search forms are
+blocked while this policy is enabled because verified GET approval is not
+supported.** Other matched controls need a supported `guard.submit(...)`
+request contract; missing evidence blocks. Omit `submissions` to keep only
+the other four protections.
+Read the [form submission guide](docs/form-submissions.md) before enabling it for your workflow. The [submission validation report](docs/validation/2026-10-12-submissions/README.md) records local browser effects and signed-out public checks.
+
 ```sh
-acira init --yes --adapter playwright --policies payment,credentials,destructive-actions,downloads
+acira init --yes --adapter playwright --policies payment,credentials,destructive-actions,downloads,submissions
 ```
 
 `python -m pip install "acira[playwright]"` remains an **optional convenience shortcut**

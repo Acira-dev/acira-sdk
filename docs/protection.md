@@ -18,6 +18,7 @@ code or browser extensions. Installation alone provides no protection.
 | Script execution | Undeclared script/CDP mutations fail closed; explicitly configured exact read-only JS exceptions remain advanced opt-ins | Real evaluate/CDP rejection tests |
 | browser-use | Supported framework events plus CDP classification, isolated review, resolved target revalidation | Real type/element activation, resolved frame nodes, dropdown, frozen upload and tab workflows; unverified coordinate targets rejected |
 | Critical request contract | Playwright and browser-use single JSON/form request contracts | Local HTTP server observes one exact approved request or zero on rejection/mismatch |
+| Native browser dialogs | Protected Playwright confirm/prompt/beforeunload accepts are rejected; browser-use dismisses the exact detecting session; raw CDP acceptance is rejected before transaction reuse | Local confirmation side effects and unrelated/nested run lifecycle regressions |
 
 The dashboard's Inspect view and `acira doctor` report capabilities and limitations.
 Firefox, WebKit and the synchronous Playwright API are not supported. Forced pointer
@@ -131,6 +132,34 @@ facts=...)` adds an explicit single-request contract:
 - The built-in payment submission policy requires amount, currency, account and request
   binding. Missing evidence blocks instead of showing an incomplete approval.
 
+### General submissions and native confirmations
+
+`acira policy add submissions` installs the conservative general Submit/Send/Post
+protection. It covers native submit controls and direct outbound button identities,
+including Enter submission paths. It does not infer a dangerous action from page
+prose or an ordinary navigation link. Approved execution requires the supported
+`guard.submit(...)` contract with the complete destination and values; an
+uncontracted click blocks instead of displaying incomplete approval evidence.
+The policy also gates native GET/search forms. Current request contracts support
+POST/PUT/PATCH/DELETE with flat JSON/form bodies, so GET submission cannot be approved
+through this contract. Review this tradeoff before enabling the policy. Existing
+projects add it explicitly; installation alone does not replace their policy files.
+
+Outgoing Submit/Send/Post/Publish/Apply/Finalize targets are critical, even when
+implemented as a `type="button"` outside a form. Routine reusable grants do not cover
+them. A recognized label is a conservative trigger, not proof of the operation's
+recipient, request values or server-side outcome.
+
+Native JavaScript confirm, prompt and beforeunload acceptance has no supported
+operation contract in this release. Protected Playwright `Dialog.accept()` rejects
+those operations and attempts to dismiss that exact owned modal after recording the
+block. Browser-use replaces its automatic acceptance for protected sessions with
+cancellation on the verified detecting session, without falling back to the current
+focus tab. Raw CDP acceptance is blocked even during a previously allowed click.
+Alert acknowledgement/dismissal may let page-authored JavaScript continue; this is
+modal handling, not universal containment of arbitrary website side effects.
+Independent or unprotected browsers retain their normal dialog behavior.
+
 `guard.fill_fields([(locator, text), ...], purpose=...)` groups 1–30 unique text fields
 in one form on one page. It evaluates every step, displays proposed changes together,
 and checks scope at each dispatch. It does not submit. Unexpected state changes stop
@@ -149,6 +178,18 @@ always require fresh operation-specific authorization.
 Terminal and dashboard answers use one persistent compare-and-set decision. The first
 valid answer wins. Reviews expire after five minutes; missing reviewers never imply
 approval. Per-run pause and review state do not freeze another agent.
+
+Custom review backends receive redacted display copies of the request, including
+its payload, target, operation evidence and URL queries. Known API-key and
+password entry values are masked; ordinary nonsensitive input remains available
+for review. These copies are for presenting a decision, not reconstructing or
+dispatching a browser action. Acira keeps the original scope and live values
+private for exact comparison and revalidation. Grant records store a masked
+scope after computing the private identity, so matching redacted displays cannot
+make different operations share a grant. Terminal formatters use the same privacy
+boundary. A callback cannot obtain the private runtime path merely by setting an
+internal marker. Application code deliberately overriding or bypassing SDK
+internals remains outside the supported-integration boundary.
 
 Review screenshots use the browser integration, not desktop screen recording.
 Sensitive controls, embedded frames/canvases and detected secret text are masked

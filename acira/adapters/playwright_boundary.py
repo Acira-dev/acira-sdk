@@ -9,7 +9,6 @@ import asyncio
 import contextlib
 import inspect
 import json
-import re
 import time
 import weakref
 from contextvars import ContextVar
@@ -33,7 +32,7 @@ SCRIPT_METHODS = {"evaluate", "evaluate_handle", "evaluate_all", "eval_on_select
     "add_script_tag", "add_style_tag", "set_content", "add_init_script", "wait_for_function", "pdf"}
 NAVIGATION_METHODS = {"goto", "reload", "go_back", "go_forward"}
 
-from acira_cdp_proxy.operation import STATE_JS
+from acira_cdp_proxy.operation import STATE_JS, field_is_sensitive, is_critical_operation
 
 
 def original(obj: Any, name: str) -> Any:
@@ -149,6 +148,8 @@ def install() -> None:
         for method in set(ELEMENT_METHODS) | SCRIPT_METHODS | NAVIGATION_METHODS:
             if hasattr(cls, method):
                 _wrap(cls, method)
+    from .playwright_dialogs import install as install_dialog_boundary
+    install_dialog_boundary(ORIGINALS)
     for cls, methods in ((Mouse, ("click", "dblclick", "down", "up", "move", "wheel")),
                          (Keyboard, ("down", "up", "press", "type", "insert_text")),
                          (Touchscreen, ("tap",))):
@@ -257,12 +258,11 @@ async def guarded(manager: Any, page: Any, obj: Any, method: str, args: tuple, k
             elif key.lower().split("+")[-1] in {"space", " "}:
                 action = "check" if target.is_checkbox else "click"
     fingerprint = json.dumps(before, sort_keys=True) if before else None
-    identity_text = json.dumps(before.get("target", {}) if before else {}).lower()
-    critical = action in {"submit", "file_upload"} or bool(re.search(r"pay|purchase|checkout|card|credential|password|delete|remove|destroy|transfer|secret|token", identity_text))
-    if before and (any(field["sensitive"] for field in before["fields"]) or (before["has_form"] and getattr(target, "is_submit", False))):
+    critical = is_critical_operation(before, action) if before else action in {"submit", "file_upload"}
+    if before and before["has_form"] and getattr(target, "is_submit", False):
         critical = True
     evidence = {"action": action, "destination": before["destination"] if before else str(args[0] if args else kwargs.get("url", page.url)),
-                "fields": [{"name": f["name"], "display": "[REDACTED]" if f["sensitive"] else f["value"], "checked": f["checked"]} for f in before["fields"]] if before else [],
+                "fields": [{"name": f["name"], "display": "[REDACTED]" if field_is_sensitive(f) else f["value"], "checked": f["checked"]} for f in before["fields"]] if before else [],
                 "context_scope": {"page": str(id(page)), "url": before["url"] if before else page.url, "form": before.get("form_id") if before else None},
                 "critical": critical, "binding": "DOM values and resolved target rechecked immediately before browser dispatch"}
     if not critical and before:

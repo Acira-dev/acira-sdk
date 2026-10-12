@@ -114,3 +114,16 @@ Inside `page.controls` collection filters, paths are relative to each control:
 - Use `suppress_when` for safe previews, documentation, examples, search, filters, and non-mutating helpers.
 - Use `any_where` or `count_where` for page-wide controls instead of broad page text alone.
 - Use `value.classes` and `value.length` instead of raw input values.
+
+## Form submission and outbound controls
+
+`form_submission.json` is the bundled `submissions` starter. It emits
+`submission.outbound_attempt` for native submissions (including GET/search forms)
+and direct Submit/Send/Post/Publish/Apply/Finalize button identities on mutating
+actions. It requires request binding and defaults to ask in the starter config.
+GET/search forms are blocked while enabled because verified GET approval is
+not supported. It does not infer a recipient, account, amount, or payload from
+button text.
+The supported single-request operation must provide the actual evidence before
+an approval can dispatch an attempt; unsupported/missing evidence blocks.
+See [the end-user setup and contract guide](../../docs/form-submissions.md).

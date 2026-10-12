@@ -48,6 +48,14 @@ def revision_config(project: Project, agent: str, revision: str | None) -> Acira
     return replace(config, general_skills=tuple(general), specific_skills=tuple(specific), skill_policies=decisions)
 
 
+def _references_native_association(value: Any) -> bool:
+    if isinstance(value, dict):
+        return any(_references_native_association(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_references_native_association(item) for item in value)
+    return value in ("target.is_native_submit", "element.is_native_submit")
+
+
 def evaluate(config: AciraGuardConfig, event: dict[str, Any]) -> dict[str, Any]:
     facts = event.get("facts")
     classification = event.get("classification")
@@ -70,6 +78,15 @@ def evaluate(config: AciraGuardConfig, event: dict[str, Any]) -> dict[str, Any]:
     # One evaluation implementation; replay supplies frozen specific/general facts.
     guard = AciraGuardPolicy(replace(config, adapters={}, terminal_log=False, terminal_review=False))
     decision, reason, rule, cedar = guard._configured_decision(item, recorded_specific_facts=event["specific_facts"], recorded_general_facts=facts)
+    # A historical heuristic is_submit flag does not establish native form
+    # association. Never manufacture that newer evidence for candidate policies.
+    target_facts = facts.get("target")
+    if (decision != "block" and action.get("meaningful") and not action.get("read_only")
+            and action.get("action") in {"click", "submit", "form_control_activation", "dom_mutation"}
+            and any(_references_native_association(skill.rules) for skill in config.general_skills)
+            and (not isinstance(target_facts, dict)
+                 or not isinstance(target_facts.get("is_native_submit"), bool))):
+        return {"decision": "indeterminate", "reason": "Missing recorded native form-association evidence"}
     # Explicit submit contracts always require a fresh review, even when a general
     # configured policy would otherwise allow the click.
     evidence = (item.details or {}).get("operation_evidence") or {}
@@ -81,7 +98,7 @@ def evaluate(config: AciraGuardConfig, event: dict[str, Any]) -> dict[str, Any]:
             requirement = skill.review_requirements.get(detection.get("risk"), {}) if skill else {}
             missing = [name for name in requirement.get("required_fields", [])
                        if (evidence.get("verified_fields") or {}).get(name) in (None, "", "[REDACTED]")]
-            if requirement.get("request_binding") and not evidence.get("request_bound"):
+            if requirement.get("request_binding") and evidence.get("request_bound") is not True:
                 missing.append("verified request binding")
             if missing:
                 return {"decision":"indeterminate",

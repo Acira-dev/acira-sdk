@@ -13,14 +13,18 @@ from uuid import uuid4
 
 from aiohttp import ClientSession, ClientTimeout
 
-from acira_cdp_proxy.guard import GuardReviewRequest, TerminalReviewBackend
+from acira_cdp_proxy.guard import GuardReviewRequest, TerminalReviewBackend, redact_review_request
 
-from .journal import Journal
+from .journal import Journal, journal_redact
 from .local import Registry
 from .project import Project, digest
 
 
 class ProjectRuntime:
+    # Internal review entry: exact scope data is needed before external views
+    # are masked. This marker never grants action authorization by itself.
+    _acira_private_review_scope = True
+
     def __init__(self, project: Project, agent: str, *, dashboard: str | bool = "auto", review_backend: Any = None) -> None:
         self.project, self.agent = project, agent
         self.snapshot = project.snapshot(agent)
@@ -285,7 +289,7 @@ class ProjectRuntime:
                 continue
             verified = evidence.get("verified_fields", {})
             missing = [field for field in requirements.get("required_fields", []) if verified.get(field) in (None, "", "[REDACTED]")]
-            if requirements.get("request_binding") and not evidence.get("request_bound"):
+            if requirements.get("request_binding") and evidence.get("request_bound") is not True:
                 missing.append("verified request binding")
             if missing:
                 self.event("review_evidence_missing", missing=missing, policy_id=detected.get("skill_id"), risk=detected.get("risk"),
@@ -330,7 +334,7 @@ class ProjectRuntime:
         stop_terminal = asyncio.Event()
         terminal_task = None
         if self.external_review is not None:
-            terminal_task = asyncio.create_task(self.external_review.ask(request))
+            terminal_task = asyncio.create_task(self.external_review.ask(redact_review_request(request)))
         elif self.snapshot.config.terminal_review and sys.stdin.isatty():
             if evidence:
                 print("\nAcira operation evidence:", json.dumps(review["evidence"], indent=2), file=sys.stderr, flush=True)
@@ -357,7 +361,7 @@ class ProjectRuntime:
                         if scope_key and current.get("grant_requested"):
                             expiry = time.time() + 900
                             with self.journal.db() as db:
-                                db.execute("INSERT OR REPLACE INTO grants VALUES(?,?,?,?)", (scope_key, self.run_id, expiry, json.dumps({"scope": scope, "revision": self.snapshot.revision, "expires_monotonic": time.monotonic()+900})))
+                                db.execute("INSERT OR REPLACE INTO grants VALUES(?,?,?,?)", (scope_key, self.run_id, expiry, json.dumps({"scope": journal_redact(scope), "revision": self.snapshot.revision, "expires_monotonic": time.monotonic()+900})))
                             self.event("grant_created", grant_id=scope_key, scope=scope, expires_at=expiry)
                         return "allow"
                     return "block"

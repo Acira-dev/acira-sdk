@@ -309,6 +309,8 @@ class BrowserUseCDPProxy:
             if self not in _ACTIVE_BROWSER_USE_PROXIES:
                 _ACTIVE_BROWSER_USE_PROXIES.append(self)
             self._patch_browser_use_watchdog_handoff()
+            from .browser_use_dialogs import install as install_dialog_boundary
+            install_dialog_boundary(self)
             self._patch_browser_use_hitl_freeze()
             self._browser_session_class = BrowserSession
             if _BASE_BROWSER_SESSION_CONNECT is None:
@@ -376,6 +378,8 @@ class BrowserUseCDPProxy:
             _ACTIVE_BROWSER_USE_PROXIES.remove(self)
         self._restore_browser_use_hitl_freeze()
         self._restore_browser_use_watchdog_handoff()
+        from .browser_use_dialogs import uninstall as uninstall_dialog_boundary
+        uninstall_dialog_boundary(self)
 
         global _BASE_BROWSER_SESSION_CONNECT, _BASE_BROWSER_SESSION_KILL, _BASE_BROWSER_SESSION_STOP
         if self._browser_session_class is not None and self._original_connect is not None and not _ACTIVE_BROWSER_USE_PROXIES:

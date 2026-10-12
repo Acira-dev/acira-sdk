@@ -146,6 +146,7 @@ def _general_fact_summary(facts: dict[str, Any]) -> dict[str, Any]:
                     "control_tokens",
                     "identity_tokens",
                     "is_submit",
+                    "is_native_submit",
                     "meaningful",
                     "nearby_tokens",
                     "read_only",

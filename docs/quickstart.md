@@ -88,8 +88,16 @@ and choose whether runs should automatically connect to the local dashboard.
 
 For a Playwright setup without questions:
 
+The `submissions` starter below gates all native forms and
+Submit/Send/Post/Publish/Apply/Finalize controls. **GET/search forms are
+blocked while this policy is enabled because verified GET approval is not
+supported.** Other matched controls need a supported `guard.submit(...)`
+request contract; missing evidence blocks. Omit `submissions` to keep only
+the other four protections.
+Read the [form submission guide](form-submissions.md) before enabling it for your workflow.
+
 ```sh
-acira init --yes --adapter playwright --policies payment,credentials,destructive-actions,downloads
+acira init --yes --adapter playwright --policies payment,credentials,destructive-actions,downloads,submissions
 ```
 
 For browser-use, change the adapter flag to `--adapter browser_use`.

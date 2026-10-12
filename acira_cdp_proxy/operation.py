@@ -11,25 +11,57 @@ import re
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
+from .facts import TOKEN_RE
+from .redaction import _api_key_is_sensitive
+
 STATE_JS = """el => {
   if (!el || !el.isConnected) return null;
   const form = el.form || el.closest('form');
   const controls = form ? Array.from(form.elements).filter(x => /^(INPUT|SELECT|TEXTAREA)$/.test(x.tagName)) : [];
+  const hrefAttribute = el.getAttribute('href');
+  const identityHref = hrefAttribute ? new URL(hrefAttribute, location.href).href : '';
   return {url: location.href, has_form: !!form, form_id: form ? (form.id || form.name || form.action) : null,
     destination: form ? form.action : (el.href || location.href), method: form ? form.method : null,
-    target: {tag:el.tagName,id:el.id,name:el.name,type:el.type,text:(el.innerText||el.textContent||'').slice(0,500)},
+    target: {tag:el.tagName,id:el.id,name:el.name,type:el.type,text:(el.innerText||el.textContent||(el.tagName === 'INPUT' && ['button','submit','reset'].includes(el.type) ? el.value : '')).slice(0,500),
+      aria_label:(el.getAttribute('aria-label')||'').slice(0,500), title:(el.getAttribute('title')||'').slice(0,500),
+      href:identityHref.slice(0,500), placeholder:(el.getAttribute('placeholder')||'').slice(0,500),
+      autocomplete:(el.getAttribute('autocomplete')||'').slice(0,500)},
     fields: controls.map(x => ({name:x.name||x.id||x.getAttribute('aria-label')||x.type,
       type:x.type, value:x.value, checked:typeof x.checked === 'boolean' ? x.checked : null, disabled:x.disabled,
-      sensitive:/hidden|password|card|cvv|cvc|secret|token|credential|cc-|otp/i.test([x.type,x.name,x.id,x.autocomplete].join(' '))}))};
+      sensitive:/hidden|password|card|cvv|cvc|secret|token|credential|cc-|otp/i.test([x.type,x.name,x.id,x.autocomplete].join(' '))
+        || /(?:^|[^a-z0-9])api[_-]?key(?:$|[^a-z0-9])/i.test([x.name,x.id,x.getAttribute('aria-label')||''].join(' '))}))};
 }"""
 
 
-def evidence_for(state: dict[str, Any], action: str) -> dict[str, Any]:
+def field_is_sensitive(field: dict[str, Any]) -> bool:
+    # Older/custom normalized observations can lack a true sensitive flag.
+    # Known API-key field names still remain private in approval evidence.
+    name = field.get("name")
+    return bool(field.get("sensitive")) or (isinstance(name, str) and _api_key_is_sensitive(name))
+
+
+def is_critical_operation(state: dict[str, Any], action: str) -> bool:
+    """Keep outgoing operations outside routine reusable grants.
+
+    Labels do not establish what a request contains. They only conservatively
+    restrict approval scope; request-bound policies require the exact contract.
+    """
     identity = json.dumps(state.get("target", {})).lower()
-    critical = action in {"submit", "file_upload"} or bool(re.search(r"pay|purchase|checkout|card|credential|password|delete|remove|destroy|transfer|secret|token", identity))
-    critical = critical or any(field["sensitive"] for field in state["fields"]) or (state["has_form"] and state["target"].get("type") == "submit")
+    sensitive_target = re.search(r"pay|purchase|checkout|card|credential|password|delete|remove|destroy|transfer|secret|token", identity)
+    # Match the same alphanumeric identity tokens as policy facts. A separator
+    # such as '_' must not turn a recognized Send/Post control into a routine
+    # reusable grant. Labels restrict review scope; they are not payload proof.
+    outbound_target = set(TOKEN_RE.findall(identity)) & {"submit", "send", "post", "publish", "apply", "finalize"}
+    return bool(action in {"submit", "file_upload", "dialog_confirmation"}
+                or sensitive_target or outbound_target
+                or any(field_is_sensitive(field) for field in state["fields"])
+                or (state["has_form"] and state["target"].get("type") == "submit"))
+
+
+def evidence_for(state: dict[str, Any], action: str) -> dict[str, Any]:
+    critical = is_critical_operation(state, action)
     result = {"action": action, "destination": state["destination"], "critical": critical,
-        "fields": [{"name": f["name"], "display": "[REDACTED]" if f["sensitive"] else f["value"], "checked": f["checked"]} for f in state["fields"]],
+        "fields": [{"name": f["name"], "display": "[REDACTED]" if field_is_sensitive(f) else f["value"], "checked": f["checked"]} for f in state["fields"]],
         "context_scope": {"url": state["url"], "form": state.get("form_id")},
         "binding": "DOM values and resolved target rechecked before dispatch; application request values require an explicit submission contract"}
     if not critical:

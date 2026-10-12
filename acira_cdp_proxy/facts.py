@@ -68,6 +68,7 @@ class TargetFacts:
     is_editable: bool = False
     is_form_control: bool = False
     is_submit: bool = False
+    is_native_submit: bool | None = None
     tokens: tuple[str, ...] = ()
     identity_tokens: tuple[str, ...] = ()
     nearby_tokens: tuple[str, ...] = ()
@@ -100,6 +101,7 @@ class TargetFacts:
             "is_editable": self.is_editable,
             "is_form_control": self.is_form_control,
             "is_submit": self.is_submit,
+            "is_native_submit": self.is_native_submit,
             "tokens": list(self.tokens),
             "identity_tokens": list(self.identity_tokens),
             "nearby_tokens": list(self.nearby_tokens),
@@ -428,6 +430,7 @@ def _target_facts(target: dict[str, Any]) -> TargetFacts:
         is_editable=bool(target.get("is_editable")),
         is_form_control=bool(target.get("is_form_control")),
         is_submit=bool(target.get("is_submit")),
+        is_native_submit=target.get("is_native_submit") if isinstance(target.get("is_native_submit"), bool) else None,
         tokens=all_tokens,
         identity_tokens=identity_tokens,
         nearby_tokens=nearby_tokens,
@@ -491,6 +494,7 @@ def _control_inventory_item(raw: dict[str, Any], target: TargetFacts) -> dict[st
         "is_editable": target.is_editable,
         "is_form_control": target.is_form_control,
         "is_submit": target.is_submit,
+        "is_native_submit": target.is_native_submit,
         "is_disabled": bool(element_state.get("disabled")),
         "is_hidden": bool(element_state.get("hidden")),
         "attributes": _safe_attributes(attrs),

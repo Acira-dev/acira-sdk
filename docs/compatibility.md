@@ -23,6 +23,23 @@ Acira never silently upgrades or downgrades an existing browser framework.
 Adapter verification describes API coverage; it is not a dependency advisory audit.
 
 The candidate verifies Playwright 1.60.0, 1.61.0, 1.62.0 and 1.63.0, and browser-use 0.11.12 and 0.11.13.
+The **0.1.1 release gate** requires the following fresh source and installed-wheel
+checks against the same frozen commit and GitHub-built wheel:
+
+| Verification scope | Python and native platform | Framework pair |
+|---|---|---|
+| Release platform matrix | Standard CPython 3.11–3.15, macOS ARM64 and Linux ARM64 | Playwright 1.63.0 / browser-use 0.11.13 |
+| Supplemental complete suites | Standard CPython 3.12, macOS ARM64 | Playwright 1.61.0 / browser-use 0.11.13 |
+| Supplemental complete suites | Standard CPython 3.12, macOS ARM64 | Playwright 1.62.0 / browser-use 0.11.13 |
+| Retained framework versions, complete suites | Standard CPython 3.12, macOS ARM64 | Playwright 1.60.0 / browser-use 0.11.12 |
+
+These are distinct test scopes. The supplemental rows do not establish a complete
+framework-version × Python-version × operating-system test matrix. Earlier results
+for withdrawn source revisions do not qualify this candidate. Before publication,
+every selected check above must pass without skipped tests; final evidence belongs
+to the matching frozen commit and artifact hashes in the
+[release status](implementation-status.md).
+
 Both integrations use asynchronous Chromium. See the [operation boundaries](protection.md)
 for supported actions. External drops, arbitrary scripts/CDP mutations, storage
 mutations, clock instrumentation and virtual credential APIs have no verified operation contract and are

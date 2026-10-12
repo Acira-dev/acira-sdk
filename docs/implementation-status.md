@@ -704,3 +704,14 @@ waiters without approving an action. Unrelated review keys remain independent.
 The integrated candidate collects 959 tests; 109 focused lifecycle, preflight,
 browser-setup and release-gate cases passed without skips. Full exact-source
 verification remains required.
+
+
+### 2026-10-12 — Outbound submissions and native confirmations
+
+The integrated patch adds the `submissions` catalog policy and terminal setup for native forms and recognized Submit/Send/Post/Publish/Apply/Finalize identities. Existing initialized projects opt in; saving a new bundled policy does not silently rewrite their policies. Verified JSON/form mutation requests use the existing one-attempt `guard.submit(...)` contract. GET/search and unknown keyboard transports remain blocked with this policy enabled.
+
+General evidence requirements survive captured, secret, core and mapping reviews. Page denials override action reviews; page acknowledgement and operation approval have separate scopes. Review requirements come from the current authoritative decision rather than caller-supplied or stale page metadata. Historical events without precise native-association facts remain indeterminate when replayed against a policy requiring those facts.
+
+Native confirmation acceptance cannot inherit a click approval. Protected Playwright modals are rejected and dismissed on their owning page; browser-use cancels the exact detecting session instead of invoking upstream automatic confirmation. Free-text modal data is redacted before persistence. This does not contain arbitrary page JavaScript or unrelated connections.
+
+The [submission validation report](validation/2026-10-12-submissions/README.md) records real local browser effects, Chrome capture/terminal import, review binding and signed-out public inspection. Full qualification of the new frozen source and installed wheel remains required; earlier verification of `1bc1006` does not qualify this changed candidate.

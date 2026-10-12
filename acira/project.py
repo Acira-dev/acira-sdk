@@ -18,7 +18,8 @@ from .local import Registry, atomic_json, file_lock
 
 SCHEMA = "acira.project.v1"
 CATALOG = {"payment": "checkout", "credentials": "credential_sensitive_input",
-           "destructive-actions": "destructive_action", "downloads": "download_export"}
+           "destructive-actions": "destructive_action", "downloads": "download_export",
+           "submissions": "form_submission"}
 NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,79}\Z")
 POLICY_JSON_LIMIT = 1024 * 1024
 SNAPSHOT_JSON_LIMIT = 64 * 1024 * 1024

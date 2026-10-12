@@ -13,7 +13,11 @@ acira policy add
 ```
 
 Choose a numbered starter protection: payments, credentials, destructive actions,
-or downloads/exports. To automate the choice, supply its name:
+downloads/exports, or Submit/Send/Post protection. The `submissions` starter also
+gates native GET/search forms, which block because verified GET approval is not
+supported. Other matched controls require a supported request contract before
+approving an attempt; see the [form submission guide](form-submissions.md).
+To automate the choice, supply its name:
 
 ```sh
 acira policy add payment
