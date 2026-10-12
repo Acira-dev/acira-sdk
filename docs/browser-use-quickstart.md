@@ -10,7 +10,7 @@ the real-project integration below.
 ## Install outside the repository
 
 Use Python 3.11+ and activate your existing project environment. For the private preview,
-install the release wheel provided with this checkout:
+install a supplied Acira wheel:
 
 ```sh
 # Create a .venv only if your project does not already have an environment.
@@ -20,6 +20,14 @@ source .venv/bin/activate
 # Windows PowerShell instead:
 # .\.venv\Scripts\Activate.ps1
 python -m pip install "/absolute/path/acira-0.1.0-py3-none-any.whl"
+```
+
+If you have no wheel, follow [Start here](setup.md) to obtain the checkout and
+install from its path in your project's environment. Use the base path when your
+compatible framework is already installed, or choose its extra:
+
+```sh
+python -m pip install "/absolute/path/to/acira-sdk[browser-use]"
 ```
 
 If browser-use is missing, install the wheel with `[browser-use]`. This release

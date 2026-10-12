@@ -32,6 +32,9 @@ environments also work; installing and running must use the same interpreter.
 
 For the private preview, use the wheel supplied with the release build. It can remain
 in Downloads or any other folder; it need not be copied into your project.
+If you have no wheel, follow [Start here](setup.md) to clone and install directly
+from the SDK checkout into this environment. No PyPI publication is required for
+that private-repository installation.
 
 If your browser framework is already installed:
 

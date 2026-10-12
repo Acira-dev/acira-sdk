@@ -7,10 +7,18 @@ The bundled test drive is optional and appears after the integration steps below
 ## Install the release build
 
 Use Python 3.11+ in your existing project environment. Before PyPI publication,
-install the Acira wheel provided with this checkout:
+install a supplied Acira preview wheel:
 
 ```sh
 python -m pip install "/absolute/path/acira-0.1.0-py3-none-any.whl[playwright]"
+```
+
+If you have no wheel, [Start here](setup.md) explains repository access and
+environment setup. Install directly from its checkout path in your project's
+environment:
+
+```sh
+python -m pip install "/absolute/path/to/acira-sdk[playwright]"
 ```
 
 If Playwright is already installed, the base wheel without `[playwright]` is

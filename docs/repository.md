@@ -4,6 +4,10 @@ The canonical repository is https://github.com/Acira-dev/acira-sdk. It is owned 
 the Acira GitHub account and is private while the release is prepared. Changing
 visibility to public is a separate deliberate release step.
 
+For Fouad and other invited collaborators, [Start here](setup.md) explains cloning,
+installing into an existing agent project, configuring policies and running reviews.
+Repository installation does not require a supplied wheel or PyPI ownership.
+
 This repository contains the complete tracked project snapshot from
 https://github.com/FouadDim/Acira-Browser-Security at commit
 `0008fd730d1e8b5309fcc07717d313dd09a32c69`, including SDK integrations, policy

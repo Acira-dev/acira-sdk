@@ -16,7 +16,12 @@ remain the policy authority; stopping the dashboard does not stop enforcement.
 Open `acira open` whenever you want the dashboard. A demo, model download and separate
 sample project are not part of this setup.
 
-Follow the [step-by-step existing-project setup](docs/quickstart.md), or the
+**New computer or first installation?** Follow [Start here](docs/setup.md) for
+repository access, macOS/Linux/Windows installation, integration, terminal policies,
+Chrome capture, reviews, updates and troubleshooting. No supplied wheel is required
+for an invited collaborator to install from the checkout.
+
+Then use the [step-by-step existing-project setup](docs/quickstart.md), or the
 [Playwright](docs/playwright-quickstart.md) and
 [browser-use](docs/browser-use-quickstart.md) integration guides.
 
