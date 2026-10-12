@@ -3,17 +3,20 @@ from __future__ import annotations
 
 
 def capabilities(adapter: str) -> dict:
+    from .framework_compatibility import framework_compatibility
     common = {"pause": True, "resume": True, "stop": False,
+              "framework_compatibility": framework_compatibility(adapter),
               "browser_family": "Chromium", "api": "asynchronous",
               "boundary": "Actions through the protected integration; not an operating-system sandbox",
               "critical_evidence": "Missing required operation facts block the action"}
     if adapter == "playwright":
         return {**common,
-            "guarded": ["Page, Locator and ElementHandle actions", "Frame and popup actions",
+            "guarded": ["Supported Page, Locator and ElementHandle actions", "Frame and popup actions",
                         "resolved keyboard and coordinate actions", "file input selection",
                         "local, persistent and CDP-connected contexts"],
             "operation_contracts": ["Exact single JSON/form request with submit()", "Bounded text fields with fill_fields()"],
             "limitations": ["No arbitrary script/CDP mutation", "No forced pointer, drag or unbounded key/mouse sequences",
+                "External drop, clock instrumentation, web storage mutation and virtual credential APIs have no verified contract and are rejected",
                 "fill_fields does not combine application-specific captured policies",
                 "submit requires a context created with service workers blocked; one operation per browser context at a time",
                 "Independent HTTP clients, browser extensions and unrelated browser connections are outside the boundary"]}

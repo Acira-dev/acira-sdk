@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import math
 import sys
 import time
 from pathlib import Path
@@ -92,11 +93,11 @@ class ProjectRuntime:
 
     def refresh(self) -> None:
         if (self.project.root / ".acira/policy-transaction.json").exists():
-            raise ValueError("A policy transaction needs recovery; run acira doctor")
+            raise ValueError("A policy transaction needs recovery; run acira doctor --recover")
         try:
             snapshot = self.project.snapshot(self.agent)
             if (self.project.root / ".acira/policy-transaction.json").exists():
-                raise ValueError("Policy transaction in progress; wait or run acira doctor")
+                raise ValueError("Policy transaction in progress; wait or run acira doctor --recover")
             if self.adapter and snapshot.config.adapters != self.snapshot.config.adapters:
                 raise ValueError("Integration changed; restart this agent to use the new adapter")
             if snapshot.revision != self.snapshot.revision:
@@ -289,6 +290,8 @@ class ProjectRuntime:
             if missing:
                 self.event("review_evidence_missing", missing=missing, policy_id=detected.get("skill_id"), risk=detected.get("risk"),
                            reason="Use the supported submit() contract to bind the reviewed destination and values")
+                if self.snapshot.config.terminal_log:
+                    print("[Acira] Review blocked: required operation evidence missing: " + ", ".join(missing) + ". Use guard.submit(...) to bind the actual destination and values; see https://pypi.org/project/acira/#human-review-and-critical-submissions.", file=sys.stderr, flush=True)
                 return "block"
         high_risk = detection.get("severity") in {"high", "critical"} or any(item.get("severity") in {"high", "critical"} for item in detections)
         eligible = bool(scope) and not evidence.get("critical", True) and not high_risk
@@ -299,6 +302,14 @@ class ProjectRuntime:
             if grant and json.loads(grant["payload"]).get("expires_monotonic", 0) > time.monotonic():
                 self.event("grant_used", grant_id=scope_key)
                 return "allow"
+        terminal_available = self.external_review is not None or (self.snapshot.config.terminal_review and sys.stdin.isatty())
+        remaining = max(0, math.ceil(deadline - time.monotonic()))
+        channel = "your review backend" if self.external_review is not None else "this terminal" if terminal_available else "acira open → Approvals" if self.connect else "no reviewer is available; this action will block"
+        notice = f"[Acira] Review required. Respond using {channel}. Blocks after {remaining // 60}:{remaining % 60:02d} without approval."
+        if self.connect and not terminal_available and not self.connected:
+            notice += " No dashboard is connected yet; open it now, or press Ctrl-C to stop the run."
+        if self.snapshot.config.terminal_log:
+            print(notice, file=sys.stderr, flush=True)
         from .adapters.playwright_boundary import CAPTURE
         capture = CAPTURE.get()
         if capture is not None:
@@ -322,7 +333,7 @@ class ProjectRuntime:
             terminal_task = asyncio.create_task(self.external_review.ask(request))
         elif self.snapshot.config.terminal_review and sys.stdin.isatty():
             if evidence:
-                print("\nAcira operation evidence:", json.dumps(review["evidence"], indent=2), flush=True)
+                print("\nAcira operation evidence:", json.dumps(review["evidence"], indent=2), file=sys.stderr, flush=True)
             terminal_task = asyncio.create_task(TerminalReviewBackend(self.snapshot.config).ask_until(request, stop_event=stop_terminal))
         try:
             while True:

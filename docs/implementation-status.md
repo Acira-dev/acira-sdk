@@ -593,11 +593,74 @@ publishing. Fresh public-index installations passed on macOS and Linux, includin
 the CLI, policy initialization and extension export. GitHub stayed private, no
 payment or spending change was made, and temporary runners were removed.
 
-The **0.1.1** documentation update makes the normal setup explicit: use or install
+The **0.1.1** candidate makes the normal setup explicit: use or install
 official Playwright independently, then install `acira` in the same project
 environment and add the protection snippet to the actual application. The demo
 remains optional after integration; `acira[playwright]` remains a secondary
-convenience shortcut. Runtime protection and dependency constraints are unchanged.
+convenience shortcut. Compatibility work adds explicit framework diagnostics, guarded rejection of external
+drops/storage mutations/virtual credential APIs, safe dependency bounds and separate
+reproducible release constraints. The release matrix now requires all five standard
+CPython versions from 3.11 through 3.15 on each selected operating system.
+These additional changes require a fresh source/wheel matrix; the documentation-only
+verification is baseline evidence and is not sufficient to publish this candidate.
 PyPI stores the first uploaded description for a version, so this README change
 requires a patch release. Version 0.1.1 must pass fresh verification and publication
 before it is described as uploaded. Windows validation remains pending.
+
+## Compatibility expansion candidate (2026-10-12)
+
+The documentation baseline at `1f8943bf1145dd2c8cd2717a8df7023197aaf173` passed
+6,000 native source/installed tests on macOS/Linux × Python 3.11/3.12 in
+[verification 38249530317](https://github.com/Acira-dev/acira-sdk/actions/runs/38249530317).
+Additional isolated macOS Python 3.13.13/3.14.7 source and wheel suites passed
+750 tests each, totaling 3,000 further passes with no skips; both clean two-project
+journeys passed. These are baseline proofs, not verification of the final candidate.
+
+The safe browser-use 0.11.13 dependency candidate resolved normally with aiohttp 3.14.5
+and Pydantic 2.14.1 and passed 103 focused tests with no skips, plus a 130-package
+third-party advisory audit with no known vulnerabilities. Playwright 1.63 testing
+found unguarded new mutation surfaces, now explicitly rejected with no browser
+side effects in focused tests. Full latest-framework and final source/wheel/platform
+verification remain required before publication or expanded support claims.
+
+The setup continues to install official Playwright separately before base Acira.
+The demo and dashboard remain optional. GitHub remains private; Windows remains
+pending its native release checks. No paid API, subscription or spending change
+is part of this compatibility work.
+
+
+## First-run polish candidate (2026-10-12)
+
+The glitch-experience and SDK-polish reports were checked against the current
+implementation, not treated as release evidence or instructions to weaken protection.
+The integrated changes include idempotent initialization, catalog-name imports,
+path-aware capture errors, safe extension-export updates, human/JSON doctor output,
+truthful attachment status, public `ActionBlocked` handling and visible review waits.
+New notices respect quiet logging; human-review prompts remain independent.
+
+The isolated setup review passed 65 focused tests without skips. Diagnostics are
+read-only: default bundled-Chromium absence is an actionable failure, while explicit
+`--skip chromium` marks an application's custom browser unvalidated. Successful
+setup checks do not establish that application actions are protected.
+
+The universal optional-provider stack uses protobuf 6.33.6 and normally resolved
+Vertex dependencies. On native Python 3.15, all extras install consistently and
+Google provider imports and generated-message round trips pass without clients,
+credentials or cloud calls. Its complete installed advisory audit covers 141
+third-party packages with no known advisories or third-party skips. Final source,
+installed-wheel and native-platform verification remain required for this revision.
+See [troubleshooting](troubleshooting.md) and [compatibility](compatibility.md).
+
+
+The integrated native macOS/Python 3.12 source suite passed **916 tests, zero
+skips**, using Playwright 1.63.0, browser-use 0.11.13 and every optional provider.
+The unchanged all-extras cases affected by optional development collection guards
+also passed 27 focused tests without skips. A fresh base-only environment passed
+635 core tests; its 46 optional integration exclusions are development evidence,
+not release passes. The final native source/installed-wheel matrix must execute
+all 916 tests with no skips in each selected slot before publication.
+
+Independent review also repaired malformed service descriptors: invalid URL/key
+types fail before authenticated connection and diagnostics do not echo private
+field values. Seventeen new regressions and ten existing authentication/diagnostic
+cases passed; the full source result above includes the integrated repair.

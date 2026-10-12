@@ -132,7 +132,7 @@ def macos_linux_evidence():
     return run, jobs
 
 
-def test_explicit_macos_linux_release_requires_all_four_native_slots():
+def test_explicit_macos_linux_release_requires_all_native_slots():
     run, jobs = macos_linux_evidence()
     release.verify_completed_run(run, jobs, SHA, "macos-linux")
     # The full-platform default still requires the Windows slots.
@@ -282,3 +282,20 @@ def test_api_failure_does_not_allow_publication_or_echo_private_diagnostics(monk
     with pytest.raises(ValueError) as failure:
         release.github_json("repos/Acira-dev/acira-sdk/environments/pypi")
     assert "private diagnostic" not in str(failure.value)
+
+
+@pytest.mark.parametrize("system", ["Linux", "macOS"])
+@pytest.mark.parametrize("version", ["3.13", "3.14", "3.15"])
+@pytest.mark.parametrize("failure", ["missing", "skipped-source", "skipped-installed"])
+def test_new_python_versions_require_executed_source_and_wheel_tests(system, version, failure):
+    run, jobs = macos_linux_evidence()
+    name = f"verify-{system}-py{version}"
+    job = next(item for item in jobs["jobs"] if item["name"] == name)
+    if failure == "missing":
+        jobs["jobs"].remove(job)
+        jobs["total_count"] = len(jobs["jobs"])
+    else:
+        target = "Test source checkout" if failure == "skipped-source" else "Test installed distribution"
+        next(item for item in job["steps"] if item["name"] == target)["conclusion"] = "skipped"
+    with pytest.raises(ValueError):
+        release.verify_completed_run(run, jobs, SHA, "macos-linux")

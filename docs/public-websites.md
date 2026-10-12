@@ -5,7 +5,7 @@ Python 3.11/3.12 environment, install Playwright separately if it is missing, th
 add Acira from PyPI:
 
 ```sh
-python -m pip install playwright==1.60.0
+python -m pip install playwright==1.63.0
 # Only if the matching Chromium build is missing:
 python -m playwright install chromium
 python -m pip install acira

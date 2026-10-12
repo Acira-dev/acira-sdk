@@ -3,8 +3,7 @@
 Add local policies, human review, and action history to your existing browser agent.
 
 The maintained SDK repository is [Acira-dev/acira-sdk](https://github.com/Acira-dev/acira-sdk).
-The first PyPI release supports **macOS and Linux**, tested on Python 3.11 and
-3.12. Windows testing remains in CI, but Windows support is pending validation.
+This release supports **macOS and Linux**, tested on standard CPython 3.11–3.15. Windows testing remains in CI, but Windows support is pending validation.
 It is private during preparation for the open-source release. SDK code, the optional
 local dashboard, capture extension, policies, tests and release tooling live together
 here. See [repository provenance and publishing](docs/repository.md).
@@ -49,7 +48,7 @@ and remaining release gates. Do not infer full adapter coverage from package ins
 
 ## Install and initialize
 
-Use your existing agent project's Python 3.11/3.12 environment. Acira is available
+Use your existing agent project's Python 3.11–3.15 environment. Acira is available
 on [PyPI](https://pypi.org/project/acira/); installation requires no GitHub access.
 
 **Already using Playwright or browser-use?** Keep the compatible framework installed
@@ -64,7 +63,7 @@ python -m pip check
 version tested for this release. Install its Chromium build only if it is missing:
 
 ```sh
-python -m pip install playwright==1.60.0
+python -m pip install playwright==1.63.0
 python -m playwright install chromium
 ```
 
@@ -93,10 +92,12 @@ dashboard connection. It shows the integration snippet; it does not rewrite your
 application or install browsers. If your environment needs Chromium, install it
 explicitly with `python -m playwright install chromium`. Reuse your existing browser
 setup when it is compatible with the supported integration. Framework versions tested
-for this release are Playwright 1.60.0 and browser-use 0.11.12; `acira doctor` reports
-your installed versions and configured capabilities.
+for this release are Playwright 1.60.0, 1.61.0, 1.62.0 and 1.63.0 and browser-use 0.11.12/0.11.13; `acira doctor` reports
+your installed versions, whether that framework version was verified, and configured capabilities.
+Unverified framework versions fail before protection attaches; Acira does not silently
+downgrade an existing installation. See [compatibility and dependency choices](docs/compatibility.md).
 The browser-use extra includes its settings dependency and tested integration
-libraries, with fixed AnyIO and pypdf versions. Newer browser-use 0.13.11 currently
+libraries, with security-fixed AnyIO and pypdf versions. Newer browser-use 0.13.11 currently
 pins affected library versions; Acira does not override upstream package metadata
 or ignore dependency advisories. Installing the extra can change existing framework
 versions, so use your project's environment and review pip's dependency changes.

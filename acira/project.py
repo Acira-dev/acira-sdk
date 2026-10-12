@@ -30,9 +30,14 @@ def read_json(path: Path, *, max_bytes: int = POLICY_JSON_LIMIT) -> dict[str, An
         raw = handle.read(max_bytes + 1)
     if len(raw) > max_bytes:
         raise ValueError(f"JSON exceeds {max_bytes // (1024 * 1024)} MiB: {path.name}")
-    value = json.loads(raw.decode("utf-8"))
+    try:
+        value = json.loads(raw.decode("utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path}: invalid JSON at line {exc.lineno}, column {exc.colno}: {exc.msg}") from None
+    except UnicodeDecodeError:
+        raise ValueError(f"{path}: JSON must use UTF-8 encoding") from None
     if not isinstance(value, dict):
-        raise ValueError(f"Expected a JSON object: {path.name}")
+        raise ValueError(f"Expected a JSON object: {path}")
     return value
 
 
@@ -45,7 +50,7 @@ def bundled_default() -> dict[str, Any]:
 
 
 def catalog_policy(name: str) -> dict[str, Any]:
-    stem = CATALOG.get(name, name)
+    stem = CATALOG.get(name, name.removeprefix("acira.general."))
     if stem not in CATALOG.values():
         raise ValueError(f"Unknown policy {name!r}; available: {', '.join(CATALOG)}")
     policy = json.loads(files("acira").joinpath(f"resources/policies/{stem}.json").read_text(encoding="utf-8"))
@@ -77,7 +82,15 @@ def validate_policy(value: dict[str, Any]) -> tuple[str, str]:
             if not isinstance(required, list) or any(not isinstance(item, str) or not NAME.fullmatch(item) for item in required):
                 raise ValueError("Required review fields must be a list of field names")
         return "general", skill.id
-    skill = SpecificSkill.from_dict(value)
+    # Let the existing parser decide which current/legacy capture forms are
+    # supported (including normalized schema strings and match/URL aliases).
+    try:
+        skill = SpecificSkill.from_dict(value)
+    except ValueError:
+        schema = str(value.get("schema") or "").strip()
+        if not schema.startswith("acira.specific_skill"):
+            raise ValueError("Expected an Acira general policy or captured specific policy. Export JSON from Acira Capture (acira-skill-<host>.json); project configuration and arbitrary JSON cannot be imported as policies.") from None
+        raise
     return "specific", skill.id
 
 
@@ -136,7 +149,12 @@ class Project:
         raise ValueError("No acira.json found. Run acira init, or pass an explicit project path.")
 
     def document(self) -> dict[str, Any]:
-        return validate_document(read_json(self.path))
+        try:
+            return validate_document(read_json(self.path))
+        except ValueError as exc:
+            if str(self.path) in str(exc):
+                raise
+            raise ValueError(f"{self.path}: {exc}") from None
 
     def folders(self, agent: str, data: dict[str, Any] | None = None) -> dict[str, Path]:
         document = data or self.document()
@@ -193,7 +211,10 @@ class Project:
                 if path.is_symlink():
                     raise ValueError(f"Policy symbolic links are unsupported: {path.name}")
                 payload = overrides[str(path)] if overrides and str(path) in overrides else read_json(path)
-                actual_kind, policy_id = validate_policy(payload)
+                try:
+                    actual_kind, policy_id = validate_policy(payload)
+                except (ValueError, TypeError) as exc:
+                    raise ValueError(f"{path}: {exc}") from None
                 if actual_kind != kind:
                     raise ValueError(f"{path.name} belongs in the {actual_kind} policy folder")
                 if policy_id in {identity for _, identity in seen}:
@@ -291,6 +312,11 @@ def initialize(root: Path, *, agent: str = "default", adapter: str = "playwright
     if not NAME.fullmatch(agent) or adapter not in {"playwright", "browser_use"}:
         raise ValueError("Choose a valid agent name and playwright or browser_use adapter")
     project = Project(root)
+    # Validate choices before creating folders or installing any policy. One
+    # misspelled name must not leave a partially initialized project behind.
+    if (project.root / general).resolve() == (project.root / specific).resolve():
+        raise ValueError("General and specific policy folders must be different")
+    payloads = [(name, catalog_policy(name)) for name in selected or []]
     project.root.mkdir(parents=True, exist_ok=True)
     with file_lock(project.root / ".acira/policy.lock"):
         document = project.document() if project.path.exists() else {"schema": SCHEMA, "name": root.name,
@@ -301,10 +327,7 @@ def initialize(root: Path, *, agent: str = "default", adapter: str = "playwright
             return project
         for path in (general, specific):
             (project.root / path).mkdir(parents=True, exist_ok=True)
-        if (project.root / general).resolve() == (project.root / specific).resolve():
-            raise ValueError("General and specific policy folders must be different")
-        for name in selected or []:
-            payload = catalog_policy(name)
+        for name, payload in payloads:
             destination = project.root / general / f"{CATALOG.get(name, name)}.json"
             if not destination.exists():
                 atomic_json(destination, payload)

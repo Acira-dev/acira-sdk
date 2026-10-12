@@ -25,13 +25,16 @@ exact commit, and that approval was submitted after verification finished. The
 main commit must still match the approved commit. A moved main branch requires
 fresh verification.
 
-The **macos-linux** scope requires all four combinations of **Linux, macOS ×
-Python 3.11, 3.12**. The **all** scope requires all six combinations, including
+The **macos-linux** scope requires all ten combinations of **Linux, macOS ×
+standard CPython 3.11, 3.12, 3.13, 3.14, 3.15**. The **all** scope requires all fifteen combinations, including
 Windows. Every required combination must execute and pass. Each runs source and
 installed-wheel suites, dependency consistency,
 Chromium tests, the clean installation journey, and dashboard/extension script
 checks. Skipped tests are rejected in release jobs. The dependency advisory audit
-runs during verification, including a verification that is never published.
+runs during verification, including a verification that is never published. Its
+report must match every installed distribution name and version; third-party packages
+with missing advisory evidence are rejected. Only an unpublished first-party Acira
+version may lack a PyPI advisory record, with its exact wheel version recorded.
 Incomplete job evidence, failed/skipped required steps, unavailable artifacts,
 wrong checksums, and approvals from collaborators block publication.
 
@@ -51,7 +54,7 @@ requires trusted publishing; no stored PyPI upload token is used.
 
 The platform scope is recorded in the verification run title and must match
 the publication request. A failed or incomplete all-platform run cannot be
-relabelled as a macOS/Linux release. Each selected operating system runs both
+relabelled as a macOS/Linux release. Each selected operating system runs all five
 Python versions, the entire source and installed suites with no skipped tests,
 and the clean-installation journey. The dependency audit remains mandatory.
 Windows jobs stay in normal CI and in the all-platform release option.
@@ -84,12 +87,15 @@ Playwright's official dependency installer.
 
 Hosted Linux jobs are pinned to Ubuntu 24.04 so a change to GitHub’s
 `ubuntu-latest` image cannot silently change the supported test platform.
-Use Ubuntu 24.04 or a supported Debian release for the pinned Playwright 1.60.0
-Linux tests. Its installer rejects Ubuntu 26.04 ARM64. A newer operating system
-does not establish browser compatibility; choose a supported image rather than
-overriding Playwright's platform detection or skipping browser tests.
+Use Ubuntu 24.04 or a supported Debian release for the pinned Playwright 1.63.0
+Linux tests. Earlier Playwright 1.60 testing failed on Ubuntu 26.04 ARM64; that
+historical failure does not describe the newer installer. Current upstream
+[system requirements](https://playwright.dev/python/docs/intro#system-requirements)
+also include Ubuntu 26.04, while Acira's native release verification uses Ubuntu
+24.04. Do not override platform detection or skip browser tests on another image.
 
-Mac runners need native Python 3.11 and 3.12 already installed. The helper verifies
+Mac runners need native standard CPython 3.11 through 3.15 already installed or
+available through private, verified portable interpreters on PATH. The helper verifies
 their actual versions and architecture and prepares private, temporary virtual
 environments that setup-python can discover. It avoids the official Mac installer's
 privileged `/Users/runner` location; it does not create or modify system folders.
@@ -103,11 +109,11 @@ gh run list --repo Acira-dev/acira-sdk --workflow verify-release.yml --limit 1
 Record the resulting run ID and full source commit. Then run the helper from
 the SDK checkout on each computer:
 ```sh
-# Mac: authorization, build, two Python versions, audit, final summary
-python3 tools/start_release_runner.py --run-id RUN_ID --commit SOURCE_COMMIT --jobs 6
+# Mac: authorization, build, five Python versions, audit, final summary
+python3 tools/start_release_runner.py --run-id RUN_ID --commit SOURCE_COMMIT --jobs 9
 
-# Linux: both Python versions
-python3 tools/start_release_runner.py --run-id RUN_ID --commit SOURCE_COMMIT --jobs 2
+# Linux: all five Python versions
+python3 tools/start_release_runner.py --run-id RUN_ID --commit SOURCE_COMMIT --jobs 5
 ```
 
 For a future **all** verification that adds Windows support, use PowerShell
@@ -119,10 +125,10 @@ gh auth login --hostname github.com
 gh repo clone Acira-dev/acira-sdk
 Set-Location acira-sdk
 git checkout SOURCE_COMMIT
-py -3.12 tools/start_release_runner.py --run-id RUN_ID --commit SOURCE_COMMIT --jobs 2
+py -3.12 tools/start_release_runner.py --run-id RUN_ID --commit SOURCE_COMMIT --jobs 5
 ```
 
-Keep the Windows terminal open until both jobs finish. Account login happens on
+Keep the Windows terminal open until all five jobs finish. Account login happens on
 that computer; do not copy passwords or tokens into chat or the repository.
 The first PyPI release is supported on macOS/Linux only; Windows commands are
 provided for contributors preparing its future validation.
@@ -142,6 +148,13 @@ and run the temporary Mac helper for that ID with `--jobs 2`.
 A failed verification cannot be approved by this command. No upload occurs until
 GitHub and PyPI accept the exact trusted identity and artifact pair.
 
+## Reproducible verification dependencies
+
+Normal installation uses conservative supported dependency bounds. Release jobs use
+`.github/constraints-release.txt` to reproduce the exact tested package stack without
+overriding upstream package metadata. Both source and installed-wheel tests use that
+stack. The public installation checks separately verify normal PyPI resolution.
+
 ## Package contents and dependency gates
 
 Local build:
@@ -156,7 +169,7 @@ python tools/prepare_release.py dist
 The build produces a source archive, then a wheel from it. Assembly adds the
 unpacked extension ZIP, SHA-256 checksums, and a manifest. It does not upload files.
 
-The browser-use extra selects the compatible upstream **0.11.12** distribution,
+The browser-use extra selects the compatible upstream **0.11.12/0.11.13** distributions,
 which permits patched AnyIO **4.15.1** and pypdf **6.20.0**. Its missing
 pydantic-settings dependency and tested integration libraries are explicit.
 Browser-use 0.13.11 pins affected versions; no upstream metadata override or
@@ -185,7 +198,7 @@ checkout:
 ```sh
 python -m venv /tmp/acira-public-install
 /tmp/acira-public-install/bin/python -m pip install --upgrade pip
-/tmp/acira-public-install/bin/python -m pip install playwright==1.60.0
+/tmp/acira-public-install/bin/python -m pip install playwright==1.63.0
 /tmp/acira-public-install/bin/python -m pip install acira
 /tmp/acira-public-install/bin/python -m pip check
 /tmp/acira-public-install/bin/acira --help

@@ -13,7 +13,7 @@ from types import TracebackType
 from typing import Any, Callable
 from .playwright_boundary import trusted
 
-from acira_cdp_proxy.action_gateway import ActionGateway, ActionRequest
+from acira_cdp_proxy.action_gateway import ActionGateway, ActionRequest, AciraActionBlocked
 from acira_cdp_proxy.checkpoint import CheckpointStore
 from acira_cdp_proxy.config import AciraGuardConfig
 from acira_cdp_proxy.framework_adapters import ActionCapability, FrameworkAdapterSpec
@@ -27,7 +27,7 @@ from acira_cdp_proxy.guard import (
 from acira_cdp_proxy.logger import CDPLogger, NullCDPLogger
 from acira_cdp_proxy.policy import AGENT_TO_BROWSER, CDPMessageContext, CDPPolicy
 from acira_cdp_proxy.server import AciraCDPProxy
-from acira_cdp_proxy.startup import print_skill_activation_summary
+from acira_cdp_proxy.startup import print_skill_activation_summary, print_attachment_status
 
 
 PLAYWRIGHT_FRAMEWORK_ID = "playwright"
@@ -92,13 +92,8 @@ class _PagePreflightCacheEntry:
 _ACTIVE_PLAYWRIGHT_PROXIES: list["PlaywrightCDPProxy"] = []
 
 
-class PlaywrightGuardBlockedError(RuntimeError):
-    """Raised when Acira blocks a Playwright action."""
-
-    def __init__(self, reason: str, *, metadata: dict[str, Any] | None = None) -> None:
-        super().__init__(reason)
-        self.reason = reason
-        self.metadata = metadata or {}
+class PlaywrightGuardBlockedError(AciraActionBlocked):
+    """Backward-compatible Playwright block type; catch acira.ActionBlocked."""
 
 
 class PlaywrightCDPProxy:
@@ -181,7 +176,7 @@ class PlaywrightCDPProxy:
         self._redaction_lease = SECRET_REDACTION_REGISTRY.begin_run()
         _ACTIVE_PLAYWRIGHT_PROXIES.append(self)
         try:
-            print_skill_activation_summary(self.guard_policy.config, framework=PLAYWRIGHT_FRAMEWORK_ID)
+            print_skill_activation_summary(self.guard_policy.config, framework=PLAYWRIGHT_FRAMEWORK_ID, attached=False)
             if self.runtime_control is not None and hasattr(self.runtime_control, "start"):
                 result = self.runtime_control.start()
                 if inspect.isawaitable(result):
@@ -210,6 +205,8 @@ class PlaywrightCDPProxy:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        if not self._contexts and self in _ACTIVE_PLAYWRIGHT_PROXIES:
+            print_attachment_status("No Chromium context was attached to this run. Existing browsers/pages may have run without Acira protection. Call guard.patch_playwright(p) before launch/connect, or guard.patch_page(page) before using an existing context.", enabled=self.guard_policy.config.terminal_log)
         self._closing = True
         if self in _ACTIVE_PLAYWRIGHT_PROXIES:
             _ACTIVE_PLAYWRIGHT_PROXIES.remove(self)
@@ -267,19 +264,33 @@ class PlaywrightCDPProxy:
 
         Call this after entering the context manager but before launching/connecting.
         """
+        from acira.framework_compatibility import require_verified_framework
+        require_verified_framework("playwright")
         if not inspect.iscoroutinefunction(playwright.chromium.launch):
             raise ValueError("Acira requires Playwright's asynchronous API")
         for bt_name in ("chromium", "firefox", "webkit"):
             bt = getattr(playwright, bt_name, None)
             if bt is not None:
                 self._patch_browser_type(bt)
+        print_attachment_status("Playwright armed for future Chromium launch/connect calls. Existing browsers are not attached by this call; use guard.patch_page(page) before acting on an existing context.", enabled=self.guard_policy.config.terminal_log)
 
     def patch_page(self, page: Any) -> None:
-        """Directly patch an already-created Page object.
+        """Protect an already-created Page and its browser context.
 
         Use when you bypass launch()/connect_over_cdp() and create pages
-        through your own factory.
+        through your own factory. Existing and future pages in the context share
+        this run; a browser context cannot belong to several Acira runs.
         """
+        from acira.framework_compatibility import require_verified_framework
+        require_verified_framework("playwright")
+        from playwright.async_api import Page
+        if not isinstance(page, Page) or not inspect.iscoroutinefunction(page.goto):
+            raise ValueError("Acira requires a Page from Playwright's asynchronous API")
+        context = page.context
+        browser = context.browser
+        if browser is None or browser.browser_type.name != "chromium":
+            raise ValueError("Acira supports asynchronous Chromium pages; use guard.patch_playwright before creating a supported context")
+        self._patch_context(context)
         self._patch_page(page)
 
     async def fill_fields(self, fields: list[tuple[Any, str]], *, purpose: str = "Fill form fields") -> None:
@@ -418,8 +429,17 @@ class PlaywrightCDPProxy:
         context._acira_registered = self
         self._contexts.append(context)
         context.on("page", manager._patch_page)
-        from .playwright_boundary import patch_cdp_factory
+        from .playwright_boundary import patch_cdp_factory, reject_uncontracted_surface
         patch_cdp_factory(self, context, "new_cdp_session")
+        clock = getattr(context, "clock", None)
+        if clock is not None:
+            reject_uncontracted_surface(self, clock,
+                ("install", "fast_forward", "pause_at", "resume", "run_for", "set_fixed_time", "set_system_time"),
+                "Clock instrumentation has no verified Acira operation contract")
+        credentials = getattr(context, "credentials", None)
+        if credentials is not None:
+            reject_uncontracted_surface(self, credentials, ("install", "create", "delete", "get"),
+                "Virtual credential APIs have no verified Acira operation contract")
         # Context-wide injected JavaScript otherwise bypasses every page wrapper.
         for name in ("add_init_script",):
             saved = getattr(context, name)
@@ -439,10 +459,17 @@ class PlaywrightCDPProxy:
 
         self._patched_attrs.append((context, "new_page", original_new_page))
         context.new_page = new_page_with_acira
+        if len(self._contexts) == 1:
+            print_attachment_status("Chromium context attached. Supported actions in this context now pass through Acira; unrelated browser connections remain outside this run.", enabled=self.guard_policy.config.terminal_log)
 
     def _patch_page(self, page: Any) -> None:
-        from .playwright_boundary import attach
+        from .playwright_boundary import attach, reject_uncontracted_surface
         attach(self, page)
+        for name in ("local_storage", "session_storage"):
+            storage = getattr(page, name, None)
+            if storage is not None:
+                reject_uncontracted_surface(self, storage, ("set_item", "remove_item", "clear"),
+                    "Web storage mutations have no verified Acira operation contract")
 
     # ------------------------------------------------------------------ #
     # Core guard logic

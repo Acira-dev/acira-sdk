@@ -41,9 +41,22 @@ def descriptor() -> dict[str, Any] | None:
     if path.is_symlink() or (os.name != "nt" and (path.stat().st_uid != os.getuid() or path.stat().st_mode & 0o077)):
         raise PermissionError("Unsafe local server descriptor permissions; run acira doctor")
     data = read_json(path)
-    url = urlsplit(data.get("url", ""))
-    if url.scheme != "http" or url.hostname != "127.0.0.1" or not url.port or url.path or url.query or url.fragment or url.username or url.password:
+    # A malformed URL parser error can contain a raw field value. Descriptor
+    # fields are private credentials; reject malformed data with stable errors.
+    try:
+        raw_url = data.get("url")
+        if not isinstance(raw_url, str):
+            raise ValueError("Invalid URL type")
+        url = urlsplit(raw_url)
+        valid_url = (url.scheme == "http" and url.hostname == "127.0.0.1" and bool(url.port)
+                     and not any((url.path, url.query, url.fragment, url.username, url.password)))
+    except (ValueError, TypeError, AttributeError):
+        raise ValueError("Invalid loopback service descriptor") from None
+    if not valid_url:
         raise ValueError("Invalid loopback service descriptor")
+    if any(not isinstance(data.get(key), str) or not data[key]
+           for key in ("proof_key", "sdk_key", "admin_key")):
+        raise ValueError("Invalid local service credential fields")
     if data.get("protocol") != PROTOCOL:
         raise ValueError("Incompatible Acira service protocol; stop the old service and reopen with a compatible version")
     return data

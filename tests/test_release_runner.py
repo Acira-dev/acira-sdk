@@ -88,7 +88,7 @@ def test_mac_cache_rejects_wrong_python_identity(monkeypatch, tmp_path, case):
         runner.validate_mac_python(data, "3.12", tmp_path)
 
 
-@pytest.mark.parametrize("native_minor", [(3, 11), (3, 12)])
+@pytest.mark.parametrize("native_minor", [(3, 11), (3, 12), (3, 13), (3, 14), (3, 15)])
 def test_mac_cache_does_not_mark_a_different_cached_interpreter(monkeypatch, tmp_path, native_minor):
     from types import SimpleNamespace
     native_version = ".".join(map(str, (*native_minor, 15)))
@@ -155,3 +155,22 @@ def test_native_selection_rejects_incomplete_or_false_evidence(monkeypatch, nati
     elif case == "no-cache": directory = directory / "empty"
     with pytest.raises(ValueError):
         runner.select_mac_python_cache(directory, minor)
+
+
+@pytest.mark.parametrize("minor, patch", [("3.13", 13), ("3.14", 7), ("3.15", 0)])
+def test_new_mac_cache_selection_verifies_actual_interpreter(monkeypatch, tmp_path, minor, patch):
+    monkeypatch.setattr(runner.sys, "platform", "darwin")
+    monkeypatch.setattr(runner.platform, "machine", lambda: "arm64")
+    version = f"{minor}.{patch}"
+    prefix = tmp_path / "Python" / version / "arm64"
+    (prefix / "bin").mkdir(parents=True)
+    executable = prefix / "bin" / "python"
+    executable.write_text("native interpreter fixture")
+    prefix.with_name("arm64.complete").write_text("verified")
+    data = {"version": [3, int(minor.split(".")[1]), patch], "releaselevel": "final",
+        "platform": "darwin", "architecture": "arm64", "prefix": str(prefix)}
+    monkeypatch.setattr(runner, "python_metadata", lambda executable: data)
+    assert runner.select_mac_python_cache(tmp_path, minor) == executable
+    data["version"][1] = 12
+    with pytest.raises(ValueError):
+        runner.select_mac_python_cache(tmp_path, minor)

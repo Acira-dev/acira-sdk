@@ -23,7 +23,7 @@ import uuid
 import zipfile
 
 from verify_release_environment import (
-    OWNER_ID, REPOSITORY, VERIFICATION_PATH, PUBLISH_PATH, verify_owner_request,
+    OWNER_ID, REPOSITORY, VERIFICATION_PATH, PUBLISH_PATH, SUPPORTED_PYTHON_VERSIONS, verify_owner_request,
 )
 
 
@@ -101,10 +101,10 @@ def prepare_mac_python_cache(directory):
     architecture = {"arm64": "arm64", "x86_64": "x64"}.get(platform.machine().lower())
     if architecture is None:
         raise ValueError("Unsupported Mac runner architecture")
-    for minor in ("3.11", "3.12"):
+    for minor in SUPPORTED_PYTHON_VERSIONS:
         interpreter = sys.executable if sys.version_info[:2] == tuple(map(int, minor.split("."))) else shutil.which("python" + minor)
         if interpreter is None:
-            raise ValueError("Mac release runners require Python 3.11 and 3.12 installed; no system folders will be created")
+            raise ValueError("Mac release runners require all supported Python versions installed; no system folders will be created")
         version = validate_mac_python(python_metadata(interpreter), minor)
         destination = directory / "Python" / version / architecture
         result = subprocess.run([str(interpreter), "-m", "venv", str(destination)],
@@ -118,7 +118,7 @@ def prepare_mac_python_cache(directory):
 
 
 def select_mac_python_cache(directory, minor):
-    if sys.platform != "darwin" or minor not in ("3.11", "3.12"):
+    if sys.platform != "darwin" or minor not in SUPPORTED_PYTHON_VERSIONS:
         raise ValueError("Native cache selection requires a supported Mac Python version")
     architecture = {"arm64": "arm64", "x86_64": "x64"}.get(platform.machine().lower())
     if architecture is None:
@@ -276,9 +276,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-id", required=True, type=int)
     parser.add_argument("--commit", required=True)
-    parser.add_argument("--jobs", type=int, default=1, choices=range(1, 7))
+    parser.add_argument("--jobs", type=int, default=1, choices=range(1, 11))
     parser.add_argument("--check-job", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--activate-python", choices=("3.11", "3.12"), help=argparse.SUPPRESS)
+    parser.add_argument("--activate-python", choices=SUPPORTED_PYTHON_VERSIONS, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.run_id <= 0 or not re.fullmatch(r"[0-9a-f]{40}", args.commit):
         parser.error("Use the exact release run ID and source commit")

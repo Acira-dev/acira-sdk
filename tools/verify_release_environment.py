@@ -23,11 +23,13 @@ MATRIX_STEPS = {
     "Test source checkout", "Test installed distribution",
     "Verify clean installation journey", "Check dashboard and extension scripts",
 }
+SUPPORTED_PYTHON_VERSIONS = ("3.11", "3.12", "3.13", "3.14", "3.15")
+
 REQUIRED_JOBS = {
     "authorize-verification": {"Check Acira owner"},
     "build": {"Build distributions", "Validate distributions", "Assemble release bundle", "Upload distributions"},
-    "dependency-audit": {"Install audited release", "Check dependency consistency", "Require no known dependency advisories"},
-    **{f"verify-{system}-py{version}": MATRIX_STEPS for system in ("Linux", "macOS", "Windows") for version in ("3.11", "3.12")},
+    "dependency-audit": {"Install audited release", "Check dependency consistency", "Require no known dependency advisories", "Validate audit coverage"},
+    **{f"verify-{system}-py{version}": MATRIX_STEPS for system in ("Linux", "macOS", "Windows") for version in SUPPORTED_PYTHON_VERSIONS},
 }
 PLATFORM_SCOPES = {
     "all": ("Linux", "macOS", "Windows"),

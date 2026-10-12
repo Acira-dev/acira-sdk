@@ -284,6 +284,8 @@ class BrowserUseCDPProxy:
         self._stopping_sessions: set[int] = set()
 
     async def __aenter__(self) -> "BrowserUseCDPProxy":
+        from acira.framework_compatibility import require_verified_framework
+        require_verified_framework("browser_use")
         import os
         os.environ.setdefault("ANONYMIZED_TELEMETRY", "false")
         os.environ.setdefault("BROWSER_USE_CLOUD_SYNC", "false")
@@ -4409,7 +4411,7 @@ async def _execute_step_with_acira_hitl_pause(
             await agent._judge_and_log()
 
         if agent.register_done_callback:
-            if asyncio.iscoroutinefunction(agent.register_done_callback):
+            if inspect.iscoroutinefunction(agent.register_done_callback):
                 await agent.register_done_callback(agent.history)
             else:
                 agent.register_done_callback(agent.history)

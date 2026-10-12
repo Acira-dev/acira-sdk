@@ -97,7 +97,7 @@ Run before every handoff or push:
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-The GitHub Actions workflow runs the same test suite on Python 3.11 with the pinned core dependencies. If extension JavaScript changes, also run:
+Release verification runs the full source and installed-wheel suites on standard CPython 3.11 through 3.15 with `.github/constraints-release.txt`. The macOS/Linux scope requires every selected native slot; Windows support remains pending its all-platform release gate. No release test may be skipped. If extension JavaScript changes, also run:
 
 ```powershell
 node --check .\tools\acira-capture-extension\background.js

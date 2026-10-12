@@ -28,7 +28,7 @@ ELEMENT_METHODS = {"click": "click", "dblclick": "click", "tap": "click", "fill"
     "type": "form_input", "press_sequentially": "form_input", "press": "keyboard", "select_option": "select",
     "check": "check", "uncheck": "check", "set_checked": "check", "set_input_files": "file_upload",
     "hover": "meaningful_action", "focus": "meaningful_action", "drag_to": "meaningful_action",
-    "drag_and_drop": "meaningful_action", "dispatch_event": "arbitrary_js"}
+    "drag_and_drop": "meaningful_action", "drop": "arbitrary_js", "dispatch_event": "arbitrary_js"}
 SCRIPT_METHODS = {"evaluate", "evaluate_handle", "evaluate_all", "eval_on_selector", "eval_on_selector_all",
     "add_script_tag", "add_style_tag", "set_content", "add_init_script", "wait_for_function", "pdf"}
 NAVIGATION_METHODS = {"goto", "reload", "go_back", "go_forward"}
@@ -74,6 +74,23 @@ def patch_cdp_factory(manager: Any, obj: Any, name: str) -> None:
         return session
     manager._patched_attrs.append((obj, name, saved))
     setattr(obj, name, factory)
+
+
+def reject_uncontracted_surface(manager: Any, obj: Any, methods: tuple[str, ...], reason: str) -> None:
+    """Reject public mutation surfaces without inventing an operation contract.
+
+    Keep each API object alive in the normal restoration list. Playwright maps
+    repeated property access to that same object, so ownership stays per context
+    or page and unrelated browsers keep their ordinary API behavior.
+    """
+    for name in methods:
+        saved = getattr(obj, name, None)
+        if saved is None or any(patched is obj and attr == name for patched, attr, _ in manager._patched_attrs):
+            continue
+        async def rejected(*args: Any, **kwargs: Any) -> Any:
+            raise AciraActionBlocked(reason)
+        manager._patched_attrs.append((obj, name, saved))
+        setattr(obj, name, rejected)
 
 
 def attach(manager: Any, page: Any) -> None:
@@ -201,7 +218,7 @@ async def guarded(manager: Any, page: Any, obj: Any, method: str, args: tuple, k
         raise AciraActionBlocked("Unbounded mouse sequences are unsupported; use a resolved Locator action")
     if isinstance(obj, Keyboard) and method in {"down", "up"}:
         raise AciraActionBlocked("Unbounded key sequences are unsupported; use press() on a resolved target")
-    if method in {"dispatch_event", "drag_to", "drag_and_drop"}:
+    if method in {"dispatch_event", "drag_to", "drag_and_drop", "drop"}:
         raise AciraActionBlocked("This operation has no verified bounded action contract")
     if kwargs.get("force") and method in {"click", "dblclick", "tap", "check", "uncheck", "set_checked"}:
         raise AciraActionBlocked("Forced pointer actions can hit a different element; use a visible, unobstructed target")

@@ -33,13 +33,13 @@ python -m pip install "acira[browser-use]"
 
 For source or wheel installation, follow
 [alternative installation methods](setup.md#alternative-installation-methods). This release
-is tested with browser-use 0.11.12; check your version with `acira doctor` after
+is tested with browser-use 0.11.12/0.11.13; check your version with `acira doctor` after
 initializing. Keep your existing Chromium executable/session options. The SDK
 does not silently install browsers, download models or rewrite application code.
 The extra pins tested integration libraries, supplies the framework's missing
 `pydantic-settings` dependency, and selects fixed AnyIO/pypdf releases. Browser-use
 0.13.11 currently pins affected versions of those two libraries. This release uses
-the compatible upstream 0.11.12 distribution, without modifying its metadata or
+the compatible upstream 0.11.12/0.11.13 distribution, without modifying its metadata or
 ignoring advisories. Review the dependency changes if you already use another version.
 
 ## Integrate your existing browser-use agent

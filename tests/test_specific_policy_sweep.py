@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+pytest.importorskip("playwright.async_api")
 
 _tools = Path(__file__).resolve().parents[1] / "tools"
 _spec = importlib.util.spec_from_file_location("acira_specific_sweep_tests", _tools / "specific_policy_sweep.py")

@@ -10,7 +10,7 @@ on:
         options: [hosted, self-hosted]
         default: hosted
       platforms:
-        description: "Supported release platforms; every test runs on both Python versions"
+        description: "Supported release platforms; every test runs on all supported Python versions"
         type: choice
         options: [all, macos-linux]
         default: all
@@ -96,7 +96,7 @@ jobs:
       fail-fast: false
       matrix:
         platform: ${{ inputs.platforms == 'macos-linux' && fromJSON('["Linux","macOS"]') || fromJSON('["Linux","macOS","Windows"]') }}
-        python: ["3.11", "3.12"]
+        python: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","{0}","acira-release-{1}"]', matrix.platform, github.run_id)) || (matrix.platform == 'Linux' && 'ubuntu-24.04' || matrix.platform == 'macOS' && 'macos-latest' || 'windows-latest') }}
     timeout-minutes: 45
     env:
@@ -133,7 +133,7 @@ jobs:
       - name: Install release and check dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "./dist/acira-0.1.1-py3-none-any.whl[dev,playwright,browser-use]"
+          python -m pip install -c .github/constraints-release.txt "./dist/acira-0.1.1-py3-none-any.whl[dev,playwright,browser-use,vertex]"
           python -m pip check
       - name: Install Chromium
         run: |
@@ -161,6 +161,9 @@ jobs:
     runs-on: ${{ inputs.runners == 'self-hosted' && fromJSON(format('["self-hosted","macOS","acira-release-{0}"]', github.run_id)) || 'ubuntu-24.04' }}
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         if: inputs.runners != 'self-hosted' || runner.os != 'macOS'
         with:
@@ -177,16 +180,18 @@ jobs:
       - name: Install audited release
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "./dist/acira-0.1.1-py3-none-any.whl[playwright,browser-use]" pip-audit
+          python -m pip install -c .github/constraints-release.txt "./dist/acira-0.1.1-py3-none-any.whl[playwright,browser-use,vertex]" pip-audit
       - name: Check dependency consistency
         run: python -m pip check
       - name: Require no known dependency advisories
         run: python -m pip_audit --format json --output dependency-audit.json
+      - name: Validate audit coverage
+        run: python tools/verify_dependency_audit.py dependency-audit.json --wheel dist/acira-0.1.1-py3-none-any.whl
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: dependency-audit
-          path: dependency-audit.json
+          path: dependency-audit*.json
           retention-days: 7
           if-no-files-found: warn
 

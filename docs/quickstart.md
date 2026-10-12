@@ -43,7 +43,7 @@ If you need Playwright for a new project, install it independently first. Use th
 version tested for this release and install Chromium only if its build is missing:
 
 ```sh
-python -m pip install playwright==1.60.0
+python -m pip install playwright==1.63.0
 python -m playwright install chromium
 python -m pip install acira
 python -m pip check

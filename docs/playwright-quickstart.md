@@ -11,7 +11,7 @@ already installed, keep that compatible installation and skip its setup below.
 For a new Playwright project, install the official package first:
 
 ```sh
-python -m pip install playwright==1.60.0
+python -m pip install playwright==1.63.0
 # Only if this compatible Chromium build is not already installed:
 python -m playwright install chromium
 ```

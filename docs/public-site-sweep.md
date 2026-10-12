@@ -89,7 +89,7 @@ accidentally import source in place of the package under test:
 
 ```sh
 python -m venv /absolute/path/acira-site-test-env
-/absolute/path/acira-site-test-env/bin/python -m pip install playwright==1.60.0
+/absolute/path/acira-site-test-env/bin/python -m pip install playwright==1.63.0
 /absolute/path/acira-site-test-env/bin/python -m playwright install chromium
 /absolute/path/acira-site-test-env/bin/python -m pip install "/absolute/path/acira-0.1.1-py3-none-any.whl"
 ```

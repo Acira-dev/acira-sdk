@@ -7,8 +7,10 @@ references a framework by name.
 
 from .adapters import AciraAdapterConfigurationError
 from .sdk import protect
+from acira_cdp_proxy.action_gateway import AciraActionBlocked as ActionBlocked
 
 __all__ = [
     "AciraAdapterConfigurationError",
+    "ActionBlocked",
     "protect",
 ]

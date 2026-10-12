@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .journal import Journal
 from .local import Registry
-from .project import CATALOG, Project, catalog_policy, digest, initialize, read_json, validate_policy
+from .project import CATALOG, NAME, PolicyConflict, Project, catalog_policy, digest, initialize, read_json, validate_policy
 
 
 def output(value):
@@ -19,11 +19,12 @@ def output(value):
 
 def parser() -> argparse.ArgumentParser:
     cli = argparse.ArgumentParser(prog="acira", description="Local policies, human review, and action history for your existing browser agent.")
+    cli.add_argument("--version", action="version", version="Acira " + importlib.metadata.version("acira"))
     commands = cli.add_subparsers(dest="command", required=True)
     init = commands.add_parser("init", help="Connect your existing project: configure policies and show SDK integration steps")
     init.add_argument("--project", default=".")
     init.add_argument("--agent", default="default")
-    init.add_argument("--adapter", choices=["playwright", "browser_use"])
+    init.add_argument("--adapter", type=normalize_adapter, choices=["playwright", "browser_use"])
     init.add_argument("--general")
     init.add_argument("--specific")
     init.add_argument("--policies", help="Comma-separated bundled policy names, or none")
@@ -33,17 +34,19 @@ def parser() -> argparse.ArgumentParser:
     demo.add_argument("--directory", help="Separate demo project folder; defaults to Acira's private user state")
     demo.add_argument("--port", type=int, default=0, help="Test-drive port; by default choose an available port")
     demo.add_argument("--no-open", action="store_true", help="Print the test-drive address without opening browser tabs")
-    demo.add_argument("--adapter", choices=["playwright", "browser-use"], default="playwright", help="Choose scripted Playwright or a local-model browser-use agent")
+    demo.add_argument("--adapter", type=lambda value: normalize_adapter(value).replace("_", "-"), choices=["playwright", "browser-use"], default="playwright", help="Choose scripted Playwright or a local-model browser-use agent")
     demo.add_argument("--public-sites", action="store_true", help="Try read-only real documentation websites with Playwright")
     demo.add_argument("--model", default="qwen3:4b-instruct", help="Downloaded local Ollama model for browser-use")
     demo.add_argument("--ollama-host", default="http://127.0.0.1:11434", help="Loopback Ollama endpoint for browser-use")
     opened = commands.add_parser("open", help="Open the shared local dashboard")
     opened.add_argument("--no-browser", action="store_true")
     for name in ("status", "doctor", "sync"):
-        sub = commands.add_parser(name)
+        sub = commands.add_parser(name, help={"status": "Inspect project and agent state", "doctor": "Check setup without launching browsers or changing policies", "sync": "Rescan policies and report synchronization state"}[name])
         sub.add_argument("--project")
         sub.add_argument("--agent", default="default")
         if name == "doctor":
+            sub.add_argument("--json", action="store_true", help="Machine-readable checks, versions and repair steps")
+            sub.add_argument("--skip", choices=["chromium"], action="append", default=[], help="Skip the bundled Chromium check when your application uses an explicit custom browser; this does not validate it")
             sub.add_argument("--recover", action="store_true", help="Restore the previous complete snapshot after an interrupted policy write")
     extension = commands.add_parser("extension", help="Install the Chrome capture extension from this SDK").add_subparsers(dest="operation", required=True)
     install = extension.add_parser("install", help="Export the bundled extension and show Chrome setup steps")
@@ -76,6 +79,20 @@ def parser() -> argparse.ArgumentParser:
     return cli
 
 
+def normalize_adapter(value: str) -> str:
+    return value.strip().lower().replace("-", "_")
+
+
+def prompt_choice(label: str, default: str, valid) -> str:
+    while True:
+        value = prompt(label, default)
+        try:
+            valid(value)
+            return value
+        except ValueError as exc:
+            print(f"Acira: {exc}. Try again.", file=sys.stderr)
+
+
 def prompt(label: str, default: str) -> str:
     answer = input(f"{label} [{default}]: ").strip()
     return answer or default
@@ -86,23 +103,47 @@ def run(argv: list[str] | None = None) -> None:
     try:
         if args.command == "init":
             root = Path(args.project).expanduser().resolve()
-            interactive = sys.stdin.isatty() and not args.yes
-            detected = "playwright"
-            for name in ("requirements.txt", "pyproject.toml"):
-                path = root / name
-                if path.is_file() and "browser-use" in path.read_text(encoding="utf-8"):
-                    detected = "browser_use"
-            adapter = args.adapter or (prompt("Integration: playwright or browser_use", detected) if interactive else detected)
-            base = "policies" if args.agent == "default" else f"policies/{args.agent}"
-            general = args.general or (prompt("General policy folder (existing folders are supported)", base + "/general") if interactive else base + "/general")
-            specific = args.specific or (prompt("Captured policy folder", base + "/specific") if interactive else base + "/specific")
-            print("Starter protections: payment and credentials ask before sensitive actions; destructive actions block; downloads ask. Page presence alone does not ask.")
-            selected = args.policies or (prompt("Policies: payment,credentials,destructive-actions,downloads; or none", ",".join(CATALOG)) if interactive else ",".join(CATALOG))
-            connect = not args.no_dashboard
-            if interactive and not args.no_dashboard:
-                connect = prompt("Automatically connect to your trusted local dashboard? yes/no", "yes").lower() in {"y", "yes"}
-            project = initialize(root, agent=args.agent, adapter=adapter, general=general, specific=specific,
-                                 selected=[] if selected == "none" else [name.strip() for name in selected.split(",")], dashboard=connect)
+            if not NAME.fullmatch(args.agent):
+                raise ValueError("Agent names use 1–80 letters, numbers, dots, underscores or hyphens and start with a letter or number")
+            existing = Project(root)
+            if existing.path.is_file() and args.agent in existing.document()["agents"]:
+                existing.snapshot(args.agent)
+                Registry().register(existing.root, existing.document()["name"])
+                project = existing
+                print(f"Already initialized: {root.name} / {args.agent}. Existing settings were kept. Use policy commands or the dashboard to edit them.")
+            else:
+                interactive = sys.stdin.isatty() and not args.yes
+                detected = "playwright"
+                for name in ("requirements.txt", "pyproject.toml"):
+                    path = root / name
+                    if path.is_file() and "browser-use" in path.read_text(encoding="utf-8"):
+                        detected = "browser_use"
+                def valid_adapter(value):
+                    if normalize_adapter(value) not in {"playwright", "browser_use"}:
+                        raise ValueError("Choose playwright or browser-use")
+                adapter = normalize_adapter(args.adapter or (prompt_choice("Integration: playwright or browser-use", detected, valid_adapter) if interactive else detected))
+                base = "policies" if args.agent == "default" else f"policies/{args.agent}"
+                general = args.general or (prompt("General policy folder (existing folders are supported)", base + "/general") if interactive else base + "/general")
+                def valid_specific(value):
+                    if (root / value).resolve() == (root / general).resolve():
+                        raise ValueError("General and specific policy folders must be different")
+                specific = args.specific or (prompt_choice("Captured policy folder", base + "/specific", valid_specific) if interactive else base + "/specific")
+                print("Starter choices: payment submissions ask after a verified guard.submit() contract; credentials ask; destructive actions block; downloads ask. Page presence alone does not ask.")
+                def valid_policies(value):
+                    if value.strip().lower() != "none":
+                        for name in value.split(","):
+                            catalog_policy(name.strip())
+                selected = args.policies or (prompt_choice("Policies: payment,credentials,destructive-actions,downloads; or none", ",".join(CATALOG), valid_policies) if interactive else ",".join(CATALOG))
+                connect = not args.no_dashboard
+                if interactive and not args.no_dashboard:
+                    def valid_connection(value):
+                        if value.lower() not in {"y", "yes", "n", "no"}:
+                            raise ValueError("Choose yes or no")
+                    connect = prompt_choice("Automatically connect to your trusted local dashboard? yes/no", "yes", valid_connection).lower() in {"y", "yes"}
+                names = [] if selected.strip().lower() == "none" else [name.strip() for name in selected.split(",")]
+                project = initialize(root, agent=args.agent, adapter=adapter, general=general, specific=specific, selected=names, dashboard=connect)
+                if not names:
+                    print("No starter policies selected. Add one later with acira policy add or acira policy import.")
             # Initialization is idempotent: guidance must describe the persisted
             # agent, including when an existing profile differs from the flags.
             profile = project.snapshot(args.agent).profile
@@ -110,7 +151,8 @@ def run(argv: list[str] | None = None) -> None:
             print("\nfrom acira import protect")
             if profile["adapter"] == "playwright":
                 print("from playwright.async_api import async_playwright")
-            print(f"\nasync with protect(project={str(project.root)!r}, agent={args.agent!r}) as guard:")
+            arguments = "" if args.agent == "default" else f"agent={args.agent!r}"
+            print(f"\nasync with protect({arguments}) as guard:")
             if profile["adapter"] == "playwright":
                 print("    async with async_playwright() as p:\n        guard.patch_playwright(p)\n        # Keep your Chromium launch/connect and existing workflow here.\n        ...")
             else:
@@ -177,6 +219,13 @@ def run(argv: list[str] | None = None) -> None:
             from .local import file_lock
             with file_lock(project.root / ".acira/policy.lock"):
                 recover(project)
+        if args.command == "doctor":
+            from .diagnostics import doctor, print_doctor
+            result = doctor(project, args.agent, skip_chromium="chromium" in args.skip)
+            output(result) if args.json or not sys.stdout.isatty() else print_doctor(result)
+            if not result["healthy"]:
+                raise SystemExit(1)
+            return
         snapshot = project.snapshot(args.agent)
         if args.command in {"status", "doctor", "sync"}:
             from .service import verified_descriptor
@@ -190,31 +239,6 @@ def run(argv: list[str] | None = None) -> None:
                       "runs": Journal(project.root).runs()}
             if storage is not None:
                 result["storage"] = storage
-            if args.command == "doctor":
-                import os
-                import shutil
-                from .capabilities import capabilities
-                versions = {}
-                for name in ("acira", "playwright", "browser-use"):
-                    try:
-                        versions[name] = importlib.metadata.version(name)
-                    except importlib.metadata.PackageNotFoundError:
-                        versions[name] = "not installed"
-                result["versions"] = versions
-                adapter = snapshot.profile["adapter"]
-                package = "browser-use" if adapter == "browser_use" else "playwright"
-                result["capabilities"] = capabilities(adapter)
-                result["checks"] = {
-                    "adapter_installed": versions[package] != "not installed",
-                    "configuration_writable": os.access(project.path, os.W_OK),
-                    "policy_folders_writable": all(os.access(path, os.W_OK) for path in project.folders(args.agent).values()),
-                    "free_disk_bytes": shutil.disk_usage(project.root).free,
-                    "policy_transaction_pending": (project.root / ".acira/policy-transaction.json").exists(),
-                }
-                if versions[package] == "not installed":
-                    result["repair"] = f'Install the integration: python -m pip install "acira[{package}]" using your selected Acira distribution.'
-                result["policy_folders"] = {key: str(path) for key, path in project.folders(args.agent).items()}
-                result["integration"] = "Protection begins when protect() wraps your workflow. Verify browser behavior with the supported adapter tests."
             project.remember_revision(args.agent, snapshot)
             output(result)
             return
@@ -244,8 +268,12 @@ def run(argv: list[str] | None = None) -> None:
                 from .policy_cli import select_bundled
                 args.source = select_bundled()
             value = remote_policy(remote, args.source) if remote else catalog_policy(args.source) if args.operation == "add" else read_json(Path(args.source))
-            kind, policy_id = validate_policy(value)
-            filename = (CATALOG[args.source] if args.operation == "add" and not remote else "import-" + digest({"id": policy_id})[:16]) + ".json"
+            try:
+                kind, policy_id = validate_policy(value)
+            except (ValueError, TypeError) as exc:
+                origin = args.source if args.operation == "import" else "Policy " + args.source
+                raise ValueError(f"{origin}: {exc}") from None
+            filename = (CATALOG.get(args.source, args.source.removeprefix("acira.general.")) if args.operation == "add" and not remote else "import-" + digest({"id": policy_id})[:16]) + ".json"
             for existing in project.policies(args.agent):
                 if existing["id"] == policy_id:
                     filename = Path(existing["path"]).name
@@ -255,7 +283,11 @@ def run(argv: list[str] | None = None) -> None:
                 output({"unchanged": True, "path": str(path)})
                 return
             expected = digest(read_json(path)) if path.exists() and getattr(args, "replace", False) else None
-            output(project.save_policy(args.agent, filename, value, expected=expected))
+            try:
+                saved = project.save_policy(args.agent, filename, value, expected=expected)
+            except PolicyConflict:
+                raise ValueError("An installed policy with this ID differs. Compare the files, then rerun acira policy import <file> --replace to replace it explicitly.") from None
+            output(saved)
         elif args.operation == "update":
             updates = []
             from .catalog import updated
@@ -281,6 +313,9 @@ def run(argv: list[str] | None = None) -> None:
                 for path, old, new in updates:
                     project.save_policy(args.agent, path.name, new, expected=digest(old))
             output({"updates": len(updates), "applied": bool(args.accept), "note": "Review diffs, then use --accept. Project-specific decisions are preserved."})
-    except (ValueError, OSError, RuntimeError) as exc:
+    except (KeyboardInterrupt, EOFError):
+        print("Acira: Cancelled. No further changes were made.", file=sys.stderr)
+        raise SystemExit(130) from None
+    except (ValueError, TypeError, OSError, RuntimeError) as exc:
         print(f"Acira: {exc}", file=sys.stderr)
         raise SystemExit(2) from None

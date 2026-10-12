@@ -1,7 +1,7 @@
 # Start here: add Acira to your own project
 
 Acira is available on [PyPI](https://pypi.org/project/acira/). The supported release
-platforms are macOS and Linux with Python 3.11/3.12. Windows examples are provided
+platforms are macOS and Linux with standard CPython 3.11–3.15. Windows examples are provided
 for contributors; Windows support remains pending its release tests.
 
 The normal journey is **use your browser framework → install Acira → initialize →
@@ -22,10 +22,10 @@ source .venv/bin/activate
 ~~~
 
 If this project has no environment yet, create one first with your installed Python
-3.11 or 3.12, then activate it:
+3.11 through 3.15, then activate it:
 
 ~~~sh
-python3.12 -m venv .venv
+python3.13 -m venv .venv
 source .venv/bin/activate
 ~~~
 
@@ -47,13 +47,15 @@ activation, use its Python directly, such as
 ## 2. Install Playwright only if your project needs it
 
 **Already using Playwright?** Keep your compatible installation and existing browser
-configuration, and continue to step 3. This release is tested with Playwright 1.60.0;
-other framework versions need their own compatibility verification.
+configuration, and continue to step 3. This release is tested with Playwright 1.60.0, 1.61.0, 1.62.0 and 1.63.0. `acira doctor` reports whether
+your installed framework version was verified. Unverified versions receive an explicit
+error before attachment; Acira never silently changes your framework. See
+[compatibility](compatibility.md) before changing an existing environment.
 
 **Starting a Playwright project?** Install the official package separately:
 
 ~~~sh
-python -m pip install playwright==1.60.0
+python -m pip install playwright==1.63.0
 ~~~
 
 Install the matching Chromium build only if it is missing:

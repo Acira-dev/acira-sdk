@@ -42,7 +42,7 @@ def install_extension(directory=None, *, replace=False):
     assets = extension_files()
     hashes = {name: hashlib.sha256(value).hexdigest() for name, value in assets.items()}
     receipt = destination / ".acira-extension.json"
-    if destination.exists():
+    if destination.exists() and not (destination.is_dir() and not any(destination.iterdir())):
         if not destination.is_dir() or not receipt.is_file() or receipt.is_symlink():
             raise ValueError("Choose an empty new folder; this folder is not an Acira extension installation")
         previous = json.loads(receipt.read_text(encoding="utf-8"))
@@ -57,7 +57,7 @@ def install_extension(directory=None, *, replace=False):
         # Never delete unrelated files, including when an update is requested.
         if set(actual) - set(previous.get("files", {})):
             raise ValueError("The extension folder contains additional files; choose a new folder")
-        if not replace:
+        if not replace and actual != previous.get("files", {}):
             raise ValueError("The extension differs. Use --replace to update this Acira installation, or choose a new folder")
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".acira-extension-", dir=destination.parent) as temporary:
