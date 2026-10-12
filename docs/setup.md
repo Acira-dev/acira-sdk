@@ -1,14 +1,29 @@
 # Start here: set up Acira in your own project
 
+> The first public release supports macOS and Linux on Python 3.11/3.12.
+> Windows instructions are available for contributors, but Windows support
+> remains pending its release tests.
+
 This guide is for Fouad and other developers installing the SDK on a new computer.
 The normal journey is **get the SDK → install in your agent's environment → initialize
 → integrate → run**. The dashboard and demo are optional.
 
-Acira is currently a **private preview**. Public `pip install acira` is not available
-yet. Invited collaborators can install from the repository now; no PyPI account or
-publication permission is needed to use the SDK. Use your own invited GitHub account.
-Once the repository becomes public, this same clone
-and install path remains usable.
+For a published release, install directly from PyPI in your existing agent
+environment, then continue at step 3:
+
+```sh
+python -m pip install "acira[playwright]"
+python -m pip check
+```
+
+Use plain `acira` if you already have the supported browser integration installed.
+Check the [Acira PyPI page](https://pypi.org/project/acira/) for available versions;
+a pending publisher is not yet an installable release. No PyPI account is needed
+to install a published SDK.
+
+The repository stays private during release preparation. Invited collaborators
+can follow the source installation below using their own invited GitHub account.
+Once the repository becomes public, this same clone and install path remains usable.
 
 ## 1. Get the SDK
 

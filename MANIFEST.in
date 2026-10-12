@@ -1,5 +1,5 @@
 include README.md LICENSE AGENTS.md pyproject.toml setup.py
-recursive-include docs *.md *.csv
+recursive-include docs *.md *.csv *.json
 recursive-include schemas *.json
 recursive-include configs *.json
 recursive-include tools/acira-capture-extension *.json *.js *.html *.css *.md *.svg

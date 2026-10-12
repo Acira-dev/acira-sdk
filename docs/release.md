@@ -7,8 +7,10 @@ GitHub repository public later does not change the installation command.
 
 ## Two separate actions: verify, then approve
 
-1. Run **SDK release verification** on the exact main commit.
-2. After every check passes, the **Acira-dev owner** runs **SDK release** and
+1. Run **SDK release verification** on the exact main commit and select its
+   supported platform scope. The first release uses **macos-linux**. The **all**
+   option remains available and requires Windows too.
+2. After every check in that scope passes, the **Acira-dev owner** runs **SDK release** and
    enters the verification run ID, source commit, wheel SHA-256, and source archive
    SHA-256 shown in the verification summary.
 
@@ -23,8 +25,10 @@ exact commit, and that approval was submitted after verification finished. The
 main commit must still match the approved commit. A moved main branch requires
 fresh verification.
 
-All six combinations of **Linux, macOS, Windows × Python 3.11, 3.12** must execute
-and pass. Each runs source and installed-wheel suites, dependency consistency,
+The **macos-linux** scope requires all four combinations of **Linux, macOS ×
+Python 3.11, 3.12**. The **all** scope requires all six combinations, including
+Windows. Every required combination must execute and pass. Each runs source and
+installed-wheel suites, dependency consistency,
 Chromium tests, the clean installation journey, and dashboard/extension script
 checks. Skipped tests are rejected in release jobs. The dependency advisory audit
 runs during verification, including a verification that is never published.
@@ -45,6 +49,13 @@ check out the repository in the upload job. Only that job receives OIDC upload
 permission. The official uv publisher supports macOS self-hosted runners and
 requires trusted publishing; no stored PyPI upload token is used.
 
+The platform scope is recorded in the verification run title and must match
+the publication request. A failed or incomplete all-platform run cannot be
+relabelled as a macOS/Linux release. Each selected operating system runs both
+Python versions, the entire source and installed suites with no skipped tests,
+and the clean-installation journey. The dependency audit remains mandatory.
+Windows jobs stay in normal CI and in the all-platform release option.
+
 ## Free execution while hosted minutes are exhausted
 
 Keep paid usage disabled. GitHub's included hosted allowance is exhausted for
@@ -56,7 +67,8 @@ Both release workflows offer a runner choice:
 
 - **hosted** uses GitHub's free allowance when it is available.
 - **self-hosted** requires existing computers or virtual machines running all
-  three operating systems. A Mac cannot stand in for the Windows/Linux jobs.
+  operating systems selected for the release. A Mac cannot stand in for Linux
+  or Windows jobs. Choose **all** when preparing verified Windows support.
 
 The helper `tools/start_release_runner.py` downloads the official GitHub runner,
 verifies its published checksum, and registers one-job ephemeral runners for one
@@ -70,6 +82,8 @@ as Acira-dev, and Bash (Git for Windows provides it). Linux also needs browser
 system dependencies; use a disposable Linux VM with passwordless sudo for
 Playwright's official dependency installer.
 
+Hosted Linux jobs are pinned to Ubuntu 24.04 so a change to GitHub’s
+`ubuntu-latest` image cannot silently change the supported test platform.
 Use Ubuntu 24.04 or a supported Debian release for the pinned Playwright 1.60.0
 Linux tests. Its installer rejects Ubuntu 26.04 ARM64. A newer operating system
 does not establish browser compatibility; choose a supported image rather than
@@ -82,7 +96,7 @@ privileged `/Users/runner` location; it does not create or modify system folders
 
 Run verification from the Mac:
 ```sh
-gh workflow run verify-release.yml --repo Acira-dev/acira-sdk --ref main -f runners=self-hosted
+gh workflow run verify-release.yml --repo Acira-dev/acira-sdk --ref main -f runners=self-hosted -f platforms=macos-linux
 gh run list --repo Acira-dev/acira-sdk --workflow verify-release.yml --limit 1
 ```
 
@@ -96,7 +110,8 @@ python3 tools/start_release_runner.py --run-id RUN_ID --commit SOURCE_COMMIT --j
 python3 tools/start_release_runner.py --run-id RUN_ID --commit SOURCE_COMMIT --jobs 2
 ```
 
-On Windows 11, use PowerShell:
+For a future **all** verification that adds Windows support, use PowerShell
+on Windows 11:
 ```powershell
 # Install missing prerequisites using their official installers or winget.
 # Git for Windows supplies the Bash used by the workflow.
@@ -109,13 +124,15 @@ py -3.12 tools/start_release_runner.py --run-id RUN_ID --commit SOURCE_COMMIT --
 
 Keep the Windows terminal open until both jobs finish. Account login happens on
 that computer; do not copy passwords or tokens into chat or the repository.
+The first PyPI release is supported on macOS/Linux only; Windows commands are
+provided for contributors preparing its future validation.
 The Mac/Linux jobs can proceed concurrently. Do not represent local macOS results
 as Windows or Linux verification.
 
 After the successful verification run has completed, publish the exact artifacts:
 ```sh
 gh workflow run release.yml --repo Acira-dev/acira-sdk --ref main \
-  -f publish=pypi -f runners=self-hosted \
+  -f publish=pypi -f runners=self-hosted -f platforms=macos-linux \
   -f verification_run=RUN_ID -f source_sha=SOURCE_COMMIT \
   -f wheel_sha256=WHEEL_SHA256 -f sdist_sha256=SOURCE_ARCHIVE_SHA256
 ```

@@ -3,6 +3,8 @@
 Add local policies, human review, and action history to your existing browser agent.
 
 The maintained SDK repository is [Acira-dev/acira-sdk](https://github.com/Acira-dev/acira-sdk).
+The first PyPI release supports **macOS and Linux**, tested on Python 3.11 and
+3.12. Windows testing remains in CI, but Windows support is pending validation.
 It is private during preparation for the open-source release. SDK code, the optional
 local dashboard, capture extension, policies, tests and release tooling live together
 here. See [repository provenance and publishing](docs/repository.md).
@@ -42,9 +44,17 @@ and remaining release gates. Do not infer full adapter coverage from package ins
 
 ## Install and initialize
 
-Python 3.11 or newer is required. Until publication access for the `acira` distribution
-has been verified, install this checkout or its built wheel rather than an unrelated
-package with the same name.
+Python 3.11 or newer is required. After the first PyPI release, install in your
+existing agent environment:
+
+```sh
+python -m pip install acira
+# When your project also needs the tested Playwright integration:
+python -m pip install "acira[playwright]"
+```
+
+During release preparation, install this checkout or its built wheel. Check the
+[Acira PyPI page](https://pypi.org/project/acira/) for published versions.
 
 Activate the environment that runs your existing agent. If Playwright or browser-use
 is already installed, install the base SDK wheel there:

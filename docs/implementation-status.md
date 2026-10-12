@@ -555,3 +555,24 @@ blocked or rejected click dispatches and zero duplicate dispatches. Five browser
 calls remain unknown and are not retroactively marked successful. Per-host
 results and the remaining diagnoses are in the validation report; these public
 content checks do not establish authenticated or transaction coverage.
+
+## First PyPI release platform scope (2026-10-12)
+
+The owner explicitly selected a **macOS/Linux-first release**, with Windows
+validation to follow. The release workflows retain their default all-platform
+option and Windows remains in ordinary CI. The smaller scope is recorded in the
+trusted verification run title and must match the publication request; it cannot
+turn a failed or incomplete all-platform run into a successful release.
+
+For the first release, all four native combinations of Linux/macOS and Python
+3.11/3.12 must pass the complete source and installed-wheel suites, with skipped
+tests rejected. Chromium checks, two clean installation environments, dependency
+consistency, the advisory audit, exact source and artifact hashes, Acira-owner
+approval, and the main-only publishing environment remain required. The repo
+stays private and paid GitHub usage stays blocked. Windows support is not claimed
+until its tests pass. See [release instructions](release.md) and [first setup](setup.md).
+
+Preparing these controls or registering a pending publisher does not establish
+that an upload occurred. Confirm public versions on the
+[Acira PyPI page](https://pypi.org/project/acira/); only an actual successful upload
+makes public pip installation available.
