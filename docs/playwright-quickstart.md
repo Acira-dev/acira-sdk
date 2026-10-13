@@ -6,7 +6,7 @@ The bundled test drive is optional and appears after the integration steps below
 
 ## Install Playwright separately, then add Acira
 
-Activate your existing project's Python 3.11/3.12 environment. If Playwright is
+Activate your existing project's Python 3.11–3.15 environment. If Playwright is
 already installed, keep that compatible installation and skip its setup below.
 For a new Playwright project, install the official package first:
 
@@ -24,9 +24,10 @@ python -m pip install acira
 python -m pip check
 ```
 
-Playwright 1.60.0 is the version tested for this release. Acira supplies the protection
-adapter for your application's Playwright calls; the Playwright package remains
-separate. Acira does not silently install browsers, download a model, or replace your
+Use the versions listed in [compatibility and dependency choices](compatibility.md).
+The native release matrix uses Playwright 1.63.0; separate full source and installed-package
+checks cover the other listed framework versions. Acira supplies the protection adapter
+for your application's Playwright calls; the Playwright package remains separate. Acira does not silently install browsers, download a model, or replace your
 entry point. Playwright automation needs no model, paid API or cloud account.
 
 The optional `acira[playwright]` shortcut installs both official packages together.

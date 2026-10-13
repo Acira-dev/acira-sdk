@@ -9,7 +9,7 @@ the real-project integration below.
 
 ## Install outside the repository
 
-Use Python 3.11/3.12 and activate the environment that already runs your compatible
+Use Python 3.11–3.15 and activate the environment that already runs your compatible
 browser-use agent. Install Acira alone from PyPI:
 
 ```sh
