@@ -320,7 +320,7 @@ async function refresh() {
     activation.className = pill(profile?.state || "Saved").className;
   }
 }
-// Capture this policy dialog before the write starts. A user may close it and
+// Capture this policy/settings dialog before the write starts. A user may close it and
 // open another dialog while the request is pending; that new dialog stays open.
 function policyDialogCompletion() {
   const body = $("dialog-content"),
@@ -1968,17 +1968,15 @@ async function configurationDialog() {
     button(
       "Validate and save",
       async () => {
+        const finish = policyDialogCompletion();
         await api(
           base() + "/configuration",
           { document: JSON.parse(editor.value), expected: data.hash },
           "PUT",
         );
-        $("dialog").close();
-        notice(
+        await finish(
           "Configuration saved. Adapter changes require restarting the affected agent.",
         );
-        await refresh();
-        await render();
       },
       "primary",
     ),
@@ -2210,20 +2208,18 @@ async function addAgentDialog() {
           decisions: {},
           disabled_policies: [],
         };
+        const finish = policyDialogCompletion();
         await api(
           base() + "/configuration",
           { document: data.document, expected: data.hash },
           "PUT",
         );
         state.agent = name.value;
-        $("dialog").close();
-        notice(
+        await finish(
           "Agent created. Use protect(agent=" +
             JSON.stringify(name.value) +
             ") in that workflow, then add its policies here.",
         );
-        await refresh();
-        await render();
       },
       "primary",
     ),
@@ -2329,6 +2325,7 @@ async function secretDialog() {
     button(
       "Save references",
       async () => {
+        const finish = policyDialogCompletion();
         await api(
           base() + "/secret-references",
           {
@@ -2339,10 +2336,7 @@ async function secretDialog() {
           },
           "PUT",
         );
-        $("dialog").close();
-        notice("References saved. Secret values were not read or transferred.");
-        await refresh();
-        await render();
+        await finish("References saved. Secret values were not read or transferred.");
       },
       "primary",
     ),
@@ -2405,14 +2399,14 @@ async function retentionDialog() {
     button(
       "Save retention",
       async () => {
+        const finish = policyDialogCompletion();
         data.document.retention = retention;
         await api(
           base() + "/configuration",
           { document: data.document, expected: data.hash },
           "PUT",
         );
-        $("dialog").close();
-        notice(
+        await finish(
           "Retention saved. Existing history is pruned during local maintenance.",
         );
       },

@@ -1219,3 +1219,177 @@ async def test_completed_policy_save_does_not_close_a_new_dialog(tmp_path, monke
             finally:
                 write_release.set()
                 await browser.close()
+
+
+
+async def close_settings_test_browser(browser):
+    """A shutdown failure cannot replace the original test assertion/error."""
+    import sys
+
+    primary = sys.exc_info()[1]
+    try:
+        await browser.close()
+    except BaseException as cleanup_error:
+        if primary is None:
+            raise
+        primary.add_note('Browser cleanup also failed: ' + type(cleanup_error).__name__)
+
+
+async def settings_save_fixture(ui, server, ticket, project, case):
+    """Reach each real Settings writer using ordinary keyboard gestures."""
+    import json
+
+    await ui.goto(str(server.make_url('/')) + '#ticket=' + ticket)
+    await keyboard_activate(ui, ui.get_by_role('button', name='Settings', exact=True, include_hidden=True))
+    await ui.wait_for_function("() => state.view === 'Settings' && !state.busy && !state.renderPending")
+    opener, save = {
+        'configuration': ('Advanced configuration', 'Validate and save'),
+        'add_agent': ('Add agent', 'Create agent'),
+        'retention': ('History retention', 'Save retention'),
+        'references': ('Secret references', 'Save references'),
+    }[case]
+    await keyboard_activate(ui, ui.get_by_role('button', name=opener, exact=True, include_hidden=True))
+    if case == 'configuration':
+        document = project.document()
+        document.setdefault('retention', {})['audit_days'] = 13
+        editor = ui.get_by_role('textbox', name='Project configuration JSON', exact=True)
+        await keyboard_focus(ui, editor)
+        await ui.keyboard.press('ControlOrMeta+A')
+        await ui.keyboard.insert_text(json.dumps(document))
+    elif case == 'add_agent':
+        field = ui.get_by_role('textbox', name='Agent configuration name', exact=True)
+        await keyboard_focus(ui, field)
+        await ui.keyboard.insert_text('review-agent')
+    elif case == 'retention':
+        field = ui.get_by_role('spinbutton', name='Audit history · days', exact=True)
+        await keyboard_focus(ui, field)
+        await ui.keyboard.press('ControlOrMeta+A')
+        await ui.keyboard.insert_text('14')
+    elif case == 'references':
+        await keyboard_activate(ui, ui.get_by_role('button', name='Add reference', exact=True))
+        for label, value in [
+            ('Reference ID', 'local-review'),
+            ('Display label', 'Local test reference'),
+            ('Environment variable name', 'ACIRA_TEST_REFERENCE'),
+        ]:
+            field = ui.get_by_role('textbox', name=label, exact=True)
+            await keyboard_focus(ui, field)
+            await ui.keyboard.insert_text(value)
+    return ui.get_by_role('button', name=save, exact=True)
+
+
+def assert_settings_write_persisted(project, case):
+    """No runtime secrets or accounts are used; check the real local write."""
+    document = project.document()
+    if case == 'configuration':
+        assert document['retention']['audit_days'] == 13
+    elif case == 'add_agent':
+        assert 'review-agent' in document['agents']
+        assert project.folders('review-agent')['general'] != project.folders('default')['general']
+    elif case == 'retention':
+        assert document['retention']['audit_days'] == 14
+    elif case == 'references':
+        assert document['agents']['default']['guard']['secrets_config_path']
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('case', ['configuration', 'add_agent', 'retention', 'references'])
+async def test_settings_save_keeps_modal_open_until_settings_render_finishes(tmp_path, monkeypatch, case):
+    monkeypatch.setenv('ACIRA_HOME', str(tmp_path / 'private'))
+    project = initialize(tmp_path / ('Delayed settings ' + case), selected=[], dashboard=False)
+    service = Service()
+    async with TestServer(service.app(), host='127.0.0.1') as server:
+        service.port = server.port
+        async with ClientSession(headers={'Authorization': 'Bearer ' + service.admin_key}) as client:
+            ticket = (await (await client.post(server.make_url('/api/ticket'), json={})).json())['ticket']
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            ui = await browser.new_page()
+            render_started, render_release = asyncio.Event(), asyncio.Event()
+            errors = []
+            ui.on('pageerror', lambda error: errors.append(str(error)))
+
+            async def hold_settings_grants(route):
+                render_started.set()
+                await asyncio.wait_for(render_release.wait(), 10)
+                await route.continue_()
+
+            try:
+                save = await settings_save_fixture(ui, server, ticket, project, case)
+                # Installed after the initial Settings view/dialog are ready;
+                # this request is therefore the real post-save Settings render.
+                await ui.route('**/api/projects/*/grants', hold_settings_grants)
+                await keyboard_activate(ui, save)
+                await asyncio.wait_for(render_started.wait(), 5)
+                assert_settings_write_persisted(project, case)
+                await expect(ui.get_by_role('dialog')).to_be_visible()
+                await expect(save).to_be_disabled()
+                assert await ui.evaluate('state.busy')
+                render_release.set()
+                await ui.get_by_role('dialog').wait_for(state='hidden')
+                assert not await ui.evaluate('state.busy || state.renderPending')
+                # The next operation must work once, using disclosure Enter/Tab.
+                await keyboard_activate(ui, ui.get_by_role('button', name='Pair capture extension', exact=True, include_hidden=True))
+                await expect(ui.get_by_role('heading', name='Pair Acira Capture', exact=True)).to_be_visible()
+                assert not errors
+            finally:
+                render_release.set()
+                await close_settings_test_browser(browser)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('case', ['configuration', 'add_agent', 'retention', 'references'])
+async def test_completed_settings_save_does_not_close_a_new_dialog(tmp_path, monkeypatch, case):
+    monkeypatch.setenv('ACIRA_HOME', str(tmp_path / 'private'))
+    project = initialize(tmp_path / ('Replaced settings ' + case), selected=[], dashboard=False)
+    service = Service()
+    async with TestServer(service.app(), host='127.0.0.1') as server:
+        service.port = server.port
+        async with ClientSession(headers={'Authorization': 'Bearer ' + service.admin_key}) as client:
+            ticket = (await (await client.post(server.make_url('/api/ticket'), json={})).json())['ticket']
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            ui = await browser.new_page()
+            write_started, write_release = asyncio.Event(), asyncio.Event()
+            render_started, render_release = asyncio.Event(), asyncio.Event()
+            errors = []
+            ui.on('pageerror', lambda error: errors.append(str(error)))
+
+            async def hold_write(route):
+                if route.request.method == 'PUT':
+                    write_started.set()
+                    await asyncio.wait_for(write_release.wait(), 10)
+                await route.continue_()
+
+            async def hold_settings_grants(route):
+                render_started.set()
+                await asyncio.wait_for(render_release.wait(), 10)
+                await route.continue_()
+
+            try:
+                save = await settings_save_fixture(ui, server, ticket, project, case)
+                endpoint = 'secret-references' if case == 'references' else 'configuration'
+                await ui.route('**/api/projects/*/' + endpoint, hold_write)
+                await ui.route('**/api/projects/*/grants', hold_settings_grants)
+                await keyboard_activate(ui, save)
+                await asyncio.wait_for(write_started.wait(), 5)
+                await ui.keyboard.press('Escape')
+                await keyboard_activate(ui, ui.get_by_role('button', name='Pair capture extension', exact=True, include_hidden=True))
+                pairing = ui.get_by_role('heading', name='Pair Acira Capture', exact=True)
+                await expect(pairing).to_be_visible()
+                write_release.set()
+                await asyncio.wait_for(render_started.wait(), 5)
+                assert_settings_write_persisted(project, case)
+                await expect(ui.get_by_role('dialog')).to_be_visible()
+                await expect(pairing).to_be_visible()
+                assert await ui.locator('#dialog-feedback').count() == 0
+                render_release.set()
+                await ui.wait_for_function('() => !state.busy && !state.renderPending')
+                await expect(ui.get_by_role('dialog')).to_be_visible()
+                await expect(pairing).to_be_visible()
+                assert await ui.locator('#dialog-feedback').count() == 0
+                assert not errors
+            finally:
+                write_release.set()
+                render_release.set()
+                await close_settings_test_browser(browser)

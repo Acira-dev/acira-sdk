@@ -204,6 +204,9 @@ actions**. These sections keep their expanded state during live updates.
 Policy tables show JSON filenames. Hover to see the full path, or click/right-click
 the filename to inspect and copy its location. Keyboard users can press Enter or
 Shift+F10 on the filename; Escape closes the file details.
+Settings saves finish refreshing the view before their dialog closes, so the next
+keyboard action is ready. If you close a pending save and open another dialog,
+the completed save leaves that newer dialog open.
 Policy saves are validated, checked for edit conflicts and written atomically.
 **Saved** means the intended files were written; **Active** means the selected run
 acknowledged that revision. Invalid edits stop affected mutations. A policy change
