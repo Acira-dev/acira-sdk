@@ -18,6 +18,7 @@ from pathlib import Path
 
 def main() -> None:
     wheel = Path(sys.argv[1]).resolve(strict=True)
+    constraints = (Path(__file__).resolve().parents[1] / ".github/constraints-release.txt").resolve(strict=True)
     with tempfile.TemporaryDirectory(prefix="acira-wheel-") as temporary:
         root = Path(temporary)
         env = {**os.environ, "ACIRA_HOME": str(root / "private"), "ANONYMIZED_TELEMETRY": "false", "BROWSER_USE_CLOUD_SYNC": "false"}
@@ -53,7 +54,10 @@ def main() -> None:
                 venv.EnvBuilder(with_pip=True).create(environment)
                 python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
                 interpreters.append(python)
+                run(python, "-m", "pip", "install", "--quiet", "-c", str(constraints), "--upgrade", "pip", "setuptools")
+                run(python, "-I", "-c", "from importlib.metadata import version; actual = version('setuptools'); assert actual == '83.0.0', 'Clean environment setuptools does not match release constraints: ' + actual")
                 run(python, "-m", "pip", "install", "--quiet", str(wheel))
+                run(python, "-m", "pip", "check")
                 run(python, "-I", "-c", "from importlib.resources import files; import acira; assert 'site-packages' in acira.__file__; assets = files('acira_dashboard').joinpath('static'); required = ('workspace.html', 'workspace.css', 'workspace.js', 'theme.css', 'styles.css', 'index.html', 'google-sans.woff2', 'GeistMono-Regular.woff2', 'GoogleSans-OFL.txt', 'GeistMono-OFL.txt', 'acira-logo.png', 'acira-mark.png'); assert all(assets.joinpath(name).is_file() for name in required), 'Installed dashboard assets or font notices are missing'")
                 assert "demo" in run(python, "-m", "acira", "--help")
                 exported = root / (name + "-capture-extension")

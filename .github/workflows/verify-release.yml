@@ -132,7 +132,7 @@ jobs:
           path: dist
       - name: Install release and check dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install -c .github/constraints-release.txt --upgrade pip setuptools
           python -m pip install -c .github/constraints-release.txt "./dist/acira-0.1.1-py3-none-any.whl[dev,playwright,browser-use,vertex]"
           python -m pip check
       - name: Install Chromium
@@ -179,8 +179,8 @@ jobs:
           path: dist
       - name: Install audited release
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -c .github/constraints-release.txt "./dist/acira-0.1.1-py3-none-any.whl[playwright,browser-use,vertex]" pip-audit
+          python -m pip install -c .github/constraints-release.txt --upgrade pip setuptools
+          python -m pip install -c .github/constraints-release.txt "./dist/acira-0.1.1-py3-none-any.whl[dev,playwright,browser-use,vertex]" pip-audit
       - name: Check dependency consistency
         run: python -m pip check
       - name: Require no known dependency advisories
