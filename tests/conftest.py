@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 import json
+import math
 import os
 import sys
 import uuid
@@ -50,9 +51,19 @@ def select_capture_target():
             await page.locator(".acira-capture-shield[data-ready='true']").wait_for(state="visible")
             await target.scroll_into_view_if_needed()
             box = await target.bounding_box()
-            assert box and box["width"] > 0 and box["height"] > 0
+            assert box and all(isinstance(box.get(name), (int, float)) and not isinstance(box[name], bool)
+                and math.isfinite(box[name]) for name in ("x", "y", "width", "height"))
+            assert box["width"] > 0 and box["height"] > 0
             identity = await target.evaluate("el => ({id:el.id, href:el.getAttribute('href')})")
-            await page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+            assert identity and (identity.get("id") or identity.get("href"))
+            # One trusted gesture, with each browser input acknowledged before
+            # the next. Default mouse.click may batch move/down/up concurrently.
+            await page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+            assert await target.evaluate("el => ({id:el.id, href:el.getAttribute('href')})") == identity
+            assert await target.bounding_box() == box
+            assert await page.locator(".acira-capture-shield[data-ready='true']").is_visible()
+            await page.mouse.down()
+            await page.mouse.up()
             await page.wait_for_function("""identity => {
               const raw=document.querySelector('#acira-capture-facts')?.textContent;
               if (!raw) return false;

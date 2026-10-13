@@ -11,6 +11,7 @@ import contextlib
 import hashlib
 import importlib.metadata
 import json
+import math
 import os
 import subprocess
 import sys
@@ -28,6 +29,69 @@ from acira import protect
 from acira.extension import install_extension
 from acira.journal import Journal
 from acira.project import initialize
+
+
+_CAPTURE_FINGERPRINT_MATCH_JS = """({destination,label,path}) => {
+                      const raw=document.querySelector('#acira-capture-facts')?.textContent;
+                      if (!raw) return false;
+                      const fp=JSON.parse(raw), actual=new URL(fp.href,location.href), expected=new URL(destination);
+                      const normalize=s=>typeof s==='string' ? s.replace(/\\s+/g,' ').trim().toLowerCase() : '';
+                      // Captures intentionally omit URL query/fragment data.
+                      // Verify the exact document plus the observed control's
+                      // label; actual action reviews still bind the full link.
+                      return fp.dom_path===path && fp.tag==='a' && actual.origin===expected.origin && actual.pathname===expected.pathname
+                        && [fp.text,fp.aria_label,fp.title,fp.labels?.accessible,fp.labels?.associated]
+                          .some(value=>normalize(value)===normalize(label));
+                    }"""
+_CAPTURE_SELECTION_DIAGNOSTICS_JS = """({box, expected}) => {
+  const shield=document.querySelector('.acira-capture-shield');
+  const r=shield?.getBoundingClientRect();
+  const tags=['HTML','BODY','MAIN','SECTION','ARTICLE','NAV','HEADER','FOOTER',
+    'DIV','SPAN','A','BUTTON','INPUT','LABEL','FORM','SELECT','TEXTAREA','SVG','IFRAME'];
+  let matches=false;
+  try { matches=(MATCH_FUNCTION)(expected); } catch {}
+  return {shield_present:Boolean(shield), shield_ready:shield?.dataset.ready==='true',
+    shield_hidden:shield?.hidden??null,
+    shield_bounds:r?{x:r.x,y:r.y,width:r.width,height:r.height}:null,
+    viewport:{width:innerWidth,height:innerHeight},
+    point_tags:box?document.elementsFromPoint(box.x+box.width/2,box.y+box.height/2)
+      .slice(0,4).map(el=>tags.includes(el.tagName)?el.tagName:'OTHER'):[],
+    fingerprint_present:Boolean(document.querySelector('#acira-capture-facts')?.textContent),
+    fingerprint_matches:matches};
+}""".replace("MATCH_FUNCTION", _CAPTURE_FINGERPRINT_MATCH_JS)
+_CAPTURE_DIAGNOSTIC_TAGS = frozenset({
+    "HTML", "BODY", "MAIN", "SECTION", "ARTICLE", "NAV", "HEADER", "FOOTER",
+    "DIV", "SPAN", "A", "BUTTON", "INPUT", "LABEL", "FORM", "SELECT", "TEXTAREA", "SVG", "IFRAME",
+})
+
+
+def _capture_diagnostic_geometry(value, fields):
+    if not isinstance(value, dict):
+        return None
+    return {key: number if type(number := value.get(key)) in (int, float)
+            and math.isfinite(number) and abs(number) <= 1_000_000 else None
+            for key in fields}
+
+
+async def _capture_selection_diagnostics(page, box, expected):
+    """Failure-only, bounded observations; never retry input or emit page values."""
+    try:
+        state = await asyncio.wait_for(page.evaluate(_CAPTURE_SELECTION_DIAGNOSTICS_JS,
+            {"box": box, "expected": expected}), 1)
+        if not isinstance(state, dict):
+            return {"diagnostic_error": "InvalidDiagnosticState"}
+        result = {key: state.get(key) if isinstance(state.get(key), bool) else None
+            for key in ("shield_present", "shield_ready", "shield_hidden",
+                        "fingerprint_present", "fingerprint_matches")}
+        result["shield_bounds"] = _capture_diagnostic_geometry(state.get("shield_bounds"),
+            ("x", "y", "width", "height"))
+        result["viewport"] = _capture_diagnostic_geometry(state.get("viewport"), ("width", "height"))
+        tags = state.get("point_tags")
+        result["point_tags"] = [tag if isinstance(tag, str) and tag in _CAPTURE_DIAGNOSTIC_TAGS
+            else "OTHER" for tag in tags[:4]] if isinstance(tags, list) else []
+        return result
+    except Exception as error:
+        return {"diagnostic_error": type(error).__name__}
 
 
 class CaptureReviewer(safe.TestReviewer):
@@ -74,6 +138,7 @@ class CaptureCleanupError(RuntimeError):
 async def capture(p, site, expected, root, *, timeout, robots, pacer, headed, expected_control=None, progress=None):
     progress = progress if progress is not None else {}
     began=time.monotonic()
+    progress["selection_attempts"] = 0
     def stage(name):
         progress["last_operation_stage"]=name
         progress.setdefault("stages",[]).append({"stage":name,"elapsed_seconds":round(time.monotonic()-began,2)})
@@ -113,6 +178,8 @@ async def capture(p, site, expected, root, *, timeout, robots, pacer, headed, ex
                 return {"status":"target_unavailable","selection":diagnostics}, None
             target, destination, label = found
             control = await safe.link_control_identity(target)
+            if not control or not control.get("sha256") or not control.get("capture_path"):
+                return {"status":"target_identity_unavailable"}, None
             if expected_control and control["sha256"] != expected_control:
                 return {"status":"target_identity_unavailable"}, None
             before, initial = len(fence.navigations), page.url
@@ -128,39 +195,41 @@ async def capture(p, site, expected, root, *, timeout, robots, pacer, headed, ex
             except PlaywrightTimeoutError:
                 return {"status":"capture_selector_unavailable",
                     "selector_status":await panel.locator("#acira-capture-status").inner_text()}, None
-            for selection_attempt in range(3):
-                stage("select_control")
-                # Fonts/hydration can shift a control while the selector loads.
-                # Reobserve the same DOM node; never mark a different control.
-                await target.wait_for_element_state("stable", timeout=2000)
-                if (await safe.link_control_identity(target))["sha256"] != control["sha256"]:
-                    return {"status":"target_identity_changed_before_capture"}, None
-                if not await page.locator(".acira-capture-shield[data-ready='true']").is_visible():
-                    return {"status":"capture_selector_unavailable"}, None
-                box = await target.bounding_box()
-                if not box or box["width"] <= 0 or box["height"] <= 0:
-                    return {"status":"target_unavailable"}, None
-                await page.mouse.click(box["x"] + box["width"]/2, box["y"] + box["height"]/2)
-                try:
-                    await page.wait_for_function("""({destination,label,path}) => {
-                      const raw=document.querySelector('#acira-capture-facts')?.textContent;
-                      if (!raw) return false;
-                      const fp=JSON.parse(raw), actual=new URL(fp.href,location.href), expected=new URL(destination);
-                      const normalize=s=>typeof s==='string' ? s.replace(/\\s+/g,' ').trim().toLowerCase() : '';
-                      // Captures intentionally omit URL query/fragment data.
-                      // Verify the exact document plus the observed control's
-                      // label; actual action reviews still bind the full link.
-                      return fp.dom_path===path && fp.tag==='a' && actual.origin===expected.origin && actual.pathname===expected.pathname
-                        && [fp.text,fp.aria_label,fp.title,fp.labels?.accessible,fp.labels?.associated]
-                          .some(value=>normalize(value)===normalize(label));
-                    }""", arg={"destination":destination,"label":label,"path":control["capture_path"]}, timeout=2000)
-                    break
-                except PlaywrightTimeoutError:
-                    if page.url != initial or len(fence.navigations) != before:
-                        return {"status":"capture_selection_activated_target"}, None
-                    if selection_attempt == 2:
-                        return {"status":"target_moved_during_selection",
-                            "selector_status":await panel.locator("#acira-capture-status").inner_text()}, None
+            stage("select_control")
+            # Reobserve the same DOM node, then attempt one original selection.
+            # A fingerprint mismatch is evidence, not permission to retry input.
+            await target.wait_for_element_state("stable", timeout=2000)
+            if (await safe.link_control_identity(target))["sha256"] != control["sha256"]:
+                return {"status":"target_identity_changed_before_capture"}, None
+            if not await page.locator(".acira-capture-shield[data-ready='true']").is_visible():
+                return {"status":"capture_selector_unavailable"}, None
+            box = await target.bounding_box()
+            if (not box or not all(isinstance(box.get(name), (int, float)) and not isinstance(box[name], bool)
+                    and math.isfinite(box[name]) for name in ("x", "y", "width", "height"))
+                    or box["width"] <= 0 or box["height"] <= 0):
+                return {"status":"target_unavailable"}, None
+            expected_fingerprint = {"destination":destination,"label":label,"path":control["capture_path"]}
+            progress["selection_attempts"] = 1
+            # Keep the original point and one trusted gesture, acknowledging
+            # move/down/up separately rather than using the batched shortcut.
+            await page.mouse.move(box["x"] + box["width"]/2, box["y"] + box["height"]/2)
+            if (await safe.link_control_identity(target))["sha256"] != control["sha256"]:
+                return {"status":"target_identity_changed_before_capture"}, None
+            if await target.bounding_box() != box:
+                return {"status":"target_geometry_changed_before_capture"}, None
+            if not await page.locator(".acira-capture-shield[data-ready='true']").is_visible():
+                return {"status":"capture_selector_unavailable"}, None
+            await page.mouse.down()
+            await page.mouse.up()
+            try:
+                await page.wait_for_function(_CAPTURE_FINGERPRINT_MATCH_JS,
+                    arg=expected_fingerprint, timeout=2000)
+            except PlaywrightTimeoutError:
+                if page.url != initial or len(fence.navigations) != before:
+                    return {"status":"capture_selection_activated_target","selection_attempts":1}, None
+                diagnostics = await _capture_selection_diagnostics(page, box, expected_fingerprint)
+                return {"status":"capture_fingerprint_match_timeout","selection_attempts":1,
+                    "fingerprint_match_within_timeout":False,"selection_diagnostics":diagnostics}, None
             if page.url != initial or len(fence.navigations) != before:
                 return {"status":"capture_selection_activated_target"}, None
             stage("mark_control")
@@ -185,7 +254,7 @@ async def capture(p, site, expected, root, *, timeout, robots, pacer, headed, ex
             second = json.loads(Path(await (await again.value).path()).read_text())
             assert second["id"] == value["id"] and second["targets"] == value["targets"]
             stage("exports_verified")
-            return {"status":"verified","target_text":label,"target_url":destination,"target_control_sha256":control["sha256"],
+            return {"status":"verified","selection_attempts":1,"fingerprint_match_within_timeout":True,"target_text":label,"target_url":destination,"target_control_sha256":control["sha256"],
                     "capture_selection_document_requests":len(fence.navigations)-before,
                     "fresh_cookie_count":0,"repeat_export_identity":"stable",
                     "extension_permission_fixture":"selected origins only; production manifest unchanged"}, value

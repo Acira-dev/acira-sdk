@@ -198,6 +198,7 @@ class Project:
         audit["directory"] = str((self.root / audit.get("directory", ".acira/audits")).resolve())
         base["audit"] = audit
         documents: dict[str, dict[str, Any]] = {}
+        policy_sources: dict[str, str] = {}
         seen: set[tuple[str, str]] = set()
         snapshot_bytes = len(json.dumps(profile, indent=2, ensure_ascii=False).encode("utf-8"))
         for kind, folder in folders.items():
@@ -225,6 +226,7 @@ class Project:
                 if snapshot_bytes > SNAPSHOT_JSON_LIMIT // 2:
                     raise ValueError("An agent's combined policy snapshot exceeds 32 MiB")
                 documents[str(path)] = payload
+                policy_sources[policy_id] = str(path)
                 override = profile.get("decisions", {}).get(policy_id, {})
                 if not isinstance(override, dict):
                     raise ValueError("Agent policy decisions must map risk names to decisions")
@@ -254,20 +256,27 @@ class Project:
         from dataclasses import replace
         general = base.pop("general_skills")
         config = AciraGuardConfig.from_dict({**base, "general_skills": {}}, base_path=self.root)
-        skills = tuple(GeneralSkill.from_dict(block["skill"], source=next(p for p, d in documents.items() if d.get("id") == sid)) for sid, block in general.items())
+        skills = tuple(GeneralSkill.from_dict(block["skill"], source=policy_sources[sid]) for sid, block in general.items())
         policies = {sid: block["risks"] for sid, block in general.items()}
         config = replace(config, general_skills=skills, skill_policies=policies,
                          has_page_policy=any(emit.context == "page" and emit.risk in policies.get(s.id, {}) for s in skills for emit in s.emits))
-        raw = {**base, "general_skills": {sid: {"path": next(p for p, d in documents.items() if d.get("id") == sid), "risks": block["risks"]} for sid, block in general.items()}}
+        raw = {**base, "general_skills": {sid: {"path": policy_sources[sid], "risks": block["risks"]} for sid, block in general.items()}}
         revision = digest({"profile": profile, "documents": documents, "secret_references": config.secrets.to_metadata()})
         return Snapshot(revision, config, raw, documents, copy.deepcopy(profile))
 
     def policies(self, agent: str) -> list[dict[str, Any]]:
         snapshot = self.snapshot(agent)
         assignments = {name: set(self.folders(name).values()) for name in self.document()["agents"]}
-        return [{"path": path, "kind": validate_policy(value)[0], "id": value["id"],
-                 "name": value.get("name", value["id"]), "document": value,
-                 "hash": digest(value), "affected_agents": [name for name, folders in assignments.items() if Path(path).parent in folders]} for path, value in snapshot.documents.items()]
+        entries = []
+        for path, value in snapshot.documents.items():
+            # Current and legacy policy parsers own identity normalization. Keep
+            # original documents intact, while listing the identity used by the
+            # runtime, assignments and import duplicate checks.
+            kind, policy_id = validate_policy(value)
+            entries.append({"path": path, "kind": kind, "id": policy_id,
+                            "name": str(value.get("name") or policy_id), "document": value,
+                            "hash": digest(value), "affected_agents": [name for name, folders in assignments.items() if Path(path).parent in folders]})
+        return entries
 
     def save_policy(self, agent: str, filename: str, value: dict[str, Any], *, expected: str | None) -> dict[str, Any]:
         if not NAME.fullmatch(filename) or not filename.endswith(".json"):

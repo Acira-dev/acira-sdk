@@ -1,6 +1,6 @@
 # SDK and shared-dashboard implementation status
 
-Updated 2026-10-12. The entire approved feature set remains committed. This is an
+Updated 2026-10-13. The entire approved feature set remains committed. This is an
 implementation ledger, not a claim that every release gate or the customer pilot is
 complete. Local SDK/extension release artifacts are built. Publication and platform results
 are recorded separately below; a local build is not proof of PyPI publication.
@@ -715,3 +715,22 @@ General evidence requirements survive captured, secret, core and mapping reviews
 Native confirmation acceptance cannot inherit a click approval. Protected Playwright modals are rejected and dismissed on their owning page; browser-use cancels the exact detecting session instead of invoking upstream automatic confirmation. Free-text modal data is redacted before persistence. This does not contain arbitrary page JavaScript or unrelated connections.
 
 The [submission validation report](validation/2026-10-12-submissions/README.md) records real local browser effects, Chrome capture/terminal import, review binding and signed-out public inspection. Full qualification of the new frozen source and installed wheel remains required; earlier verification of `1bc1006` does not qualify this changed candidate.
+
+
+### 2026-10-13 — Captured-policy regression and legacy imports
+
+The specific-policy recheck's Archive/other-Delete bypass is covered by real
+extension export, terminal import/configuration and both adapters. The existing
+current-source general-decision combination preserves Ask and Block after mapping.
+New repairs make mapping-dependent replay indeterminate instead of attributing it
+to the wrong capture, and preserve legacy name-only/normalized identities through
+listing, configuration and saved revisions without rewriting source documents.
+
+The final affected-policy suite passed **113 tests without skips**: 24 captures,
+48 runs, zero denied-action effects, and 16 explicitly approved local fixture
+requests. See the [focused report](validation/2026-10-13-captured-policies/README.md).
+This does not qualify publication or resolve the separate historical native
+selection-input failure. The previous `2e32cd0` verification was withdrawn after
+two installed-wheel capture tests failed; its successful slots are not reused.
+A fresh frozen source, installed wheel, native platform matrix, supplemental
+framework suites and dependency audit remain required for 0.1.1.

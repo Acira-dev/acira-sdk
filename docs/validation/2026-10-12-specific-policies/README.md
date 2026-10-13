@@ -20,8 +20,8 @@ even where a later fresh journey completed. They are not success claims.
 
 The full source suite passed **736 tests without skips**. The installed runtime
 passed **731 tests without skips in each macOS/Linux Python 3.11/3.12 environment**;
-the five subsequently added driver regressions are covered by the current source
-suite and a 17-test installed-wheel driver run. Current Windows/formal release
+the five subsequently added driver regressions were covered by the then-current
+source suite and a 17-test installed-wheel driver run. Current Windows/formal release
 verification is still pending.
 
 See [sites.csv](sites.csv) for individual attempts, [summary.json](summary.json)
@@ -102,6 +102,15 @@ page-event interference, rejected and approved reviews, and actual DOM/HTTP
 effects. Capture selection failure from extension 0.1.5 and the original Jest
 expectation failure are preserved; neither is counted as a protected-action pass.
 
+Older campaigns could attempt the same capture selection up to three times. Their
+completed journeys establish eventual capture/import/review outcomes, rather than
+first-click reliability. The historical `target_moved_during_selection` label
+establishes an exact fingerprint-match timeout; it does not prove movement. The
+current campaign driver makes one selection attempt and records a timeout with
+bounded observations before stopping that journey. Historical results remain
+unchanged. Intermittent native capture failures are still under investigation and
+this reporting correction does not establish their cause or repair.
+
 ## Page-restricted export recovery
 
 TechCrunch reproduced an export timeout after a correctly marked target. Its
@@ -123,7 +132,7 @@ review were used for each follow-up.
 
 | Diagnosis | Hosts | Result |
 | --- | ---: | --- |
-| Capture control changed, moved or became unavailable | 11 | Capture cannot establish the identical control; no export/protection pass claimed. |
+| Capture fingerprint did not match or control was unavailable | 11 | Capture cannot establish the identical control; no export/protection pass claimed. |
 | Identical control unavailable in at least one protected case | 5 | Only verified individual cases count; recapture or select a stable visible control in a fresh run. |
 | Fresh follow-up source/destination unavailable | 5 | Earlier partial results remain partial; respect access, consent, robots and transport limits. |
 | Approved click without a confirmed browser result | 1 | ICRC dispatched once, timed out and recorded unknown; no automatic retry. |
@@ -166,9 +175,11 @@ is recorded separately in verification.json.
 
 The wheel is a local preview, not a public PyPI release. Its 123 shipped runtime
 files match runtime commit `c6c93e9`. The source archive includes diagnostic/docs
-working changes from build time; it is not an exact final-HEAD release artifact. Current Windows checks,
-formal exact-source release verification, dependency audit and the Acira owner's
-approval remain publication gates. Earlier successful matrices are not results
-for this revision. Use the [terminal-first setup](../../specific-policies.md) to
-install the preview, reload the exported extension and import a capture into an
-existing project.
+working changes from build time; it is not an exact final-HEAD release artifact.
+Its historical platform results do not qualify a later release. The current
+macOS/Linux-first publication gates require fresh exact-source and installed-wheel
+verification, the dependency audit and Acira-owner approval; see
+[compatibility](../../compatibility.md) and the
+[release status](../../implementation-status.md). Windows support requires its own
+native checks. Use the [terminal-first setup](../../specific-policies.md) to add
+Acira, export its extension and import a capture into an existing project.

@@ -51,9 +51,11 @@ python -m pip check
 
 The SDK's adapter guards the official Playwright API used by your application.
 The base SDK includes the CLI, dashboard, starter policies and capture extension;
-it does not install your browser framework. This release's integration tests use
-Playwright 1.60.0 and browser-use 0.11.12. Other versions are not established by
-those tests; check the [protection coverage](protection.md) when evaluating them.
+it does not install your browser framework. See the
+[compatibility table](compatibility.md#framework-versions-and-operations) for exact
+framework versions and release verification scopes. Run `acira doctor` to check
+an existing installation, and review the [protection coverage](protection.md)
+before relying on an operation.
 
 To update an earlier Acira installation from PyPI:
 
@@ -62,9 +64,10 @@ python -m pip install --upgrade acira
 python -m pip check
 ```
 
-Update an exported capture extension separately with
-`acira extension install --replace`, then reload its existing card at
-`chrome://extensions`. On a first installation, follow the
+Update an exported capture extension separately with `acira extension install`,
+then reload its existing card at `chrome://extensions` if the files changed.
+Acira refuses to overwrite unrelated or modified files; review any deliberate
+local modifications before using `--replace`. On a first installation, follow the
 [capture setup steps](specific-policies.md#capture-an-application-specific-target).
 
 Reuse your existing compatible Chromium installation or connection and your existing

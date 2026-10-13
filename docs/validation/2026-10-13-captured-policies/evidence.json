@@ -1,0 +1,59 @@
+{
+  "source_head": "2e32cd0c88515919083ce95fc40b627ade8e8303",
+  "sha256": {
+    "acira/project.py": "44dae72f57067f8c8d298a589f25ae4ea196eadfb56a661489028e430902c56c",
+    "acira/replay.py": "71e4c3a7c027e12af30781cf93feeeeaeaf1163578a5ff2955a24288d0744575",
+    "tests/test_captured_general_boundary.py": "6bb9d29050493c4a5ff6ea154be5edaa55424f618aa36d81371bedf2bdef1503"
+  },
+  "end_sha256": {
+    "acira/project.py": "44dae72f57067f8c8d298a589f25ae4ea196eadfb56a661489028e430902c56c",
+    "acira/replay.py": "71e4c3a7c027e12af30781cf93feeeeaeaf1163578a5ff2955a24288d0744575",
+    "tests/test_captured_general_boundary.py": "6bb9d29050493c4a5ff6ea154be5edaa55424f618aa36d81371bedf2bdef1503"
+  },
+  "new_test_count": 44,
+  "all_selected_count": 113,
+  "scope": "final owned parsed-identity/replay/local-native regression proof, not full release qualification",
+  "passed": 113,
+  "failed": 0,
+  "skipped": 0,
+  "duration_seconds": 243.71,
+  "log_sha256": "b17d3c9cfbc696b11e3163c2363417610ddef5b05c53c1bc8792e3706006c1a5",
+  "observed_journal_counts": {
+    "projects": 24,
+    "events_by_type": {
+      "run_started": 48,
+      "action_proposed": 256,
+      "action_decision": 256,
+      "action_evaluated": 256,
+      "action_authorized": 160,
+      "action_dispatched": 160,
+      "browser_call_completed": 160,
+      "run_ended": 48,
+      "cdp_action_evaluated": 72,
+      "cdp_dispatch_attempt": 72,
+      "cdp_browser_call_completed": 72,
+      "review_requested": 64,
+      "review_decided": 64,
+      "submission_dispatch_attempt": 16,
+      "submission_response_observed": 16
+    },
+    "authorization_by_target": {
+      "delete": {
+        "block": 48,
+        "allow": 16
+      },
+      "archive": {
+        "block": 48
+      }
+    }
+  },
+  "browser_effect_assertions": {
+    "captured_archive_activation": 0,
+    "denied_delete_activation": 0,
+    "archive_http_requests": 0,
+    "approved_bound_delete_http_requests": 16,
+    "source": "Passed local test assertions on DOM counters and received HTTP request list; journal does not establish business outcomes"
+  },
+  "release_status": "Focused proof only. Root full-source/platform/audit/exact-wheel/release gates remain required.",
+  "interpretation": "Uncommitted candidate code at the listed hashes; focused proof only, not final release qualification."
+}

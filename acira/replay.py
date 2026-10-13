@@ -15,7 +15,7 @@ from acira_cdp_proxy.general_skills import GeneralSkill
 from acira_cdp_proxy.skills import SpecificSkill
 
 from .journal import Journal
-from .project import Project, SNAPSHOT_JSON_LIMIT, read_json
+from .project import Project, SNAPSHOT_JSON_LIMIT, read_json, validate_policy
 
 
 def revision_config(project: Project, agent: str, revision: str | None) -> AciraGuardConfig:
@@ -37,9 +37,10 @@ def revision_config(project: Project, agent: str, revision: str | None) -> Acira
     general, specific, decisions = [], [], {}
     disabled = saved["profile"].get("disabled_policies", [])
     for source, document in saved["documents"].items():
-        if document["id"] in disabled:
+        kind, policy_id = validate_policy(document)
+        if policy_id in disabled:
             continue
-        if str(document["schema"]).startswith("acira.general_skill"):
+        if kind == "general":
             skill = GeneralSkill.from_dict(document, source=source)
             general.append(skill)
             decisions[skill.id] = {**document.get("acira_decisions", {}), **saved["profile"].get("decisions", {}).get(skill.id, {})}
@@ -60,9 +61,9 @@ def evaluate(config: AciraGuardConfig, event: dict[str, Any]) -> dict[str, Any]:
     facts = event.get("facts")
     classification = event.get("classification")
     metadata = event.get("metadata") or {}
-    unavailable = {"specific_skill_mapping_review", "specific_skill_mapped", "general_skill_preflight", "specific_skill_missing_target"}
+    unavailable = {"specific_skill_mapping_review", "specific_skill_mapping", "specific_skill_mapped", "general_skill_preflight", "specific_skill_missing_target"}
     if (event.get("evaluation_contract") != "acira.action_facts.v1" or not isinstance(facts, dict)
-            or not isinstance(classification, dict) or metadata.get("source") in unavailable
+            or not isinstance(classification, dict) or metadata.get("source") in (unavailable - {"specific_skill_mapping"})
             or metadata.get("security_lockdown") or not isinstance(event.get("specific_facts"), dict)):
         return {"decision": "indeterminate", "reason": "Insufficient recorded evidence for this operation or its browser/session-dependent decision"}
     if (classification.get("details") or {}).get("secret_use"):
@@ -78,6 +79,15 @@ def evaluate(config: AciraGuardConfig, event: dict[str, Any]) -> dict[str, Any]:
     # One evaluation implementation; replay supplies frozen specific/general facts.
     guard = AciraGuardPolicy(replace(config, adapters={}, terminal_log=False, terminal_review=False))
     decision, reason, rule, cedar = guard._configured_decision(item, recorded_specific_facts=event["specific_facts"], recorded_general_facts=facts)
+    # A final recorded general-policy source can hide the page-wide mapping
+    # that resolved another captured control during live authorization. Frozen
+    # selected-action facts cannot recreate that browser/session evidence for a
+    # candidate revision. Preserve independently proven denials; never present a
+    # missing-target review as if it had been the live general-policy decision.
+    if decision != "block" and (metadata.get("source") == "specific_skill_mapping"
+            or (cedar is not None and cedar.source in unavailable)):
+        return {"decision": "indeterminate",
+                "reason": "Insufficient recorded mapping or browser/session evidence for this candidate policy decision"}
     # A historical heuristic is_submit flag does not establish native form
     # association. Never manufacture that newer evidence for candidate policies.
     target_facts = facts.get("target")

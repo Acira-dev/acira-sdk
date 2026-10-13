@@ -1,7 +1,7 @@
 # General and specific policies, without a dashboard
 
-Start with the [existing-project setup](quickstart.md): install the preview wheel
-in your agent's environment, run `acira init`, and add the integration snippet.
+Start with the [existing-project setup](quickstart.md): install Acira in your
+existing agent's environment, run `acira init`, and add the integration snippet.
 The dashboard is optional. These commands run in the initialized project folder;
 use `--project /absolute/path/to/project` and `--agent NAME` to choose another
 project or configuration explicitly.
@@ -104,12 +104,24 @@ route without reloading. If the page changes between selecting and adding a
 target, select it again. Download the current capture or Clear it before capturing
 another page; Acira does not combine unrelated page targets under one scope.
 
-After upgrading the SDK, update the exported installation with
-`acira extension install --replace`, then reload its card in Chrome's extensions
-page. Acira refuses to overwrite unrelated files in that folder.
-When replacing another `0.1.0` preview, use the
-[explicit wheel replacement command](quickstart.md#2-install-the-sdk-there);
-pip otherwise may keep the previously installed build with the same version.
+After upgrading with `python -m pip install --upgrade acira`, run
+`acira extension install` to update the exported extension, then reload its card
+in Chrome's extensions page. An unchanged installation needs no reload. Acira
+refuses to overwrite unrelated files; if you deliberately modified its exported
+files, use `--replace` only after reviewing those changes.
+
+## How general and specific policies combine
+
+Enabled general protections remain active on pages covered by a captured policy.
+A capture identifies its declared targets; it does not exempt other buttons on
+that page. For example, capturing an Archive control must not let an unrelated
+Delete control bypass the destructive-action protection.
+
+A Block from either policy prevents the operation. An Ask from either policy
+still requires its review and operation evidence, even when the other policy
+allows the action or the capture does not cover that control. Approving a target
+mapping identifies a control; it does not approve an operation or override a
+policy Block.
 
 ## Run and review from the terminal
 
@@ -163,7 +175,7 @@ The ordinary offline browser tests cover extension pairing/export, terminal
 imports and configuration, dashboard editing, and observed browser effects:
 
 ```sh
-python -m pytest -q tests/test_terminal_policies.py tests/test_extension_browser.py tests/test_specific_policy_journey.py tests/test_specific_controls.py tests/test_specific_mapping_boundary.py tests/test_capture_mapping_regressions.py tests/test_specific_policy_sweep.py
+python -m pytest -q tests/test_terminal_policies.py tests/test_extension_browser.py tests/test_specific_policy_journey.py tests/test_specific_controls.py tests/test_specific_mapping_boundary.py tests/test_capture_mapping_regressions.py tests/test_specific_policy_sweep.py tests/test_specific_sweep_selection.py tests/test_capture_input_order.py tests/test_captured_general_boundary.py
 ```
 
 `tools/specific_policy_sweep.py` is an opt-in, installed-wheel campaign for
@@ -174,6 +186,13 @@ accounts, purchases, uploads, or downloads website content. Automated extension
 injection pregrants only the selected website origins; native Chrome's toolbar and
 permission UX is a separate check. Unavailable sites and uncertain mappings are
 reported as limitations rather than protection passes.
+
+Each capture makes one selection attempt. If its exact fingerprint does not match
+within the original deadline, the campaign records
+`capture_fingerprint_match_timeout` and bounded readiness, geometry and match
+observations. It does not click again or export a policy from that failed attempt.
+A later diagnostic match does not turn the original timeout into a pass. This
+result alone does not establish whether a control moved or Chrome lost input.
 
 ```sh
 /absolute/path/to/test-env/bin/python /absolute/path/to/acira-sdk/tools/specific_policy_sweep.py --output ./specific-check --minutes 60 --limit 300
