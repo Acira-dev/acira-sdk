@@ -21,11 +21,12 @@ from acira.journal import Journal
 from acira.project import catalog_policy, initialize, read_json, validate_policy
 from acira.replay import evaluate, revision_config
 from acira.revisions import rollback
+from acira.runtime import ProjectRuntime
 from acira_cdp_proxy.action_gateway import ActionGateway, ActionRequest, AciraActionBlocked
 from acira_cdp_proxy.config import AciraGuardConfig, AciraGuardRule
 from acira_cdp_proxy.facts import build_browser_event_facts
 from acira_cdp_proxy.general_skills import GeneralSkill
-from acira_cdp_proxy.guard import AciraGuardPolicy, GuardTarget, _event_facts_from_classification
+from acira_cdp_proxy.guard import AciraGuardPolicy, GuardReviewRequest, GuardTarget, _event_facts_from_classification
 from acira_cdp_proxy.policy import AGENT_TO_BROWSER, CDPMessageContext
 from acira_cdp_proxy.skills import SpecificSkill
 
@@ -174,6 +175,102 @@ class Reviewer:
     async def ask(self, request):
         self.requests.append(request)
         return self.decision
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("identity_form", ["name-only", "padded-id"])
+@pytest.mark.parametrize("approved", [False, True], ids=["reject", "approve"])
+async def test_legacy_capture_terminal_import_reaches_runtime_review_and_one_attempt(
+        tmp_path, monkeypatch, identity_form, approved):
+    monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
+    project = initialize(tmp_path / "project", selected=[], dashboard=False)
+    document = legacy_capture(identity_form)
+    source = tmp_path / "capture.json"
+    source.write_text(json.dumps(document))
+    common = ["--project", str(project.root)]
+    run(["policy", "import", str(source), *common])
+    _, policy_id = validate_policy(document)
+    run(["policy", "configure", policy_id, "--target", "guide", "--decision", "ask", *common])
+    saved, = project.policies("default")
+    assert saved["document"].get("id") == document.get("id")
+    reviewer = Reviewer("allow" if approved else "block")
+    attempts = []
+    async with protect(project=project.root, dashboard=False, review_backend=reviewer) as guard:
+        request = ActionRequest(action="click", framework="playwright", target=GuardTarget(
+            tag="a", id="guide", href="/guide", text="Guide", url="https://fixture.invalid/settings",
+            confidence=1), target_resolved=True, confidence=1)
+        if approved:
+            await guard.action_gateway.guard_execute(request, lambda: attempts.append("fixture callback"))
+        else:
+            with pytest.raises(AciraActionBlocked):
+                await guard.action_gateway.guard_execute(request, lambda: attempts.append("fixture callback"))
+    assert attempts == (["fixture callback"] if approved else [])
+    assert len(reviewer.requests) == 1
+    reviewed = reviewer.requests[0].classification.details
+    assert reviewed["skill_decision_id"] == policy_id + ":guide"
+    journal = Journal(project.root)
+    review, = journal.reviews()
+    assert review["state"] == ("approved" if approved else "rejected")
+    assert review["agent"] == "default" and review["policy_revision"] == project.snapshot().revision
+    events = journal.events()
+    assert sum(event["type"] == "review_requested" for event in events) == 1
+    assert sum(event["type"] == "review_decided" for event in events) == 1
+    assert sum(event["type"] == "action_dispatched" for event in events) == int(approved)
+    assert sum(event["type"] == "run_started" for event in events) == 1
+    assert sum(event["type"] == "run_ended" for event in events) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outcome", ["missing-field", "missing-binding", "approve", "reject"])
+async def test_padded_general_identity_preserves_runtime_review_requirements(tmp_path, monkeypatch, outcome):
+    monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
+    project = initialize(tmp_path / "project", selected=[], dashboard=False)
+    document = catalog_policy("destructive-actions")
+    document["id"] = "  " + GENERAL_ID + "  "
+    document["acira_review"] = {RISK: {"required_fields": ["record"], "request_binding": True}}
+    source = tmp_path / "general.json"
+    source.write_text(json.dumps(document))
+    run(["policy", "import", str(source), "--project", str(project.root)])
+    saved, = project.policies("default")
+    assert saved["id"] == GENERAL_ID and saved["document"]["id"] == document["id"]
+    reviewer = Reviewer("block" if outcome == "reject" else "allow")
+    runtime = ProjectRuntime(project, "default", dashboard=False, review_backend=reviewer)
+    await runtime.start()
+    try:
+        evidence = {"critical": True, "verified_fields": {"record": "fixture-only"}, "request_bound": True}
+        if outcome == "missing-field":
+            evidence["verified_fields"] = {}
+        elif outcome == "missing-binding":
+            evidence.pop("request_bound")
+        request = ActionRequest(action="click", framework="playwright",
+            target=target("delete", "https://fixture.invalid/settings"), target_resolved=True, confidence=1,
+            details={"cedar": {"general_skills": {"detections": [{
+                "skill_id": GENERAL_ID, "risk": RISK, "severity": "high"}]}}}, operation_evidence=evidence)
+        classification = ActionGateway()._classification_from_request(request)
+        review_request = GuardReviewRequest("{}", CDPMessageContext(
+            AGENT_TO_BROWSER, "fixture", 1, "/acira/action/playwright"), classification, "Review fixture only")
+        assert await runtime.ask(review_request) == ("allow" if outcome == "approve" else "block")
+    finally:
+        await runtime.close()
+    journal = Journal(project.root)
+    events = journal.events()
+    missing = [event for event in events if event["type"] == "review_evidence_missing"]
+    if outcome.startswith("missing-"):
+        assert reviewer.requests == [] and journal.reviews() == []
+        missing_event, = missing
+        assert missing_event["policy_id"] == GENERAL_ID and missing_event["risk"] == RISK
+        assert missing_event["missing"] == (["record"] if outcome == "missing-field" else ["verified request binding"])
+    else:
+        assert len(reviewer.requests) == 1 and missing == []
+        review, = journal.reviews()
+        assert review["state"] == ("approved" if outcome == "approve" else "rejected")
+        assert review["evidence"]["verified_fields"] == {"record": "fixture-only"}
+        assert review["evidence"]["request_bound"] is True
+        assert review["policy_revision"] == project.snapshot().revision
+        assert sum(event["type"] == "review_requested" for event in events) == 1
+        assert sum(event["type"] == "review_decided" for event in events) == 1
+    assert sum(event["type"] == "run_started" for event in events) == 1
+    assert sum(event["type"] == "run_ended" for event in events) == 1
 
 
 @pytest.mark.asyncio

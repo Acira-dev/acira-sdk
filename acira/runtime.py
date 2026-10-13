@@ -17,7 +17,7 @@ from acira_cdp_proxy.guard import GuardReviewRequest, TerminalReviewBackend, red
 
 from .journal import Journal, journal_redact
 from .local import Registry
-from .project import Project, digest
+from .project import Project, digest, validate_policy
 
 
 class ProjectRuntime:
@@ -282,7 +282,9 @@ class ProjectRuntime:
         cedar = (request.classification.details or {}).get("cedar") or {}
         detection = (cedar.get("general_skill_decision") or {}).get("detection") or {}
         detections = (cedar.get("general_skills") or {}).get("detections") or []
-        policies = {document["id"]: document for document in self.snapshot.documents.values()}
+        # Review requirements use the same parsed identity as enforcement and
+        # imports; legacy name-only captures and padded IDs keep their raw JSON.
+        policies = {validate_policy(document)[1]: document for document in self.snapshot.documents.values()}
         for detected in detections:
             requirements = policies.get(detected.get("skill_id"), {}).get("acira_review", {}).get(detected.get("risk"), {})
             if not requirements:

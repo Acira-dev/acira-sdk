@@ -94,6 +94,11 @@ the same unchanged capture again is idempotent. A changed capture with the same
 identity is a deliberate update: use `acira policy import FILE --replace`. Clearing
 the draft and starting a new capture creates a new identity.
 
+Validated older captures that use `name` instead of an explicit policy `id` remain
+supported through import, configuration, review and saved revisions. Acira uses
+the parser's identity without rewriting the original JSON. Catalog update previews
+also preserve that identity and policy type; they require explicit acceptance.
+
 The extension captures the current page's origin and path. Inspect that scope
 before applying a policy to other pages; an exact page capture does not silently
 become a whole-site rule. Advanced scope/fingerprint edits remain available in the

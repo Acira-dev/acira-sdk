@@ -725,12 +725,19 @@ current-source general-decision combination preserves Ask and Block after mappin
 New repairs make mapping-dependent replay indeterminate instead of attributing it
 to the wrong capture, and preserve legacy name-only/normalized identities through
 listing, configuration and saved revisions without rewriting source documents.
+Follow-up repairs use the same validated identity in runtime approvals and catalog
+update previews, preserve required review evidence, and reject policy-type changes.
 
-The final affected-policy suite passed **113 tests without skips**: 24 captures,
-48 runs, zero denied-action effects, and 16 explicitly approved local fixture
-requests. See the [focused report](validation/2026-10-13-captured-policies/README.md).
+The complete affected-policy suite passed **121 tests without skips**: 24 captures,
+48 browser runs, zero denied-action effects, and 16 explicitly approved local fixture
+requests, plus eight runtime identity/evidence cases. The policy-management module
+passed another **22 tests without skips**. See the
+[focused report](validation/2026-10-13-captured-policies/README.md).
 This does not qualify publication or resolve the separate historical native
 selection-input failure. The previous `2e32cd0` verification was withdrawn after
 two installed-wheel capture tests failed; its successful slots are not reused.
+The subsequent `9b0e248` candidate was withdrawn when the remaining runtime and
+management identity defects were found, before any native source/wheel pair
+completed. Its partial source results also do not qualify this corrected source.
 A fresh frozen source, installed wheel, native platform matrix, supplemental
 framework suites and dependency audit remain required for 0.1.1.

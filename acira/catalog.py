@@ -59,7 +59,7 @@ def updated(value: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(source, dict):
         raise ValueError("Policy is not pinned to a catalog")
     result = policy(source["catalog"], source["name"])
-    if result["id"] != value["id"]:
+    if validate_policy(result) != validate_policy(value):
         raise ValueError("Catalog policy identity changed; import it explicitly as a different policy")
     if "acira_decisions" in value:
         result["acira_decisions"] = value["acira_decisions"]

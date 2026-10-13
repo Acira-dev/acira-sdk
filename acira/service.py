@@ -24,7 +24,7 @@ from aiohttp import web
 
 from .journal import Journal
 from .local import Registry, atomic_json, file_lock, state_dir
-from .project import CATALOG, Project, PolicyConflict, SNAPSHOT_JSON_LIMIT, catalog_policy, digest, read_json
+from .project import CATALOG, Project, PolicyConflict, SNAPSHOT_JSON_LIMIT, catalog_policy, digest, read_json, validate_policy
 
 PROTOCOL = 1
 
@@ -320,7 +320,8 @@ class Service:
         from .catalog import policy
         body = await request.json()
         document = await asyncio.to_thread(policy, body["url"], body["name"])
-        return web.json_response({"document":document,"filename":"catalog-"+digest({"id":document["id"]})[:16]+".json"})
+        _, policy_id = validate_policy(document)
+        return web.json_response({"document":document,"filename":"catalog-"+digest({"id":policy_id})[:16]+".json"})
 
     async def policy_updates(self, request: web.Request) -> web.Response:
         from .catalog import updated
@@ -332,7 +333,8 @@ class Service:
             if old.get("acira_source"):
                 new = await asyncio.to_thread(updated, old)
             else:
-                name = next((name for name in CATALOG if catalog_policy(name)["id"] == old["id"]), None)
+                identity = validate_policy(old)
+                name = next((name for name in CATALOG if validate_policy(catalog_policy(name)) == identity), None)
                 if name is None:
                     continue
                 new = catalog_policy(name)
