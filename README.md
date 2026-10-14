@@ -3,10 +3,20 @@
 Add local policies, human review, and action history to your existing browser agent.
 
 The maintained SDK repository is [Acira-dev/acira-sdk](https://github.com/Acira-dev/acira-sdk).
-This release supports **macOS and Linux**, tested on standard CPython 3.11–3.15. Windows testing remains in CI, but Windows support is pending validation.
 It is private during preparation for the open-source release. SDK code, the optional
 local dashboard, capture extension, policies, tests and release tooling live together
 here. See [repository provenance and publishing](docs/repository.md).
+
+## Version scope
+
+These instructions describe **Acira 0.1.1**. For **0.1.0**, use its
+[versioned PyPI instructions](https://pypi.org/project/acira/0.1.0/).
+`python -m pip install acira` installs a version published on PyPI. To follow the
+0.1.1 instructions, use 0.1.1 when published or a specifically provided
+[source or wheel build](docs/setup.md#alternative-installation-methods) for candidate testing.
+See [release status](docs/implementation-status.md) for version-specific publication
+and completed verification, and [compatibility](docs/compatibility.md) for the required
+release checks. A candidate build's version number does not establish release qualification.
 
 Acira enforces policies inside the SDK. Its optional browser dashboard manages several
 projects and agents on the same computer and operating-system account. Project files
@@ -48,8 +58,8 @@ and remaining release gates. Do not infer full adapter coverage from package ins
 
 ## Install and initialize
 
-Use your existing agent project's Python 3.11–3.15 environment. Acira is available
-on [PyPI](https://pypi.org/project/acira/); installation requires no GitHub access.
+Use your existing agent project's environment with a standard CPython version
+listed in [compatibility](docs/compatibility.md). PyPI installation requires no GitHub access.
 
 **Already using Playwright or browser-use?** Keep the compatible framework installed
 in your project and add Acira alone:
@@ -60,7 +70,7 @@ python -m pip check
 ```
 
 **Starting a new Playwright project?** Install Playwright separately, using the
-version tested for this release. Install its Chromium build only if it is missing:
+declared version below. Install its Chromium build only if it is missing:
 
 ```sh
 python -m pip install playwright==1.63.0
@@ -76,9 +86,9 @@ python -m pip check
 ```
 
 The base SDK includes the CLI, policies, dashboard and capture extension. It does not
-install Playwright, a browser or a model. No supplied wheel, cloned SDK repository,
-demo or cloud account is required for this setup. Existing browser-use agents keep
-their existing model configuration.
+install Playwright, a browser or a model. PyPI setup needs no supplied wheel or
+cloned SDK repository. No demo or cloud account is required. Existing browser-use
+agents keep their existing model configuration.
 
 Inside your existing project:
 
@@ -91,12 +101,13 @@ The wizard selects an integration, policy folders, starter protections and autom
 dashboard connection. It shows the integration snippet; it does not rewrite your
 application or install browsers. If your environment needs Chromium, install it
 explicitly with `python -m playwright install chromium`. Reuse your existing browser
-setup when it is compatible with the supported integration. Framework versions tested
-for this release are Playwright 1.60.0, 1.61.0, 1.62.0 and 1.63.0 and browser-use 0.11.12/0.11.13; `acira doctor` reports
-your installed versions, whether that framework version was verified, and configured capabilities.
+setup when it is compatible with the supported integration. See the declared
+framework versions in [compatibility](docs/compatibility.md#framework-versions-and-operations).
+`acira doctor` reports installed versions, version-allowlist status and configured
+capabilities. That status does not establish completion of the release checks.
 Unverified framework versions fail before protection attaches; Acira does not silently
 downgrade an existing installation. See [compatibility and dependency choices](docs/compatibility.md).
-The browser-use extra includes its settings dependency and tested integration
+The browser-use extra includes its settings dependency and pinned integration
 libraries, with security-fixed AnyIO and pypdf versions. Newer browser-use 0.13.11 currently
 pins affected library versions; Acira does not override upstream package metadata
 or ignore dependency advisories. Installing the extra can change existing framework
@@ -117,7 +128,7 @@ acira init --yes --adapter playwright --policies payment,credentials,destructive
 ```
 
 `python -m pip install "acira[playwright]"` remains an **optional convenience shortcut**
-for installing Acira and the official tested Playwright package together. The normal
+for installing Acira and the official Playwright package together. The normal
 setup above installs them separately. Source/wheel installations and optional extras
 are explained in [Start here](docs/setup.md).
 
@@ -313,7 +324,7 @@ policy. The dashboard's **Policies → Capture specific policy** explains setup,
 **Configure** offers an Ask/Block selector for each captured target alongside
 optional advanced JSON.
 
-The four starter policies are bundled. Additional declarative catalogs are explicit:
+The five starter policies are bundled. Additional declarative catalogs are explicit:
 
 ```sh
 acira policy add policy-name --catalog https://your-catalog.example/catalog.json
@@ -358,7 +369,7 @@ errors rather than repeated permission prompts. No external telemetry is enabled
 
 ## Optional: try the complete free Playwright journey
 
-After installing the `playwright` extra and Chromium:
+With your separately installed Playwright package and matching Chromium build available:
 
 ```sh
 acira demo
