@@ -22,7 +22,7 @@ Security and trust are the product. Preserve fail-closed behavior, redaction, au
 - `tests/`: unit and integration coverage, including audit, redaction, persistence, HITL, shutdown, and recovery.
 - `docs/audit/`: audit-schema migration guidance.
 
-The installed Strawberry browser integration that was prototyped on the original development machine is a separate machine-local deployment. Its `strawberry_service.py`, `strawberry_shim.cjs`, installed-browser patches, credentials, and runtime state are not part of this portable repository. Do not claim that Strawberry-specific integration is packaged here unless those pieces are deliberately productized and reviewed in a future change.
+Integrations and machine-local runtime state outside this repository are not part of the portable SDK. Only document and package capabilities implemented in this source tree.
 
 ## Security Invariants
 
@@ -53,7 +53,7 @@ The example browser-use runner uses Vertex AI. Authenticate locally without comm
 gcloud auth application-default login
 ```
 
-Pass the co-founder's own Google Cloud project with `--project`; do not assume the default example project is accessible.
+Use your own Google Cloud project for optional Vertex examples. Pass `--project` or set `GOOGLE_CLOUD_PROJECT`; never commit provider credentials.
 
 ## Run and Inspect
 

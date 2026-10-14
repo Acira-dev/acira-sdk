@@ -21,8 +21,8 @@ DEMO_DIR = PROJECT_DIR / "demo"
 # to load the local demo page (any http/https URL is allowed by default).
 DEFAULT_TARGET_URL = None
 
-# Vertex AI — integrated directly so this agent runs with no per-run flags.
-VERTEX_PROJECT = "acira-browser-use-test"
+# Optional Vertex AI example: use your own Google Cloud project.
+VERTEX_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "").strip()
 VERTEX_LOCATION = "global"
 DEFAULT_TASK = (
     "Open {url}. It is a checkout page. Fill the payment form with realistic test card "
@@ -84,12 +84,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--task", default=DEFAULT_TASK, help="Agent task. Use {url} to interpolate --target-url.")
     parser.add_argument("--task-file", type=Path, help="Read the agent task from a UTF-8 text file.")
     parser.add_argument("--model", default="gemini-3-flash-preview", help="ChatGoogle model name.")
-    parser.add_argument("--project", default=VERTEX_PROJECT, help="Vertex AI project id for ChatGoogle (defaults to the integrated project).")
+    parser.add_argument("--project", default=VERTEX_PROJECT, help="Your Vertex AI project id; defaults to GOOGLE_CLOUD_PROJECT.")
     parser.add_argument("--location", default=VERTEX_LOCATION, help="Vertex AI location for ChatGoogle.")
     parser.add_argument("--use-vision", action="store_true", help="Send screenshots to the LLM.")
     parser.add_argument("--headless", action="store_true", help="Run the browser headlessly.")
     parser.add_argument("--log-file", type=Path, help="Optional redacted CDP log file.")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.project or not args.project.strip():
+        parser.error("Pass --project or set GOOGLE_CLOUD_PROJECT to your own Google Cloud project.")
+    args.project = args.project.strip()
+    return args
 
 
 def _load_task(args: argparse.Namespace, target_url: str) -> str:

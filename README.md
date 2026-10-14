@@ -1,467 +1,235 @@
 # Acira
 
-Add local policies, human review, and action history to your existing browser agent.
+Local policies, human review, and action history for your browser agent.
 
-The maintained SDK repository is [Acira-dev/acira-sdk](https://github.com/Acira-dev/acira-sdk).
-It is private during preparation for the open-source release. SDK code, the optional
-local dashboard, capture extension, policies, tests and release tooling live together
-here. See [repository provenance and publishing](docs/repository.md).
+Acira adds a protection layer to an existing asynchronous Playwright or browser-use
+application. Keep your browser workflow and model configuration; define which
+supported actions to allow, review, or block through local policy files.
+
+- **Policies:** bundled protections and specific rules for captured website targets.
+- **Human review:** approve one supported action, with its target and operation details.
+- **Local history:** inspect recorded decisions and observed browser outcomes.
+- **Optional dashboard:** manage projects, agents, policies, and reviews on your computer.
+- **Capture extension:** select a website target and export a policy without activating it.
+
+The base SDK needs no model, API key, or cloud account. Playwright and browser-use
+are separate dependencies; your existing agent may have its own model requirements.
+
+[Setup guide](docs/setup.md) · [Playwright guide](docs/playwright-quickstart.md) ·
+[browser-use guide](docs/browser-use-quickstart.md) · [Protection boundaries](docs/protection.md)
 
 ## Version scope
 
-These instructions describe **Acira 0.1.1**. For **0.1.0**, use its
-[versioned PyPI instructions](https://pypi.org/project/acira/0.1.0/).
-`python -m pip install acira` installs a version published on PyPI. To follow the
-0.1.1 instructions, use 0.1.1 when published or a specifically provided
-[source or wheel build](docs/setup.md#alternative-installation-methods) for candidate testing.
-See [release status](docs/implementation-status.md) for version-specific publication
-and completed verification, and [compatibility](docs/compatibility.md) for the required
-release checks. A candidate build's version number does not establish release qualification.
+This guide describes **Acira 0.1.1**. `pip install acira` installs the latest
+published PyPI version, which may be older than these instructions. Match the guide
+to the version you install; [0.1.0 has versioned installation instructions](https://pypi.org/project/acira/0.1.0/).
+Check your project's framework compatibility with `acira doctor`.
 
-Acira enforces policies inside the SDK. Its optional browser dashboard manages several
-projects and agents on the same computer and operating-system account. Project files
-remain the policy authority; stopping the dashboard does not stop enforcement.
+## Installation
 
-**Start with your own project and browser framework.** If you already use Playwright,
-keep that installation and your existing script, then install Acira in the same Python
-environment. If you are starting from scratch, install the official Playwright package
-first, then add Acira. Acira contains the protection adapter; Playwright remains a
-separate dependency.
+Requires Python 3.11 or newer. Use your project's virtual environment and see
+[compatibility](docs/compatibility.md) for integration and platform boundaries.
 
-Run `acira init`, add the printed protection snippet to your existing entry point, and
-run your agent normally. Open `acira open` whenever you want the optional dashboard.
-The demo is an optional test drive after integration; it is not an installation step.
-
-**New computer or first installation?** Follow [Start here](docs/setup.md) for
-environment setup, separate framework installation, integration, terminal policies,
-Chrome capture, reviews, updates and troubleshooting. Normal PyPI installation
-requires no repository access or supplied wheel.
-
-Then use the [step-by-step existing-project setup](docs/quickstart.md), or the
-[Playwright](docs/playwright-quickstart.md) and
-[browser-use](docs/browser-use-quickstart.md) integration guides.
-
-The [signed-out public-site sweep](docs/public-site-sweep.md) provides a repeatable,
-opt-in compatibility check across hundreds of real public websites, with baseline,
-allow, block and review cases. It reports unavailable sites separately from passes.
-See the [failure investigation and repairs](docs/public-site-failures.md) for what
-was corrected and which access or test-boundary limitations remain.
-
-For captured policies, use the [terminal-first policy guide](docs/specific-policies.md).
-The [specific-policy validation report](docs/validation/2026-10-12-specific-policies/README.md)
-records the extension-to-SDK journey, real-site results, original failures, repairs,
-and remaining checks.
-
-This checkout contains the SDK/shared-dashboard implementation. See
-[implementation and release status](docs/implementation-status.md) for verified behavior
-and remaining release gates. Do not infer full adapter coverage from package installation.
-
-## Install and initialize
-
-Use your existing agent project's environment with a standard CPython version
-listed in [compatibility](docs/compatibility.md). PyPI installation requires no GitHub access.
-
-**Already using Playwright or browser-use?** Keep the compatible framework installed
-in your project and add Acira alone:
-
-```sh
-python -m pip install acira
-python -m pip check
-```
-
-**Starting a new Playwright project?** Install Playwright separately, using the
-declared version below. Install its Chromium build only if it is missing:
+If Playwright is already installed, keep your compatible installation and skip the
+first two commands. For a new Playwright project, install the official framework
+and its Chromium build, then add Acira to the same environment:
 
 ```sh
 python -m pip install playwright==1.63.0
 python -m playwright install chromium
-```
-
-Use Playwright's normal setup and your application's existing entry point. Then add
-Acira to that same environment:
-
-```sh
 python -m pip install acira
 python -m pip check
 ```
 
-The base SDK includes the CLI, policies, dashboard and capture extension. It does not
-install Playwright, a browser or a model. PyPI setup needs no supplied wheel or
-cloned SDK repository. No demo or cloud account is required. Existing browser-use
-agents keep their existing model configuration.
+See [Playwright's installation guide](https://playwright.dev/python/docs/intro)
+for platform prerequisites. Installing base Acira does not install a browser or model.
+The optional `acira[playwright]` extra installs the Python framework alongside Acira;
+the browser installation remains explicit.
 
-Inside your existing project:
+From your existing project directory:
 
 ```sh
 acira init
 acira doctor
 ```
 
-The wizard selects an integration, policy folders, starter protections and automatic
-dashboard connection. It shows the integration snippet; it does not rewrite your
-application or install browsers. If your environment needs Chromium, install it
-explicitly with `python -m playwright install chromium`. Reuse your existing browser
-setup when it is compatible with the supported integration. See the declared
-framework versions in [compatibility](docs/compatibility.md#framework-versions-and-operations).
-`acira doctor` reports installed versions, version-allowlist status and configured
-capabilities. That status does not establish completion of the release checks.
-Unverified framework versions fail before protection attaches; Acira does not silently
-downgrade an existing installation. See [compatibility and dependency choices](docs/compatibility.md).
-The browser-use extra includes its settings dependency and pinned integration
-libraries, with security-fixed AnyIO and pypdf versions. Newer browser-use 0.13.11 currently
-pins affected library versions; Acira does not override upstream package metadata
-or ignore dependency advisories. Installing the extra can change existing framework
-versions, so use your project's environment and review pip's dependency changes.
+The initialization wizard creates `acira.json` and policy folders, lets you choose
+starter protections, and prints the integration snippet. It does not rewrite your
+application. `acira doctor` reports framework compatibility and configuration issues.
 
-For a reproducible setup:
+## Protect your existing workflow
 
-The `submissions` starter below gates all native forms and
-Submit/Send/Post/Publish/Apply/Finalize controls. **GET/search forms are
-blocked while this policy is enabled because verified GET approval is not
-supported.** Other matched controls need a supported `guard.submit(...)`
-request contract; missing evidence blocks. Omit `submissions` to keep only
-the other four protections.
-Read the [form submission guide](docs/form-submissions.md) before enabling it for your workflow. The [submission validation report](docs/validation/2026-10-12-submissions/README.md) records local browser effects and signed-out public checks.
-
-```sh
-acira init --yes --adapter playwright --policies payment,credentials,destructive-actions,downloads,submissions
-```
-
-`python -m pip install "acira[playwright]"` remains an **optional convenience shortcut**
-for installing Acira and the official Playwright package together. The normal
-setup above installs them separately. Source/wheel installations and optional extras
-are explained in [Start here](docs/setup.md).
-
-## Protect an existing Playwright workflow
+Patch Playwright inside the protection context, before launching or connecting to
+a browser. Keep your current workflow in the marked function:
 
 ```python
 import asyncio
+
 from acira import protect
 from playwright.async_api import async_playwright
 
+
+async def run_existing_workflow(browser):
+    # Replace this example with your application's existing browser code.
+    page = await browser.new_page()
+    await page.goto("https://example.com")
+    print(await page.title())
+
+
 async def main():
     async with protect() as guard:
-        async with async_playwright() as p:
-            guard.patch_playwright(p)
-            browser = await p.chromium.launch(headless=False)
+        async with async_playwright() as playwright:
+            guard.patch_playwright(playwright)
+            browser = await playwright.chromium.launch()
             try:
                 await run_existing_workflow(browser)
             finally:
                 await browser.close()
 
+
 asyncio.run(main())
 ```
 
-`run_existing_workflow(browser)` is your application's existing function. Keep its
-actual URLs and supported operations, or place your current browser code inside
-the protection context. Patch before your launch or CDP connection.
+Acira discovers the nearest `acira.json` above the working directory. To select a
+project explicitly, use `protect(project="/path/to/project", agent="checkout")`.
 
-Playwright automation itself needs no model provider or API key. `headless=False`
-keeps Chromium visible while your workflow runs; keep the browser open while you
-inspect a result. Acira protects the supported SDK calls, not manual human clicks.
+For browser-use, select that adapter during `acira init`, then construct and run
+your existing compatible agent inside `async with protect() as guard:`. Keep its
+model, task, and browser settings. Follow the [browser-use integration guide](docs/browser-use-quickstart.md)
+before changing framework versions. The optional `acira[browser-use]` extra is
+dependency setup for projects that need it, not a requirement for a compatible
+existing installation.
 
-Acira finds the nearest `acira.json` above the working directory. If you launch from
-elsewhere, use `protect(project="/absolute/project", agent="checkout")`.
-`protect(config="acira.json")` also recognizes project configurations.
-Existing `protect(config="legacy-config.json")` remains supported.
+## Policies and human review
 
-For browser-use, select `--adapter browser_use` and construct/run your existing
-compatible agent inside `async with protect() as guard:`. Your existing model provider
-configuration stays in your application. The `browser-use` extra is optional dependency
-setup for projects that need it; see the browser-use guide before changing versions.
-
-**Chromium and asynchronous integrations are the supported family.** Read the
-[capability matrix and boundaries](docs/protection.md) before relying on an operation.
-Unknown scripts, forced pointer actions and unbounded low-level sequences are blocked
-in protected Playwright mode. Acira is not an operating-system sandbox.
-
-## Files, dashboard, and several agents
-
-Initialization creates:
-
-```text
-acira.json
-policies/general/
-policies/specific/
-.acira/                 # private runtime/history; ignored by Git
-```
+Manage policies from your project directory:
 
 ```sh
 acira policy add credentials
-acira policy import captured-policy.json
+acira policy list
+acira policy configure
 acira policy validate
+```
+
+Bundled protections cover payments, credentials, destructive actions, downloads,
+and submissions. General risks can be configured to Allow, Ask, or Block; captured
+targets support Ask or Block. Read the [policy guide](docs/specific-policies.md)
+for agent assignments and specific website rules.
+
+Actions configured to Ask need an available reviewer. Without one, they block.
+An approval covers one attempt, and relevant target, values, and policy revision
+are checked again before dispatch. An observed click or HTTP response does not
+prove that a business transaction succeeded.
+
+The `submissions` policy has a stricter boundary: GET/search forms are blocked, and
+other critical submissions need a supported `guard.submit(...)` request contract.
+Read the [form submission guide](docs/form-submissions.md) before enabling it.
+
+## Optional dashboard and capture
+
+```sh
 acira open
 ```
 
-`acira open` starts or reuses one authenticated loopback server for your OS user and
-opens its browser dashboard. No project IDs need to be pasted. Already-running,
-opted-in SDKs discover it without restarting. Merely installing the package does not
-register or protect application code.
+The dashboard starts or reuses an authenticated loopback service for your operating
+system user. It brings together opted-in projects and agents, pending approvals,
+policy editing, and history. Project policy files remain authoritative; stopping
+the dashboard does not stop SDK enforcement.
 
 Use `acira init --no-dashboard` or `protect(dashboard=False)` for file-only operation.
-Terminal review is available with an interactive terminal. Without an available
-reviewer, actions requiring approval block; they never silently pass.
+Interactive terminal review is also available.
 
-Add a named agent with `acira init --agent checkout`, or through Settings.
-Each agent gets separate policy folders by default. You may deliberately configure
-shared folders; the editor displays affected agents before saving.
-
-The dashboard starts with Agents, Approvals and Policies. Agents shows current runs
-and compact project rows; open a project for its agent configurations and folder.
-Previous runs stay under an expandable history section. Pending reviews and
-configuration problems remain visible. Activity, Backtesting and Settings are under
-**More tools**; policy updates, revisions and assignments are under **More policy
-actions**. These sections keep their expanded state during live updates.
-Policy tables show JSON filenames. Hover to see the full path, or click/right-click
-the filename to inspect and copy its location. Keyboard users can press Enter or
-Shift+F10 on the filename; Escape closes the file details.
-Settings saves finish refreshing the view before their dialog closes, so the next
-keyboard action is ready. If you close a pending save and open another dialog,
-the completed save leaves that newer dialog open.
-Policy saves are validated, checked for edit conflicts and written atomically.
-**Saved** means the intended files were written; **Active** means the selected run
-acknowledged that revision. Invalid edits stop affected mutations. A policy change
-invalidates pending reviews and applies at the next guarded action boundary.
-
-## Human review and critical submissions
-
-Reviews show operation details, a masked browser screenshot when available, and the
-target highlight. A thin red outline sits outside the target so it does not cover its
-text. Approval dialogs focus on operation evidence and contain no mascots. The
-full-page capture and technical details remain available. Companion appearance
-elsewhere in the dashboard is configurable in Settings.
-When an image is unavailable, reviews report a fixed privacy-safe reason such as
-an unstable page, unavailable target, time limit or sensitive visual effect. An
-unavailable image never falls back to an unmasked capture.
-One approval covers one attempt. DOM targets, form values and
-policy revision are checked again before dispatch. There is no implicit approval
-reuse by policy ID.
-
-For a critical submission whose actual values cannot be established through page
-inspection, use an explicit supported request contract:
-
-```python
-await guard.submit(
-    page.get_by_role("button", name="Submit"),
-    destination="https://your-test-app.example/payments",
-    method="POST",
-    encoding="json",
-    values={"amount": "10.00", "currency": "USD", "account": "test-account"},
-    facts={"amount": "amount", "currency": "currency", "account": "account"},
-)
-```
-
-This Playwright API reviews and permits one matching HTTP request within the run's
-browser context, including related frames, workers and popups. Page-level routing
-must be removed before using a critical contract; Acira owns routing afterward. A different
-destination, method or payload is blocked. It does not prove business success or
-infer the signed-in account from a domain. Use your application's actual complete
-payload, including recipient and other policy-required facts. See
-[operation contracts](docs/protection.md#operation-contracts) for constraints.
-
-For browser-use, the equivalent APIs are `guard.submit(browser_session, node, ...)`
-and `guard.fill_fields(browser_session, [(node, text), ...])`. Project element clicks
-use one exact DOM activation, including resolved frame nodes, with no native fallback
-retry. Coordinate actions keep their stricter pointer-resolution boundary.
-
-`guard.fill_fields([(locator, text), ...])` can review one bounded form-fill operation.
-It never approves submission. Routine grants are explicit, scoped and revocable,
-expire within 15 minutes, and cannot cover critical actions.
-
-## Extension and policies
-
-General protections and specific website policies can be managed entirely in the
-terminal. From an initialized project:
-
-```sh
-acira policy add                 # choose a bundled general protection
-acira policy list                # readable general/specific policy list
-acira policy configure           # choose a policy, risk/target and decision
-acira policy disable POLICY_ID   # disable only for the selected agent
-acira policy enable POLICY_ID
-acira policy validate
-```
-
-Use `--agent NAME` to select an agent, or `--project /path/to/project` when launching
-elsewhere. Shared folders affect every listed assignment; separate folders isolate
-files. General risks support Allow, Ask or Block. Captured targets support Ask or
-Block only. An unattended review blocks; configuring Ask does not silently approve.
-Scripts use `acira policy list --json` for the previous machine-readable output.
-
-To create a specific policy, export the extension bundled in your installed SDK:
+To capture a website-specific policy:
 
 ```sh
 acira extension install
 ```
 
-Open `chrome://extensions` or `edge://extensions`, enable Developer mode, choose
-**Load unpacked**, and select the folder printed by the command. On the website,
-click **Acira Capture**, select a target, choose **Ask first** or **Block target**,
-then download its JSON. Selecting a target during capture does not activate it.
-For a first test, use a signed-out public documentation link or your local test app.
+Load the printed folder through Chrome or Edge's **Extensions → Developer mode →
+Load unpacked**. Open the website, choose **Acira Capture**, select a target, and
+export its JSON. Selecting a target does not click it.
 
 ```sh
 acira policy import /path/to/capture.json
-acira policy configure POLICY_ID --decision ask
-acira policy configure POLICY_ID --decision block
+acira policy validate
 ```
 
-For several captured targets, add `--target TARGET_ID` or choose interactively.
-`acira extension install --replace` updates an existing exported Acira extension;
-reload it in Chrome afterward. It never enables an extension or changes Chrome
-permissions automatically. Browser-internal pages cannot host capture scripts.
+Dashboard pairing for direct imports is optional. Exported JSON works without it.
+The extension cannot capture browser-internal pages. See the [capture and policy guide](docs/specific-policies.md)
+for setup, pairing, and updating an exported extension.
 
-Offline capture supports copy/download JSON. For direct import, open dashboard
-Settings → Pair capture extension, then enter the displayed address/code in the
-extension's connection settings. The extension asks for optional loopback access
-during pairing. Select the destination project and agent before saving.
+## Optional demo
 
-Paired credentials permit capture import and destination listing, never approvals
-or secret retrieval. Pairing can be revoked. Repeated exports retain the capture ID
-and repeated identical imports are idempotent. Changed captures need an explicit
-replacement/import or a policy edit; they do not silently overwrite an existing
-policy. The dashboard's **Policies → Capture specific policy** explains setup, and
-**Configure** offers an Ask/Block selector for each captured target alongside
-optional advanced JSON.
-
-The five starter policies are bundled. Additional declarative catalogs are explicit:
-
-```sh
-acira policy add policy-name --catalog https://your-catalog.example/catalog.json
-acira policy update
-acira policy update --accept
-```
-
-Preview changes before accepting them. Runtime enforcement never downloads updated
-policies automatically. Catalog import and update previews are also in the dashboard.
-
-## History, privacy and diagnostics
-
-History persists locally before critical dispatch. It distinguishes authorization,
-dispatch, browser completion and unknown outcomes. A successful click does not prove
-a successful payment. Backtesting uses recorded normalized facts and the same guard
-evaluator; unavailable evidence returns an indeterminate result.
-
-Defaults: 30 days of history, seven days of review images, 1 GiB for the runtime audit database
-and 250 MiB of images per project. Settings can change these limits.
-The audit budget includes indexes, runtime metadata and explicitly enabled legacy
-persistent archives. Finalized archives and older history are pruned together;
-active/unfinalized archives are preserved and can block further mutations when the
-budget is exhausted. Policy snapshots remain configuration history.
-
-Known sensitive controls and text are masked before review images are persisted.
-If a reliable mask cannot be established, Acira omits the screenshot and explains why.
-Capture uses browser-page APIs rather than desktop screen recording.
-Secret values stay in the runtime; Settings edits references, never their values.
-
-```sh
-acira status
-acira sync
-acira doctor
-acira doctor --recover
-acira server status
-acira server stop
-```
-
-`sync` is a diagnostic rescan/retention operation; normal policy updates are automatic.
-The local service uses your existing file permissions. Read-only folders produce
-errors rather than repeated permission prompts. No external telemetry is enabled.
-
-## Optional: try the complete free Playwright journey
-
-With your separately installed Playwright package and matching Chromium build available:
+With Playwright and Chromium installed:
 
 ```sh
 acira demo
 ```
 
-This opens a local test drive and the shared dashboard, using visible Chromium,
-fake local payment/draft data and no model, paid API or API key. Approve or reject
-in the dashboard; the test drive updates automatically and the one-operation run
-ends after its observed result. Approval alone is not reported as execution success.
-Cancellation and blocked deletion produce no automated request. Two project folders
-have independent policies and reviews in the same dashboard.
+Try reviews and blocked actions against local pages with fake data. The demo opens
+visible Chromium and the local dashboard, creates separate demo projects, and needs
+no model or paid API. It is a test drive, not an integration step. Ctrl-C stops it;
+`acira server stop` separately stops the dashboard.
 
-Normal demo browser windows close three seconds after the result. Select **Keep this
-run active after its result** before starting to test live policy changes; that
-explicit mode stays active for up to ten minutes. Real agents may continue to further
-operations after a review; their runs end when their `protect()` context exits.
+`acira demo --public-sites` offers a limited read-only documentation-site example.
+`acira demo --adapter browser-use` is a separate optional local-model example;
+its model and Ollama setup are explained in the [browser-use guide](docs/browser-use-quickstart.md).
 
-The demo creates separate projects in Acira's private user state, leaving your current
-project untouched. `acira demo --directory /your/separate/demo-folder` chooses a location;
-`--no-open` prints the address and `--port` reuses a test-drive port. Ctrl-C stops the
-demo; `acira server stop` separately stops the optional dashboard.
-See the [complete Playwright setup and testing guide](docs/playwright-quickstart.md).
+## Supported boundaries
 
-### Try real public websites without accounts
+The integrations support asynchronous Chromium with Playwright 1.60.0, 1.61.0,
+1.62.0, or 1.63.0, and browser-use 0.11.12 or 0.11.13. Other framework versions are rejected at attachment;
+Acira does not silently change an existing installation. Firefox, WebKit, and
+synchronous Playwright are outside the supported integration.
 
-```sh
-acira demo --public-sites
-```
+Protection applies to documented operations through the attached adapter. Unrelated
+HTTP clients, independently controlled browsers, private framework internals, and
+manual human actions are outside that boundary. Acira is not an operating-system
+sandbox and does not guarantee protection from every prompt injection or website.
+Unsupported mutations and operations without required evidence are blocked in
+protected mode. See the [capability and contract guide](docs/protection.md) before
+relying on a particular workflow.
 
-Choose Python documentation, MDN or Playwright documentation. **Browse normally**
-follows a real documentation link. **Try a review** pauses that link until you approve
-or reject it in the shared dashboard, with a screenshot and target highlight.
-**Try a blocked click** demonstrates a policy stopping the same harmless link.
-The test drive verifies navigation, updates automatically, and ends the run.
+Policy and action history is stored locally. Review images mask known sensitive
+controls when reliable masking is available; otherwise the image is omitted.
+Review your retention settings and [privacy boundaries](docs/protection.md) before
+using sensitive projects.
 
-Each run uses a fresh visible Chromium session. This mode restricts traffic to
-read-only requests on the selected documentation host, disables downloads and
-service workers, and rejects account/payment paths. It deliberately limits site
-selection; it does not ask for credentials, submit forms or use a paid API.
-The example policies demonstrate protection on harmless links and are editable
-separately for each agent. This is scripted Playwright automation through the SDK.
-See [public-website instructions and limitations](docs/public-websites.md).
+## Troubleshooting
 
-## Optional: try a free local browser-use agent
+- **Framework or dependency mismatch:** run `acira doctor` and `python -m pip check`.
+  Use a compatible project environment and review dependency changes before installing extras.
+- **Chromium is missing:** run `python -m playwright install chromium` in the same environment.
+- **Project is not found:** run from your initialized project, or pass `project=` to `protect()`.
+- **An action is blocked:** inspect its policy decision and required operation contract;
+  approval does not enable an unsupported action.
+- **Dashboard connection:** use `acira server status`. File-only enforcement remains available.
 
-Install the wheel with `[browser-use,playwright]` extras and install Chromium. Start
-Ollama in local-only mode and download the non-thinking local model:
+See [setup and troubleshooting](docs/setup.md) for detailed platform instructions.
 
-```sh
-# In one terminal; use your platform's environment-variable syntax.
-OLLAMA_NO_CLOUD=1 ollama serve
-# In another terminal:
-ollama pull qwen3:4b-instruct
-acira demo --adapter browser-use
-```
+## Contributing
 
-This journey uses a real browser-use `Agent` with `ChatOllama`, visible Chromium,
-local fake-data pages and the same Acira dashboard. The model requests a predefined
-business operation; Acira reviews its exact request, observes the result and ends
-the run automatically. It never substitutes scripted success or a paid model when
-local inference fails. The demo verifies downloaded weights and a loopback endpoint.
-The existing SDK still supports normal browser-use actions within its documented
-protection boundary. See the [browser-use setup and testing guide](docs/browser-use-quickstart.md)
-for platform setup, integration, cancellation, model limitations and troubleshooting.
+Small fixes, reproducible bug reports, and documentation improvements are welcome.
+Include the framework version and a minimal example, and remove credentials,
+personal data, and private policy/history files from reports.
 
-## Development and release verification
+For a development checkout, install the adapters and test dependencies, matching
+Chromium, and Node.js 22 or newer for extension tests:
 
 ```sh
-python -m pip install ".[dev,playwright,browser-use]" build
+python -m pip install ".[dev,playwright,browser-use,vertex]"
 python -m playwright install chromium
 python -m pytest -q
-python -m build --wheel
-python tools/verify_wheel.py dist/acira-0.1.1-py3-none-any.whl
 ```
 
-Full development/release checks also require Node.js 22 or newer for tests of the
-extension's background channel. Node.js is a test prerequisite; installing and
-using the SDK does not require it. Release verification must install both adapters
-and Chromium and must not skip their tests.
+Node.js is a development test prerequisite; base SDK use does not require it.
+Changes to protection behavior should include tests for the relevant browser effects
+and failure paths. See the [source repository](https://github.com/Acira-dev/acira-sdk)
+for the project files.
 
-The wheel check creates two clean environments and projects outside the checkout,
-starts agents first, verifies one shared service, changes one project's policies and
-restarts the service. Browser tests observe actual DOM/HTTP effects.
+## License
 
-- [Protection coverage, contracts and limitations](docs/protection.md)
-- [Project configuration and migration](docs/project-configuration.md)
-- [Implementation status and full delivery commitments](docs/implementation-status.md)
-- [Build and publication workflow](docs/release.md)
-- [Five-project pilot protocol](docs/pilot.md)
-- [Legacy dashboard, lower-level proxy and Vertex runner](docs/legacy-guide.md)
-- [Existing audit schema migration](docs/audit/migration.md)
-
-Legacy `python -m acira_dashboard` and `python -m acira_cdp_proxy` entry points remain
-available for existing configurations. They are compatibility interfaces; new
-multi-project installations use `acira open`.
+The SDK is [MIT licensed](LICENSE). Bundled dashboard fonts use the SIL Open Font
+License; their notices are included in
+[GoogleSans-OFL.txt](acira_dashboard/static/GoogleSans-OFL.txt) and
+[GeistMono-OFL.txt](acira_dashboard/static/GeistMono-OFL.txt).

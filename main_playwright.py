@@ -17,9 +17,9 @@ DEMO_PAGE = Path(__file__).parent / "demo" / "checkout_page.html"
 CONFIG    = Path(__file__).parent / "configs" / "acira.playwright.demo.json"
 MAX_STEPS = 20
 
-# Vertex AI — integrated directly (matches main.py) so this agent runs with no API key.
+# Optional Vertex AI example: use your own Google Cloud project.
 # Uses Application Default Credentials (gcloud auth application-default login).
-VERTEX_PROJECT  = "acira-browser-use-test"
+VERTEX_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "").strip()
 VERTEX_LOCATION = "global"
 
 TASK = (
@@ -204,6 +204,8 @@ async def run_gemini_agent(page) -> None:
 # ── Entry point ─────────────────────────────────────────────────────────────
 
 async def main() -> None:
+    if not VERTEX_PROJECT:
+        raise SystemExit("Set GOOGLE_CLOUD_PROJECT to your own Google Cloud project before running this optional example.")
     # [ACIRA] wrap the session — loads config, selects the adapter, applies HITL policy
     async with acira.protect(config=CONFIG) as guard:
         async with async_playwright() as p:
