@@ -8,8 +8,8 @@ The bundled test drive is optional and appears after the integration steps below
 
 ## Install Playwright separately, then add Acira
 
-Activate your existing project's environment with a standard CPython version
-from the [release targets](compatibility.md#release-verification-scope). If Playwright is
+Activate your existing project's environment with Python 3.11 or newer; see
+[compatibility](compatibility.md#python-and-platform-requirements). If Playwright is
 already installed, keep that compatible installation and skip its setup below.
 For a new Playwright project, install the official package first:
 
@@ -28,9 +28,7 @@ python -m pip check
 ```
 
 Use the versions listed in [compatibility and dependency choices](compatibility.md).
-The required native release matrix uses Playwright 1.63.0; separate full source
-and installed-package gates cover the other listed framework versions.
-Use the version-specific release report for completed verification. Acira supplies the protection adapter
+Acira supplies the protection adapter
 for your application's Playwright calls; the Playwright package remains separate. Acira does not silently install browsers, download a model, or replace your
 entry point. Playwright automation needs no model, paid API or cloud account.
 
@@ -183,5 +181,5 @@ old approval, or turn this diagnostic into an automatic retry loop.
 
 This is a local, same-user deployment. Other browser connections, independent HTTP
 clients and manual human actions are outside Acira's SDK boundary. The SDK is not
-an operating-system sandbox. No public publication or external customer-pilot
-completion is implied by this local test drive.
+an operating-system sandbox. The demo does not establish protection for every
+website or operation.

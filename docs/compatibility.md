@@ -2,90 +2,64 @@
 
 These instructions follow the [0.1.1 version scope](../README.md#version-scope).
 
-Acira integrates into an existing project. Install the official browser framework
-separately, then install `acira` in the same environment. The optional extras are
-convenience dependency setup; base Acira does not install a framework or model.
+Install the official browser framework separately, then install `acira` in the same
+project environment. Optional extras are convenience dependency setup; base Acira
+does not install a browser framework or model.
 
-## Release verification scope
+## Python and platform requirements
 
-Release qualification for **0.1.1** requires native macOS/Linux source,
-installed-wheel and clean-setup tests on standard CPython 3.11, 3.12, 3.13, 3.14
-and 3.15, the listed supplemental framework suites, the dependency audit and
-Acira-owner approval against the same source and artifact hashes. Every selected
-check must pass without skipped tests. Windows support requires its native release
-checks. The selected native matrix uses ARM64 machines; do not infer native x86
-results from it. Free-threaded, prerelease and non-CPython interpreters are outside
-this release verification scope. See [release status](implementation-status.md) for
-version-specific completed results; installation and the declared version list do
-not establish that evidence.
+The package requires Python 3.11 or newer. Use standard CPython and consult your
+browser framework's platform prerequisites. Examples for Windows do not imply that
+a different browser API, interpreter, or platform has the same protection boundary.
+Free-threaded and non-CPython interpreters are outside the declared verification scope.
+
+Both integrations use asynchronous Chromium. Firefox, WebKit, and synchronous
+Playwright are not supported. Chromium must be installed explicitly, and its sandbox
+must remain enabled. See [protection and platform boundaries](protection.md).
 
 ## Framework versions and operations
 
-`acira doctor` reports the installed framework version, the declared version
-allowlist and verified/missing/unverified status. Here, verified is the adapter
-version-allowlist status, not completion of the release checks.
-Adapter attachment rejects an unverified version
-before enabling protection. Installation success does not establish action coverage.
-Acira never silently upgrades or downgrades an existing browser framework.
-Adapter verification describes API coverage; it is not a dependency advisory audit.
+The Acira 0.1.1 adapter allowlist contains these exact releases:
 
-The 0.1.1 declared framework list includes Playwright 1.60.0, 1.61.0, 1.62.0 and
-1.63.0, and browser-use 0.11.12 and 0.11.13.
-The **0.1.1 release gate** requires the following fresh source and installed-wheel
-checks against the same frozen commit and GitHub-built wheel:
+| Framework | Declared versions |
+| --- | --- |
+| Playwright | 1.60.0, 1.61.0, 1.62.0, 1.63.0 |
+| browser-use | 0.11.12, 0.11.13 |
 
-| Verification scope | Python and native platform | Framework pair |
-|---|---|---|
-| Release platform matrix | Standard CPython 3.11–3.15, macOS ARM64 and Linux ARM64 | Playwright 1.63.0 / browser-use 0.11.13 |
-| Supplemental complete suites | Standard CPython 3.12, macOS ARM64 | Playwright 1.61.0 / browser-use 0.11.13 |
-| Supplemental complete suites | Standard CPython 3.12, macOS ARM64 | Playwright 1.62.0 / browser-use 0.11.13 |
-| Retained framework versions, complete suites | Standard CPython 3.12, macOS ARM64 | Playwright 1.60.0 / browser-use 0.11.12 |
+`acira doctor` reports the installed framework and its verified/missing/unverified
+allowlist status. This is an adapter version check, not an audit of the entire
+environment or a guarantee of every action's coverage. Attachment rejects an
+unverified framework version before enabling protection. Acira does not silently
+upgrade or downgrade an existing installation.
 
-These are distinct test scopes. The supplemental rows do not establish a complete
-framework-version × Python-version × operating-system test matrix. Earlier results
-for withdrawn source revisions do not qualify a release. Before publication,
-every selected check above must pass without skipped tests; final evidence belongs
-to the matching frozen commit and artifact hashes in the
-[release status](implementation-status.md).
+Read the [operation contracts](protection.md) before relying on an operation.
+External drops, arbitrary scripts/CDP mutations, storage mutations, clock
+instrumentation, virtual credential APIs, and browser-use PDF actions have no
+supported operation contract and are rejected in protected mode.
 
-Both integrations use asynchronous Chromium. See the [operation boundaries](protection.md)
-for supported actions. External drops, arbitrary scripts/CDP mutations, storage
-mutations, clock instrumentation and virtual credential APIs have no verified operation contract and are
-rejected. New browser-use PDF actions remain unsupported and are blocked before
-creating a file.
+## Dependency resolution
 
-## Safe dependency resolution
+Dependencies use supported ranges, while adapter integration dependencies and the
+development constraints select specific versions. Run `python -m pip check` after
+installing. Review proposed changes before updating an existing agent environment:
 
-Public library dependencies use conservative supported ranges, with security-fixed
-lower bounds. Private adapter integration libraries retain exact verified versions.
-The release constraints define the verification stack independently from normal
-project installation. Run `python -m pip check` after installing.
+```sh
+python -m pip install --dry-run "acira[browser-use]"
+```
 
-For browser-use, `acira doctor` separately checks the recorded AnyIO and PyPDF
-security fix floors and the supported release minimum versions. These offline
-checks are dated **2026-10-12** and do not certify the whole environment. The
-command shows missing, older and unverified versions with a manual `--dry-run`
-repair path. Run a current whole-environment dependency audit before deployment.
+The browser-use extra supplies its settings dependency and the declared integration
+stack, including minimum AnyIO and PyPDF versions. `acira doctor` checks recorded
+minimums, which do not replace a current whole-environment advisory audit. Do not
+bypass the resolver or modify upstream package metadata to force an unsupported
+framework version into the project.
 
-As of **2026-10-12**, the checked stable browser-use 0.12/0.13 releases,
-including [0.13.11](https://pypi.org/pypi/browser-use/0.13.11/json), pin affected
-AnyIO/PyPDF versions in upstream metadata. Those pins also conflict with the fixed stack. Acira does not bypass the
-resolver, ignore advisories or change upstream metadata to support them. Use a verified
-0.11.12/0.11.13 project environment while upstream corrections remain pending.
+For Python 3.15, the declared aiohttp 3.14.5 and Pydantic 2.14.1 minimums avoid
+incompatible older binary dependencies. Use current pip in an ordinary virtual
+environment; diagnose conflicts without rewriting the user's application.
 
-Python 3.15 requires the native-wheel-capable aiohttp 3.14.5 and Pydantic 2.14.1 stack.
-These minimum versions avoid forcing source builds of incompatible older binaries.
-User projects should use ordinary virtual environments and current pip. A different
-project's dependency conflict is diagnosed rather than resolved by silently rewriting
-its application or environment.
+## Optional providers
 
-
-### Optional providers
-
-The base installation does not install Google Cloud or require cloud credentials.
-The optional `vertex` provider remains available. The release constraints include
-its normally resolved dependencies, including protobuf 6.33.6, so testing and
-advisory coverage include every published extra. Offline compatibility checks
-import provider modules and round-trip generated messages without creating service
-clients or making cloud/model requests. A successful dependency check does not
-prove account access or that a paid cloud operation will succeed.
+Base Acira does not install Google Cloud or require cloud credentials. The optional
+`vertex` extra is for projects that need that integration. Installing or checking
+provider modules does not establish account access or authorize a cloud/model
+request. Existing browser-use agents keep their own model configuration.

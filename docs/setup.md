@@ -2,7 +2,7 @@
 
 These instructions follow the [0.1.1 version scope](../README.md#version-scope).
 Windows examples are provided for contributors; see [compatibility](compatibility.md)
-for platform requirements and version-specific verification.
+for integration and platform requirements.
 
 The normal journey is **use your browser framework → install Acira → initialize →
 integrate → run your own agent**. The dashboard and demo are optional.
@@ -22,7 +22,7 @@ source .venv/bin/activate
 ~~~
 
 If this project has no environment yet, create one first with your installed Python
-3.11 through 3.15 from the [release targets](compatibility.md#release-verification-scope),
+3.11 or newer; see [compatibility](compatibility.md#python-and-platform-requirements),
 then activate it:
 
 ~~~sh
@@ -93,7 +93,7 @@ python -m pip check
 
 The base package includes the CLI, policy engine, starter policies, local dashboard
 and Chrome capture extension. It does not install Playwright, Chromium or a model.
-No PyPI account or access to the private GitHub repository is needed.
+No PyPI account or SDK repository checkout is needed.
 
 Acira does not automatically change your application code. The next step adds its
 protection to the workflow you already run.
@@ -259,9 +259,8 @@ Updating the SDK does not automatically replace a previously exported extension.
 | Capture cannot connect | Reload/reopen the extension and check permissions. Offline JSON works without pairing. |
 | Mapping rejected or outcome unknown | Investigate in a new run; do not force or automatically replay an uncertain action. |
 
-The [validation report](validation/2026-10-12-specific-policies/README.md) separates
-complete, partial and unavailable website results. Package installation does not
-establish protection for every possible browser path.
+Package installation does not establish protection for every possible browser path.
+Read the [operation boundaries](protection.md) before relying on a workflow.
 
 ## Alternative installation methods
 
@@ -276,7 +275,7 @@ This installs Acira and the official Playwright package; it does not install
 a custom Playwright build or Chromium. Browser-use and Vertex extras remain available
 for their documented integrations.
 
-Invited collaborators can install from the private SDK checkout instead of PyPI:
+You can also install an available SDK source checkout instead of PyPI:
 
 ~~~sh
 git clone https://github.com/Acira-dev/acira-sdk.git
@@ -284,9 +283,8 @@ git clone https://github.com/Acira-dev/acira-sdk.git
 python -m pip install "/path/to/acira-sdk"
 ~~~
 
-If cloning fails, confirm that your own GitHub account has accepted its invitation.
-If needed, use `gh auth login --hostname github.com` and `gh auth setup-git` locally.
-Once GitHub becomes public, the same source-installation method still works.
+Repository access is separate from package installation. Use a source checkout
+that you are authorized to access; do not share credentials to obtain one.
 
 A supplied wheel also works without copying it into your project:
 

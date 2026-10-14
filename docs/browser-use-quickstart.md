@@ -11,8 +11,8 @@ the real-project integration below.
 
 ## Install outside the repository
 
-Use a standard CPython version from the [release targets](compatibility.md#release-verification-scope)
-and activate the environment that already runs your compatible browser-use agent.
+Use Python 3.11 or newer; see [compatibility](compatibility.md#python-and-platform-requirements).
+Activate the environment that already runs your compatible browser-use agent.
 Install Acira alone from PyPI:
 
 ```sh

@@ -1,41 +1,22 @@
-# Acira SDK repository
+# Project layout
 
-The canonical repository is https://github.com/Acira-dev/acira-sdk. It is owned by
-the Acira GitHub account and is private while the release is prepared. Changing
-visibility to public is a separate deliberate release step.
+The [Acira SDK repository](https://github.com/Acira-dev/acira-sdk) contains the SDK,
+optional local dashboard, capture extension, policies, documentation, and tests.
+The SDK uses the [MIT license](../LICENSE); bundled font notices are retained with
+the dashboard assets.
 
-For Fouad and other invited collaborators, [Start here](setup.md) explains cloning,
-installing into an existing agent project, configuring policies and running reviews.
-Repository installation does not require a supplied wheel or PyPI ownership.
-
-This repository contains the complete tracked project snapshot from
-https://github.com/FouadDim/Acira-Browser-Security at commit
-`0008fd730d1e8b5309fcc07717d313dd09a32c69`, including SDK integrations, policy
-engine, dashboard, capture extension, sample policies, tests and release tooling.
-The MIT license and Acira contributor attribution are preserved. The source
-repository retains its original Git history and review record; this repository
-starts with the reviewed project snapshot. Historical CI links in the implementation
-ledger refer to that source repository and are not passes for this repository.
-
-Only tracked portable project files were copied. Per-machine settings, credentials,
-virtual environments, model weights, runtime databases, screenshots, local reports
-and build outputs are not part of this repository.
-
-GitHub repository ownership and PyPI package ownership are separate. Automatic
-publishing requires an explicit PyPI trusted publisher authorizing these fields:
-
-| Field | Value |
+| Path | Contents |
 | --- | --- |
-| PyPI project | `acira` |
-| GitHub owner | `Acira-dev` |
-| GitHub repository | `acira-sdk` |
-| Workflow filename | `release.yml` |
-| GitHub environment | `pypi` |
+| `acira/` | SDK, CLI, policies, integrations, and packaged capture resources |
+| `acira_dashboard/` | Local dashboard and static assets |
+| `acira_cdp_proxy/` | Lower-level CDP integration and semantic profiles |
+| `tools/` | Capture extension sources and development utilities |
+| `tests/` | SDK, browser integration, extension, and lifecycle tests |
+| `docs/` | Setup, operation contracts, policies, and maintainer guides |
 
-The old publisher for `FouadDim/Acira-Browser-Security` does not authorize this
-repository. Verification and publication are separate manual workflows. Acira's
-owner approves the exact tested artifacts after the complete browser/platform
-matrix and dependency audit pass. The publisher verifies the actual owner identity,
-run, source commit, artifact hashes and main-only environment before any upload.
-Publishing setup status is recorded in [the release guide](release.md). No passwords
-or long-lived package-upload tokens belong in Git.
+Use [the setup guide](setup.md) for an existing agent project and
+[the build guide](release.md) for a development checkout.
+
+Keep credentials, user configurations, virtual environments, browser profiles,
+model weights, runtime databases, screenshots, and local reports outside version
+control. Initialized projects keep private runtime/history under `.acira/`.

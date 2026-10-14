@@ -2,10 +2,6 @@
 
 These instructions follow the [0.1.1 version scope](../README.md#version-scope).
 
-The [focused capture validation report](validation/2026-10-13-captured-policies/README.md)
-distinguishes the 0.1.1 policy and capture repairs from 0.1.0, records the evidence
-for those changes and identifies the remaining release and native capture checks.
-
 Start with the [existing-project setup](quickstart.md): install Acira in your
 existing agent's environment, run `acira init`, and add the integration snippet.
 The dashboard is optional. These commands run in the initialized project folder;
@@ -212,6 +208,5 @@ result alone does not establish whether a control moved or Chrome lost input.
 Use a new output folder for each campaign and keep its private journals and images
 local. Public links cannot establish authenticated, payment, or every-site safety.
 
-See the [recorded validation campaign](validation/2026-10-12-specific-policies/README.md)
-for verified workflows, capture repairs, unavailable sites, and remaining manual
-and platform checks.
+Inspect each campaign's actual outcomes. Unavailable sites and ambiguous targets
+are limitations, not successful protection results.

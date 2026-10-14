@@ -1,217 +1,62 @@
-# Building and publishing Acira
+# Maintainer build and release guide
 
-Acira's public Python distribution is named `acira`, with optional
-Playwright, browser-use, and Vertex extras. GitHub stays private during release
-preparation. PyPI publication makes the distributed SDK source public; making the
-GitHub repository public later does not change the installation command.
+Verification and publication are separate steps. Build from the intended source,
+check the complete distributions, and obtain maintainer approval before uploading.
+Do not describe incomplete or skipped platform checks as successful verification.
 
-## Two separate actions: verify, then approve
+## Development setup
 
-1. Run **SDK release verification** on the exact main commit and select its
-   supported platform scope. The first release uses **macos-linux**. The **all**
-   option remains available and requires Windows too.
-2. After every check in that scope passes, the **Acira-dev owner** runs **SDK release** and
-   enters the verification run ID, source commit, wheel SHA-256, and source archive
-   SHA-256 shown in the verification summary.
+Use a fresh virtual environment. Install Node.js 22 or newer for the extension tests,
+then install the Python dependencies and Chromium explicitly:
 
-The owner explicitly approved this free workflow approval on 2026-10-11 instead
-of GitHub's Enterprise-only reviewer feature for this private repository. This is
-an owner-controlled release request, not an independent reviewer service. Protect
-the Acira account and changes to the release workflows.
-
-The publisher verifies the actual GitHub actor and rerun actor by account ID
-**286463772**, the private Acira-owned repository, both workflow identities, the
-exact commit, and that approval was submitted after verification finished. The
-main commit must still match the approved commit. A moved main branch requires
-fresh verification.
-
-The **macos-linux** scope requires all ten combinations of **Linux, macOS ×
-standard CPython 3.11, 3.12, 3.13, 3.14, 3.15**. The **all** scope requires all fifteen combinations, including
-Windows. Every required combination must execute and pass. Each runs source and
-installed-wheel suites, dependency consistency,
-Chromium tests, the clean installation journey, and dashboard/extension script
-checks. Skipped tests are rejected in release jobs. The dependency advisory audit
-runs during verification, including a verification that is never published. Its
-report must match every installed distribution name and version; third-party packages
-with missing advisory evidence are rejected. Only an unpublished first-party Acira
-version may lack a PyPI advisory record, with its exact wheel version recorded.
-Incomplete job evidence, failed/skipped required steps, unavailable artifacts,
-wrong checksums, and approvals from collaborators block publication.
-
-After a failed or interrupted verification, submit a new verification request.
-The publisher requires every job from the same run attempt; a partial rerun cannot
-mix earlier passing jobs with a later attempt's evidence.
-
-The publishing environment still disables administrator bypass and allows only
-the exact main branch. Owner approval is enforced by the workflow, replacing the
-unavailable paid environment-reviewer checkpoint.
-
-Publication downloads the already tested artifact ID and checks the two approved
-hashes again immediately before upload. It does not rebuild, import SDK code, or
-check out the repository in the upload job. Only that job receives OIDC upload
-permission. The official uv publisher supports macOS self-hosted runners and
-requires trusted publishing; no stored PyPI upload token is used.
-
-The platform scope is recorded in the verification run title and must match
-the publication request. A failed or incomplete all-platform run cannot be
-relabelled as a macOS/Linux release. Each selected operating system runs all five
-Python versions, the entire source and installed suites with no skipped tests,
-and the clean-installation journey. The dependency audit remains mandatory.
-Windows jobs stay in normal CI and in the all-platform release option.
-
-## Free execution while hosted minutes are exhausted
-
-Keep paid usage disabled. GitHub's included hosted allowance is exhausted for
-Acira's account; deleting artifacts does not restore used minutes. Self-hosted
-runners on existing computers are free according to
-[GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
-
-Both release workflows offer a runner choice:
-
-- **hosted** uses GitHub's free allowance when it is available.
-- **self-hosted** requires existing computers or virtual machines running all
-  operating systems selected for the release. A Mac cannot stand in for Linux
-  or Windows jobs. Choose **all** when preparing verified Windows support.
-
-The helper `tools/start_release_runner.py` downloads the official GitHub runner,
-verifies its published checksum, and registers one-job ephemeral runners for one
-specific run ID and source commit. It installs no service and deletes the
-registration and temporary files after completion, including interruption.
-A pre-job hook rejects other workflows, commits, run IDs, accounts, and pull
-request jobs before job steps execute. Runner labels include the selected run ID.
-
-Requirements on each runner computer: Python 3.12+, Git, GitHub CLI authenticated
-as Acira-dev, and Bash (Git for Windows provides it). Linux also needs browser
-system dependencies; use a disposable Linux VM with passwordless sudo for
-Playwright's official dependency installer.
-
-Hosted Linux jobs are pinned to Ubuntu 24.04 so a change to GitHub’s
-`ubuntu-latest` image cannot silently change the supported test platform.
-Use Ubuntu 24.04 or a supported Debian release for the pinned Playwright 1.63.0
-Linux tests. Earlier Playwright 1.60 testing failed on Ubuntu 26.04 ARM64; that
-historical failure does not describe the newer installer. Current upstream
-[system requirements](https://playwright.dev/python/docs/intro#system-requirements)
-also include Ubuntu 26.04, while Acira's native release verification uses Ubuntu
-24.04. Do not override platform detection or skip browser tests on another image.
-
-Mac runners need native standard CPython 3.11 through 3.15 already installed or
-available through private, verified portable interpreters on PATH. The helper verifies
-their actual versions and architecture and prepares private, temporary virtual
-environments that setup-python can discover. It avoids the official Mac installer's
-privileged `/Users/runner` location; it does not create or modify system folders.
-
-Run verification from the Mac:
 ```sh
-gh workflow run verify-release.yml --repo Acira-dev/acira-sdk --ref main -f runners=self-hosted -f platforms=macos-linux
-gh run list --repo Acira-dev/acira-sdk --workflow verify-release.yml --limit 1
+python -m pip install -c .github/constraints-release.txt ".[dev,playwright,browser-use,vertex]" build twine
+python -m playwright install chromium
+python -m pip check
+python -m pytest -q
 ```
 
-Record the resulting run ID and full source commit. Then run the helper from
-the SDK checkout on each computer:
+Run the full suite on the Python, platform, and framework combinations you intend
+to support. Also check an installed wheel from outside the source checkout, with
+both browser integrations and all published extras installed. Use the normal pytest
+plugin loading and retain failures; do not skip unavailable required checks.
+Review the complete dependency environment with a current advisory audit.
+
+## Build and inspect
+
 ```sh
-# Mac: authorization, build, five Python versions, audit, final summary
-python3 tools/start_release_runner.py --run-id RUN_ID --commit SOURCE_COMMIT --jobs 9
-
-# Linux: all five Python versions
-python3 tools/start_release_runner.py --run-id RUN_ID --commit SOURCE_COMMIT --jobs 5
-```
-
-For a future **all** verification that adds Windows support, use PowerShell
-on Windows 11:
-```powershell
-# Install missing prerequisites using their official installers or winget.
-# Git for Windows supplies the Bash used by the workflow.
-gh auth login --hostname github.com
-gh repo clone Acira-dev/acira-sdk
-Set-Location acira-sdk
-git checkout SOURCE_COMMIT
-py -3.12 tools/start_release_runner.py --run-id RUN_ID --commit SOURCE_COMMIT --jobs 5
-```
-
-Keep the Windows terminal open until all five jobs finish. Account login happens on
-that computer; do not copy passwords or tokens into chat or the repository.
-The first PyPI release is supported on macOS/Linux only; Windows commands are
-provided for contributors preparing its future validation.
-The Mac/Linux jobs can proceed concurrently. Do not represent local macOS results
-as Windows or Linux verification.
-
-After the successful verification run has completed, publish the exact artifacts:
-```sh
-gh workflow run release.yml --repo Acira-dev/acira-sdk --ref main \
-  -f publish=pypi -f runners=self-hosted -f platforms=macos-linux \
-  -f verification_run=RUN_ID -f source_sha=SOURCE_COMMIT \
-  -f wheel_sha256=WHEEL_SHA256 -f sdist_sha256=SOURCE_ARCHIVE_SHA256
-```
-
-This is the separate Acira-controlled approval. Get the new publishing run ID
-and run the temporary Mac helper for that ID with `--jobs 2`.
-A failed verification cannot be approved by this command. No upload occurs until
-GitHub and PyPI accept the exact trusted identity and artifact pair.
-
-## Reproducible verification dependencies
-
-Normal installation uses conservative supported dependency bounds. Release jobs use
-`.github/constraints-release.txt` to reproduce the exact tested package stack without
-overriding upstream package metadata. Both source and installed-wheel tests use that
-stack. The public installation checks separately verify normal PyPI resolution.
-
-## Package contents and dependency gates
-
-Local build:
-```sh
-python -m pip install build twine
-python -m build --outdir dist
-python -m twine check dist/*.whl dist/*.tar.gz
+python -m build
+python -m twine check dist/*
 python tools/verify_wheel.py dist/acira-0.1.1-py3-none-any.whl
-python tools/prepare_release.py dist
 ```
 
-The build produces a source archive, then a wheel from it. Assembly adds the
-unpacked extension ZIP, SHA-256 checksums, and a manifest. It does not upload files.
+The wheel check creates clean environments and verifies installed assets, CLI setup,
+local agents, and dashboard restart behavior. It does not open a browser.
+Use the filename matching the version being built. Inspect both the wheel and source
+archive for the intended SDK, dashboard/capture assets, policies, tests, documentation,
+and license notices. Exclude credentials, runtime state, and private local reports.
 
-The browser-use extra selects the compatible upstream **0.11.12/0.11.13** distributions,
-which permits patched AnyIO **4.15.1** and pypdf **6.20.0**. Its missing
-pydantic-settings dependency and tested integration libraries are explicit.
-Browser-use 0.13.11 pins affected versions; no upstream metadata override or
-advisory exclusion is used. The adapter supports the compatible recovery methods
-and a finite, review-aware action timeout.
+Check the dashboard and extension scripts:
 
-## PyPI account connection and installation verification
-
-The Acira-Dev PyPI account registered this pending publisher on 2026-10-10:
-
-| Field | Value |
-| --- | --- |
-| PyPI project | acira |
-| GitHub owner | Acira-dev |
-| Repository | acira-sdk |
-| Workflow | release.yml |
-| Environment | pypi |
-
-The workflow filename and environment remain unchanged. A pending publisher does
-not reserve a project name and does not create an installable package. See
-[PyPI first publication](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
-TestPyPI requires its own publisher and environment.
-
-After an actual successful PyPI upload, verify in a new environment outside the
-checkout:
 ```sh
-python -m venv /tmp/acira-public-install
-/tmp/acira-public-install/bin/python -m pip install --upgrade pip
-/tmp/acira-public-install/bin/python -m pip install playwright==1.63.0
-/tmp/acira-public-install/bin/python -m pip install acira
-/tmp/acira-public-install/bin/python -m pip check
-/tmp/acira-public-install/bin/acira --help
-# In an existing agent project, initialize and add the printed protection snippet:
-/tmp/acira-public-install/bin/acira init
+node --check acira_dashboard/static/workspace.js
+node --check tools/acira-capture-extension/background.js
+node --check tools/acira-capture-extension/content.js
+node --check tools/acira-capture-extension/connection.js
+node --check tools/acira-capture-extension/selection.js
 ```
 
-Use equivalent Scripts paths on Windows. Optional integrations require the
-matching extra and the developer's existing browser environment.
+Record the source revision, distribution hashes, dependency versions, and actual test
+results for the maintainer reviewing the release. A source test does not replace an
+installed-wheel test, and earlier results do not qualify changed artifacts.
 
-Keep checksums, verification run, source commit, audit, and publication outcome
-together. Until PyPI confirms an upload, use a tested local wheel and describe it
-as a candidate. See the [implementation ledger](implementation-status.md).
+## Publish only approved artifacts
 
-The capture ZIP remains an unpacked extension, not a store-published CRX.
-Extension-store submission and GitHub release publication are separate steps.
+After review, upload the same distributions that were checked. Configure publishing
+credentials or trusted publishing outside the repository; never commit tokens or
+passwords. Follow the official [Python packaging upload guide](https://packaging.python.org/en/latest/tutorials/packaging-projects/#uploading-the-distribution-archives)
+and [PyPI trusted publishing documentation](https://docs.pypi.org/trusted-publishers/).
+
+Uploading is an explicit maintainer action, not a side effect of installation,
+building, or running tests. If a required check fails, preserve its result and resolve
+it before claiming that release scope is complete.

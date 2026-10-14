@@ -27,7 +27,7 @@ cd C:\path\to\your-project
 .\.venv\Scripts\Activate.ps1
 ```
 
-Use a standard CPython version from the [release targets](compatibility.md#release-verification-scope).
+Use Python 3.11 or newer; see [compatibility](compatibility.md#python-and-platform-requirements).
 If you have no environment yet, create one with
 `python -m venv .venv`, then activate it as above. Existing Conda, uv or other Python
 environments also work; installing and running must use the same interpreter.
@@ -56,7 +56,7 @@ The SDK's adapter guards the official Playwright API used by your application.
 The base SDK includes the CLI, dashboard, starter policies and capture extension;
 it does not install your browser framework. See the
 [compatibility table](compatibility.md#framework-versions-and-operations) for exact
-framework versions and release verification scopes. Run `acira doctor` to check
+framework versions and integration boundaries. Run `acira doctor` to check
 an existing installation, and review the [protection coverage](protection.md)
 before relying on an operation.
 
@@ -289,5 +289,5 @@ Each creates separate sample projects. None is required for the setup above.
 
 Further details: [Playwright](playwright-quickstart.md),
 [browser-use](browser-use-quickstart.md), [project configuration](project-configuration.md),
-[extension capture](../README.md#extension-and-policies), and
-[build/publication status](release.md).
+[extension capture](../README.md#optional-dashboard-and-capture), and
+[maintainer build instructions](release.md).
