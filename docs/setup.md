@@ -1,8 +1,9 @@
 # Start here: add Acira to your own project
 
 These instructions follow the [0.1.1 version scope](../README.md#version-scope).
-Windows examples are provided for contributors; see [compatibility](compatibility.md)
-for integration and platform requirements.
+Acira 0.1.1 supports macOS with standard CPython 3.11–3.15. Linux and Windows
+release support is deferred; their setup examples are retained for contributors.
+See [compatibility](compatibility.md) for integration and platform requirements.
 
 The normal journey is **use your browser framework → install Acira → initialize →
 integrate → run your own agent**. The dashboard and demo are optional.
@@ -14,7 +15,7 @@ Playwright project, install Acira alone. PyPI installation needs no SDK checkout
 ## 1. Open your existing agent project
 
 Use the Python environment that runs your application. Activate it before installing
-Acira or running its commands. In macOS/Linux:
+Acira or running its commands. On macOS:
 
 ~~~sh
 cd /path/to/your-agent-project
@@ -67,7 +68,7 @@ Install the matching Chromium build only if it is missing:
 python -m playwright install chromium
 ~~~
 
-For a supported Linux system that reports missing browser libraries:
+For a Linux contributor environment that reports missing browser libraries:
 
 ~~~sh
 python -m playwright install --with-deps chromium

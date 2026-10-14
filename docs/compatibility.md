@@ -8,6 +8,10 @@ does not install a browser framework or model.
 
 ## Python and platform requirements
 
+Acira 0.1.1's supported release scope is **macOS with standard CPython
+3.11–3.15**. Linux and Windows release support is deferred; their code, tests and
+contributor setup examples are retained.
+
 The package requires Python 3.11 or newer. Use standard CPython and consult your
 browser framework's platform prerequisites. Examples for Windows do not imply that
 a different browser API, interpreter, or platform has the same protection boundary.
