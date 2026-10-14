@@ -139,13 +139,40 @@ jobs:
         run: |
           python -m playwright install --with-deps chromium
           python tools/configure_ci_chromium.py
+      - name: Prepare complete phase evidence
+        run: |
+          python -c "import runpy; runpy.run_path('tools/run_release_phase.py', run_name='__main__')" prepare --source-root "$GITHUB_WORKSPACE" --directory "$RUNNER_TEMP/acira-phase-evidence" --wheel "$GITHUB_WORKSPACE/dist/acira-0.1.1-py3-none-any.whl" --job-name "verify-${{ matrix.platform }}-py${{ matrix.python }}"
       - name: Test source checkout
-        run: python -m pytest -q
+        env:
+          ACIRA_HOME: ${{ runner.temp }}/acira-phase-evidence/source/home
+          TMPDIR: ${{ runner.temp }}/acira-phase-evidence/source/temp
+          TEMP: ${{ runner.temp }}/acira-phase-evidence/source/temp
+          TMP: ${{ runner.temp }}/acira-phase-evidence/source/temp
+        run: |
+          python -c "import runpy; runpy.run_path('tools/run_release_phase.py', run_name='__main__')" run --source-root "$GITHUB_WORKSPACE" --inputs "$RUNNER_TEMP/acira-phase-evidence" --phase source --wheel "$GITHUB_WORKSPACE/dist/acira-0.1.1-py3-none-any.whl" --output "$RUNNER_TEMP/acira-phase-evidence/source/phase.json" -- -q --basetemp="$RUNNER_TEMP/acira-phase-evidence/source/pytest-temp"
       - name: Test installed distribution
         working-directory: ${{ runner.temp }}
         env:
           ACIRA_TEST_INSTALLED: "1"
-        run: python -m pytest -q "${{ github.workspace }}/tests" --import-mode=importlib --basetemp="${{ runner.temp }}/acira-pytest"
+          ACIRA_HOME: ${{ runner.temp }}/acira-phase-evidence/installed-wheel/home
+          TMPDIR: ${{ runner.temp }}/acira-phase-evidence/installed-wheel/temp
+          TEMP: ${{ runner.temp }}/acira-phase-evidence/installed-wheel/temp
+          TMP: ${{ runner.temp }}/acira-phase-evidence/installed-wheel/temp
+        run: |
+          python -c "import os, runpy; runpy.run_path(os.path.join(os.environ['GITHUB_WORKSPACE'], 'tools', 'run_release_phase.py'), run_name='__main__')" run --source-root "$GITHUB_WORKSPACE" --inputs "$RUNNER_TEMP/acira-phase-evidence" --phase installed-wheel --wheel "$GITHUB_WORKSPACE/dist/acira-0.1.1-py3-none-any.whl" --output "$RUNNER_TEMP/acira-phase-evidence/installed-wheel/phase.json" -- -q "$GITHUB_WORKSPACE/tests" --import-mode=importlib --basetemp="$RUNNER_TEMP/acira-phase-evidence/installed-wheel/pytest-temp"
+      - name: Upload complete phase evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: phase-evidence-verify-${{ matrix.platform }}-py${{ matrix.python }}
+          path: |
+            ${{ runner.temp }}/acira-phase-evidence/source-manifest.json
+            ${{ runner.temp }}/acira-phase-evidence/identity.json
+            ${{ runner.temp }}/acira-phase-evidence/inventory.json
+            ${{ runner.temp }}/acira-phase-evidence/source/phase*.json
+            ${{ runner.temp }}/acira-phase-evidence/installed-wheel/phase*.json
+          retention-days: 7
+          if-no-files-found: error
       - name: Verify clean installation journey
         run: python tools/verify_wheel.py dist/acira-0.1.1-py3-none-any.whl
       - name: Check dashboard and extension scripts
