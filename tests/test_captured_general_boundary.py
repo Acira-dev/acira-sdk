@@ -461,7 +461,7 @@ async def test_real_capture_import_keeps_same_page_delete_protected_before_and_a
                     else:
                         from browser_use import BrowserSession
                         from browser_use.browser.events import NavigateToUrlEvent, ClickElementEvent
-                        session = BrowserSession(headless=True, executable_path=p.chromium.executable_path, chromium_sandbox=True,
+                        session = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True, executable_path=p.chromium.executable_path, chromium_sandbox=True,
                             user_data_dir=tmp_path / ("profile-" + order), downloads_path=tmp_path / ("downloads-" + order),
                             enable_default_extensions=False, permissions=[], keep_alive=False)
                         await asyncio.wait_for(session.start(), 30)

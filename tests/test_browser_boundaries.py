@@ -345,7 +345,7 @@ async def test_real_cdp_connection_rejects_locator_without_http_side_effect(tmp_
     async with TestServer(app, host="127.0.0.1") as server, async_playwright() as p:
         profile = tmp_path / "cdp-profile"
         async with owned_subprocess(
-            [p.chromium.executable_path, "--headless=new", "--no-sandbox", "--remote-debugging-port=0",
+            [p.chromium.executable_path, "--password-store=basic", "--use-mock-keychain", "--headless=new", "--no-sandbox", "--remote-debugging-port=0",
              "--no-first-run", "--user-data-dir="+str(profile), str(server.make_url("/"))],
             stderr_path=tmp_path / "chromium-stderr.log",
         ):

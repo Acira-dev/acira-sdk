@@ -46,7 +46,7 @@ async def test_browser_use_click_rejection_has_no_browser_effect(tmp_path, monke
     reviewer = Reviewer()
     async with TestServer(app, host="127.0.0.1") as server, async_playwright() as p:
         async with protect(project=project.root, dashboard=False, review_backend=reviewer):
-            session = BrowserSession(headless=True, executable_path=p.chromium.executable_path,
+            session = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True, executable_path=p.chromium.executable_path,
                 user_data_dir=tmp_path / "profile", downloads_path=tmp_path / "downloads",
                 enable_default_extensions=False, permissions=[], keep_alive=False)
             try:
@@ -120,7 +120,7 @@ async def test_browser_use_select_upload_frames_and_tab_switches(tmp_path, monke
             return "block" if decision == "block" else "allow"
     async with TestServer(app, host="127.0.0.1") as server, async_playwright() as p:
         async with protect(project=project.root, dashboard=False, review_backend=Reviewer()) as guard:
-            session = BrowserSession(headless=True, executable_path=p.chromium.executable_path,
+            session = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True, executable_path=p.chromium.executable_path,
                 user_data_dir=tmp_path / "profile", downloads_path=tmp_path / "downloads",
                 enable_default_extensions=False, permissions=[], keep_alive=False)
             async def dispatch(event):
@@ -233,7 +233,7 @@ async def test_browser_use_exact_request_contract(tmp_path, monkeypatch, case):
             return "block" if case == "block" else "allow"
     async with TestServer(app, host="127.0.0.1") as server, async_playwright() as p:
         async with protect(project=project.root, dashboard=False, review_backend=Reviewer()) as guard:
-            session = BrowserSession(headless=True, executable_path=p.chromium.executable_path,
+            session = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True, executable_path=p.chromium.executable_path,
                 user_data_dir=tmp_path / "profile", downloads_path=tmp_path / "downloads",
                 enable_default_extensions=False, permissions=[], keep_alive=False)
             try:
@@ -308,7 +308,7 @@ async def test_browser_use_bounded_fields_need_one_review_and_never_submit(tmp_p
             return "block" if case == "block" else "allow"
     async with TestServer(app, host="127.0.0.1") as server, async_playwright() as p:
         async with protect(project=project.root, dashboard=False, review_backend=Reviewer()) as guard:
-            session = BrowserSession(headless=True, executable_path=p.chromium.executable_path,
+            session = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True, executable_path=p.chromium.executable_path,
                 user_data_dir=tmp_path / "profile", downloads_path=tmp_path / "downloads",
                 enable_default_extensions=False, permissions=[], keep_alive=False)
             try:

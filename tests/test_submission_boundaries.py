@@ -453,7 +453,7 @@ async def test_browser_use_native_dialog_is_dismissed_without_local_submission(t
     project = initialize(tmp_path / "existing", adapter="browser_use", selected=[], dashboard=False)
     async with local_site(label="Open modal", confirmation=kind) as (server, received), async_playwright() as p:
         async with protect(project=project.root, dashboard=False) as guard:
-            session = BrowserSession(headless=True, executable_path=p.chromium.executable_path, chromium_sandbox=True,
+            session = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True, executable_path=p.chromium.executable_path, chromium_sandbox=True,
                 user_data_dir=tmp_path / "profile", downloads_path=tmp_path / "downloads",
                 enable_default_extensions=False, permissions=[], keep_alive=False)
             original_handle = None
@@ -526,7 +526,7 @@ async def test_browser_use_submission_policy_gates_click_and_one_bound_request(t
     reviewer = Reviewer("allow")
     async with local_site(native=native, label="Send") as (server, received), async_playwright() as p:
         async with protect(project=project.root, dashboard=False, review_backend=reviewer) as guard:
-            session = BrowserSession(headless=True, executable_path=p.chromium.executable_path, chromium_sandbox=True,
+            session = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True, executable_path=p.chromium.executable_path, chromium_sandbox=True,
                 user_data_dir=tmp_path / "profile", downloads_path=tmp_path / "downloads",
                 enable_default_extensions=False, permissions=[], keep_alive=False)
             try:
@@ -568,7 +568,7 @@ async def test_browser_use_known_outside_form_preview_stays_allowed(tmp_path, mo
     reviewer = Reviewer("block")
     async with local_site(label="Preview", routine=True) as (server, received), async_playwright() as p:
         async with protect(project=project.root, dashboard=False, review_backend=reviewer) as guard:
-            session = BrowserSession(headless=True, executable_path=p.chromium.executable_path, chromium_sandbox=True,
+            session = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True, executable_path=p.chromium.executable_path, chromium_sandbox=True,
                 user_data_dir=tmp_path / "profile", downloads_path=tmp_path / "downloads",
                 enable_default_extensions=False, permissions=[], keep_alive=False)
             try:

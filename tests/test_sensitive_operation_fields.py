@@ -128,7 +128,7 @@ async def test_captured_only_api_form_masks_review_and_denies_routine_grants(
                 pytest.importorskip("browser_use")
                 from browser_use import BrowserSession
                 from browser_use.browser.events import ClickElementEvent, NavigateToUrlEvent
-                session = BrowserSession(
+                session = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], 
                     headless=True, executable_path=p.chromium.executable_path, chromium_sandbox=True,
                     user_data_dir=tmp_path / "profile", downloads_path=tmp_path / "downloads",
                     enable_default_extensions=False, permissions=[], keep_alive=False,

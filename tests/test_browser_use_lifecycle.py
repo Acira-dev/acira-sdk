@@ -51,7 +51,7 @@ async def test_shutdown_invalidates_review_without_browser_effect(tmp_path, monk
             return await answer
     async with TestServer(app, host="127.0.0.1") as server, async_playwright() as p:
         async with protect(project=project.root, dashboard=False, review_backend=Reviewer()) as guard:
-            browser = BrowserSession(headless=True, executable_path=p.chromium.executable_path,
+            browser = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True, executable_path=p.chromium.executable_path,
                 user_data_dir=tmp_path / "profile", downloads_path=tmp_path / "downloads",
                 enable_default_extensions=False, permissions=[], keep_alive=False)
             task = None
@@ -141,7 +141,7 @@ async def test_stopping_one_agent_preserves_another_agents_review(tmp_path, monk
                     return await answers[index]
             context = contextlib.nullcontext(shared_guard) if shared_run else protect(project=projects[index].root, dashboard=False, review_backend=Reviewer())
             async with context as guard:
-                browser = BrowserSession(headless=True, executable_path=p.chromium.executable_path,
+                browser = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True, executable_path=p.chromium.executable_path,
                     user_data_dir=tmp_path / f"profile-{index}", downloads_path=tmp_path / f"downloads-{index}",
                     enable_default_extensions=False, permissions=[], keep_alive=False)
                 task = None

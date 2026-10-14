@@ -299,3 +299,63 @@ def test_new_python_versions_require_executed_source_and_wheel_tests(system, ver
         next(item for item in job["steps"] if item["name"] == target)["conclusion"] = "skipped"
     with pytest.raises(ValueError):
         release.verify_completed_run(run, jobs, SHA, "macos-linux")
+
+
+@pytest.mark.parametrize("scope, expected_count", [("macos-linux", 14), ("all", 19)])
+def test_summary_is_required_alongside_every_selected_matrix_slot(scope, expected_count):
+    run, jobs = macos_linux_evidence() if scope == "macos-linux" else (run_record(), job_records())
+    required = release.required_jobs(scope)
+    assert len(required) == expected_count
+    assert required["verification-summary"] == {"Show exact approval inputs"}
+    release.verify_completed_run(run, jobs, SHA, scope)
+
+
+@pytest.mark.parametrize("scope", ["macos-linux", "all"])
+@pytest.mark.parametrize("case", [
+    "missing-job", "duplicate-job", "wrong-source", "old-attempt", "skipped-job",
+    "missing-step", "duplicate-step", "skipped-step", "failed-step",
+    "missing-step-start", "missing-step-end",
+])
+def test_summary_must_execute_once_for_the_same_verified_attempt(scope, case):
+    run, jobs = macos_linux_evidence() if scope == "macos-linux" else (run_record(), job_records())
+    summary = next(job for job in jobs["jobs"] if job["name"] == "verification-summary")
+    step = next(item for item in summary["steps"] if item["name"] == "Show exact approval inputs")
+    if case == "missing-job":
+        jobs["jobs"].remove(summary)
+        jobs["total_count"] = len(jobs["jobs"])
+    elif case == "duplicate-job":
+        jobs["jobs"].append(deepcopy(summary))
+        jobs["total_count"] += 1
+    elif case == "wrong-source":
+        summary["head_sha"] = "b" * 40
+    elif case == "old-attempt":
+        summary["run_attempt"] += 1
+    elif case == "skipped-job":
+        summary["conclusion"] = "skipped"
+    elif case == "missing-step":
+        summary["steps"].remove(step)
+    elif case == "duplicate-step":
+        summary["steps"].append(deepcopy(step))
+    elif case == "skipped-step":
+        step["conclusion"] = "skipped"
+    elif case == "failed-step":
+        step["conclusion"] = "failure"
+    elif case == "missing-step-start":
+        step.pop("started_at")
+    elif case == "missing-step-end":
+        step.pop("completed_at")
+    with pytest.raises(ValueError):
+        release.verify_completed_run(run, jobs, SHA, scope)
+
+
+@pytest.mark.parametrize("scope", ["macos-linux", "all"])
+def test_actual_owner_approval_refuses_an_omitted_summary(monkeypatch, scope):
+    args, responses = mock_approval(monkeypatch)
+    run, jobs = macos_linux_evidence() if scope == "macos-linux" else (run_record(), job_records())
+    jobs["jobs"] = [job for job in jobs["jobs"] if job["name"] != "verification-summary"]
+    jobs["total_count"] = len(jobs["jobs"])
+    responses["repos/Acira-dev/acira-sdk/actions/runs/10"] = run
+    responses["repos/Acira-dev/acira-sdk/actions/runs/10/jobs?filter=latest&per_page=100"] = jobs
+    args.platforms = scope
+    with pytest.raises(ValueError, match="missing"):
+        release.verify_approval(args)

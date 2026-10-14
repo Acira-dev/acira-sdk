@@ -30,7 +30,7 @@ async def test_browser_use_new_pdf_action_fails_closed_without_export(tmp_path, 
     app=web.Application(); app.router.add_get('/',index)
     async with TestServer(app,host='127.0.0.1') as server, async_playwright() as p:
         async with protect(project=project.root, dashboard=False):
-            session=BrowserSession(headless=True,executable_path=p.chromium.executable_path,
+            session=BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True,executable_path=p.chromium.executable_path,
                 user_data_dir=tmp_path/'profile',downloads_path=tmp_path/'downloads',
                 enable_default_extensions=False,permissions=[],keep_alive=False,
                 chromium_sandbox=True)

@@ -142,7 +142,7 @@ async def test_captured_only_outbound_control_requires_fresh_review_and_rejects_
                 pytest.importorskip('browser_use')
                 from browser_use import BrowserSession
                 from browser_use.browser.events import NavigateToUrlEvent,ClickElementEvent
-                session=BrowserSession(headless=True,executable_path=p.chromium.executable_path,chromium_sandbox=True,
+                session=BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True,executable_path=p.chromium.executable_path,chromium_sandbox=True,
                     user_data_dir=tmp_path/'profile',downloads_path=tmp_path/'downloads',enable_default_extensions=False,permissions=[],keep_alive=False)
                 try:
                     await asyncio.wait_for(session.start(),30)

@@ -65,7 +65,7 @@ async def test_approved_submission_never_follows_redirect(tmp_path, monkeypatch,
             else:
                 from browser_use import BrowserSession
                 from browser_use.browser.events import NavigateToUrlEvent
-                browser = BrowserSession(headless=True, executable_path=p.chromium.executable_path,
+                browser = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True, executable_path=p.chromium.executable_path,
                     user_data_dir=tmp_path / "profile", downloads_path=tmp_path / "downloads",
                     enable_default_extensions=False, permissions=[], keep_alive=False)
                 await asyncio.wait_for(browser.start(), 30)
@@ -124,7 +124,7 @@ async def test_late_browser_use_redirect_does_not_cancel_new_operation(tmp_path,
             return "allow"
     async with TestServer(app, host="127.0.0.1") as server, async_playwright() as p:
         async with protect(project=project.root, dashboard=False, review_backend=Reviewer()) as guard:
-            browser = BrowserSession(headless=True, executable_path=p.chromium.executable_path,
+            browser = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True, executable_path=p.chromium.executable_path,
                 user_data_dir=tmp_path / "profile", downloads_path=tmp_path / "downloads",
                 enable_default_extensions=False, permissions=[], keep_alive=False)
             try:

@@ -76,7 +76,7 @@ async def test_real_capture_terminal_import_and_review_with_noisy_navigation(tmp
     api = pytest.importorskip("playwright.async_api")
     monkeypatch.setenv("ACIRA_HOME", str(tmp_path / "private"))
     hits = []
-    html = '''<title>Navigation fixture</title><main><h1>Documentation</h1><nav>
+    html = '''<link rel="icon" href="data:,"><title>Navigation fixture</title><main><h1>Documentation</h1><nav>
       <button aria-label="Toggle navigation menu">Documentation</button>
       <a href="/guide" aria-label="API documentation" class="navigation link">DOCUMENTATION</a>
       <a href="/other" class="navigation link">Other documentation</a>

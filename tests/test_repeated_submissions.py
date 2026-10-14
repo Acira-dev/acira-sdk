@@ -54,7 +54,7 @@ async def test_each_repeated_submission_requires_new_review_and_rejection_has_no
             else:
                 from browser_use import BrowserSession
                 from browser_use.browser.events import NavigateToUrlEvent
-                browser = BrowserSession(headless=True, executable_path=p.chromium.executable_path,
+                browser = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=True, executable_path=p.chromium.executable_path,
                     user_data_dir=tmp_path / "profile", downloads_path=tmp_path / "downloads",
                     enable_default_extensions=False, permissions=[], keep_alive=False)
                 await asyncio.wait_for(browser.start(), 30)

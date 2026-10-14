@@ -25,6 +25,7 @@ async def browser_use_ui(tmp_path, monkeypatch):
 
     original_session = backend.BrowserSession
     def headless_session(*args, **kwargs):
+        assert kwargs["args"] == ["--password-store=basic", "--use-mock-keychain"]
         kwargs["headless"] = True
         return original_session(*args, **kwargs)
     monkeypatch.setattr(backend, "BrowserSession", headless_session)
