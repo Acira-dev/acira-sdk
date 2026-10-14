@@ -1,5 +1,7 @@
 # Connect your existing browser-use agent
 
+These instructions follow the [0.1.1 version scope](../README.md#version-scope).
+
 Acira's browser-use integration uses the same local policy files, shared dashboard,
 approval binding and history as Playwright. Start with the browser and model your
 agent already uses; the SDK does not require a separate demo or an Ollama download.
@@ -9,8 +11,9 @@ the real-project integration below.
 
 ## Install outside the repository
 
-Use Python 3.11–3.15 and activate the environment that already runs your compatible
-browser-use agent. Install Acira alone from PyPI:
+Use a standard CPython version from the [release targets](compatibility.md#release-verification-scope)
+and activate the environment that already runs your compatible browser-use agent.
+Install Acira alone from PyPI:
 
 ```sh
 # Create a .venv only if your project does not already have an environment.
@@ -23,7 +26,7 @@ python -m pip install acira
 python -m pip check
 ```
 
-If browser-use is missing, the optional dependency extra supplies the tested framework
+If browser-use is missing, the optional dependency extra supplies the declared framework
 and integration libraries. This is an alternative for new environments, not a required
 step for an existing compatible agent:
 
@@ -32,11 +35,12 @@ python -m pip install "acira[browser-use]"
 ```
 
 For source or wheel installation, follow
-[alternative installation methods](setup.md#alternative-installation-methods). This release
-is tested with browser-use 0.11.12/0.11.13; check your version with `acira doctor` after
+[alternative installation methods](setup.md#alternative-installation-methods). The 0.1.1
+declared framework list includes browser-use 0.11.12/0.11.13. Check your version-allowlist
+status with `acira doctor` after
 initializing. Keep your existing Chromium executable/session options. The SDK
 does not silently install browsers, download models or rewrite application code.
-The extra pins tested integration libraries, supplies the framework's missing
+The extra pins its integration libraries, supplies the framework's missing
 `pydantic-settings` dependency, and selects fixed AnyIO/pypdf releases. Browser-use
 0.13.11 currently pins affected versions of those two libraries. This release uses
 the compatible upstream 0.11.12/0.11.13 distribution, without modifying its metadata or

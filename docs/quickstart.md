@@ -1,5 +1,7 @@
 # Connect Acira to your existing project
 
+These instructions follow the [0.1.1 version scope](../README.md#version-scope).
+
 For terminal policy selection and Chrome capture, see the
 [general and specific policy guide](specific-policies.md).
 
@@ -25,14 +27,15 @@ cd C:\path\to\your-project
 .\.venv\Scripts\Activate.ps1
 ```
 
-Use Python 3.11 or newer. If you have no environment yet, create one with
+Use a standard CPython version from the [release targets](compatibility.md#release-verification-scope).
+If you have no environment yet, create one with
 `python -m venv .venv`, then activate it as above. Existing Conda, uv or other Python
 environments also work; installing and running must use the same interpreter.
 
 ## 2. Install the SDK there
 
 If your compatible Playwright or browser-use framework is already installed, keep
-that installation and add the published Acira SDK:
+that installation and add Acira:
 
 ```sh
 python -m pip install acira
@@ -40,7 +43,7 @@ python -m pip check
 ```
 
 If you need Playwright for a new project, install it independently first. Use the
-version tested for this release and install Chromium only if its build is missing:
+declared version below and install Chromium only if its build is missing:
 
 ```sh
 python -m pip install playwright==1.63.0

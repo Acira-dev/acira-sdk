@@ -1,15 +1,15 @@
 # Start here: add Acira to your own project
 
-Acira is available on [PyPI](https://pypi.org/project/acira/). The supported release
-platforms are macOS and Linux with standard CPython 3.11–3.15. Windows examples are provided
-for contributors; Windows support remains pending its release tests.
+These instructions follow the [0.1.1 version scope](../README.md#version-scope).
+Windows examples are provided for contributors; see [compatibility](compatibility.md)
+for platform requirements and version-specific verification.
 
 The normal journey is **use your browser framework → install Acira → initialize →
 integrate → run your own agent**. The dashboard and demo are optional.
 
 Playwright stays a separate package. Acira provides the adapter that checks your
 application's supported Playwright actions. If you already have a compatible
-Playwright project, install Acira alone; no SDK checkout or supplied wheel is required.
+Playwright project, install Acira alone. PyPI installation needs no SDK checkout or supplied wheel.
 
 ## 1. Open your existing agent project
 
@@ -22,7 +22,8 @@ source .venv/bin/activate
 ~~~
 
 If this project has no environment yet, create one first with your installed Python
-3.11 through 3.15, then activate it:
+3.11 through 3.15 from the [release targets](compatibility.md#release-verification-scope),
+then activate it:
 
 ~~~sh
 python3.13 -m venv .venv
@@ -47,8 +48,10 @@ activation, use its Python directly, such as
 ## 2. Install Playwright only if your project needs it
 
 **Already using Playwright?** Keep your compatible installation and existing browser
-configuration, and continue to step 3. This release is tested with Playwright 1.60.0, 1.61.0, 1.62.0 and 1.63.0. `acira doctor` reports whether
-your installed framework version was verified. Unverified versions receive an explicit
+configuration, and continue to step 3. The declared framework versions are listed
+in [compatibility](compatibility.md#framework-versions-and-operations). `acira doctor`
+reports version-allowlist status; it does not establish completion of the release checks.
+Unverified versions receive an explicit
 error before attachment; Acira never silently changes your framework. See
 [compatibility](compatibility.md) before changing an existing environment.
 
@@ -79,7 +82,7 @@ independent setup. Playwright automation requires no model, paid API or cloud ac
 
 For an existing browser-use project, keep its framework and model configuration
 instead. Follow the [browser-use integration guide](browser-use-quickstart.md) for
-the tested versions and optional dependency setup.
+the declared versions and optional dependency setup.
 
 ## 3. Install Acira in that same environment
 
@@ -269,7 +272,7 @@ is only a convenience option for users who prefer to install them together:
 python -m pip install "acira[playwright]"
 ~~~
 
-This installs Acira and the official tested Playwright package; it does not install
+This installs Acira and the official Playwright package; it does not install
 a custom Playwright build or Chromium. Browser-use and Vertex extras remain available
 for their documented integrations.
 

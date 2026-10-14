@@ -1,28 +1,36 @@
 # Compatibility and dependency choices
 
+These instructions follow the [0.1.1 version scope](../README.md#version-scope).
+
 Acira integrates into an existing project. Install the official browser framework
 separately, then install `acira` in the same environment. The optional extras are
 convenience dependency setup; base Acira does not install a framework or model.
 
 ## Release verification scope
 
-The expanded candidate requires native macOS/Linux source, installed-wheel and
-clean-setup tests on standard CPython 3.11, 3.12, 3.13, 3.14 and 3.15. Each selected
-slot must pass without skipped tests before publication. Windows stays in CI and
-is not a supported release platform until its native checks pass. Current local
-platform evidence uses ARM64 machines; do not infer native x86 test results from it.
-Free-threaded, prerelease and non-CPython interpreters have not been validated.
-See the [release status](implementation-status.md) for version-specific evidence.
+Release qualification for **0.1.1** requires native macOS/Linux source,
+installed-wheel and clean-setup tests on standard CPython 3.11, 3.12, 3.13, 3.14
+and 3.15, the listed supplemental framework suites, the dependency audit and
+Acira-owner approval against the same source and artifact hashes. Every selected
+check must pass without skipped tests. Windows support requires its native release
+checks. The selected native matrix uses ARM64 machines; do not infer native x86
+results from it. Free-threaded, prerelease and non-CPython interpreters are outside
+this release verification scope. See [release status](implementation-status.md) for
+version-specific completed results; installation and the declared version list do
+not establish that evidence.
 
 ## Framework versions and operations
 
-`acira doctor` reports the installed framework version, exact tested versions and
-verified/missing/unverified status. Adapter attachment rejects an unverified version
+`acira doctor` reports the installed framework version, the declared version
+allowlist and verified/missing/unverified status. Here, verified is the adapter
+version-allowlist status, not completion of the release checks.
+Adapter attachment rejects an unverified version
 before enabling protection. Installation success does not establish action coverage.
 Acira never silently upgrades or downgrades an existing browser framework.
 Adapter verification describes API coverage; it is not a dependency advisory audit.
 
-The candidate verifies Playwright 1.60.0, 1.61.0, 1.62.0 and 1.63.0, and browser-use 0.11.12 and 0.11.13.
+The 0.1.1 declared framework list includes Playwright 1.60.0, 1.61.0, 1.62.0 and
+1.63.0, and browser-use 0.11.12 and 0.11.13.
 The **0.1.1 release gate** requires the following fresh source and installed-wheel
 checks against the same frozen commit and GitHub-built wheel:
 
@@ -35,7 +43,7 @@ checks against the same frozen commit and GitHub-built wheel:
 
 These are distinct test scopes. The supplemental rows do not establish a complete
 framework-version × Python-version × operating-system test matrix. Earlier results
-for withdrawn source revisions do not qualify this candidate. Before publication,
+for withdrawn source revisions do not qualify a release. Before publication,
 every selected check above must pass without skipped tests; final evidence belongs
 to the matching frozen commit and artifact hashes in the
 [release status](implementation-status.md).
@@ -50,7 +58,7 @@ creating a file.
 
 Public library dependencies use conservative supported ranges, with security-fixed
 lower bounds. Private adapter integration libraries retain exact verified versions.
-The release constraints reproduce the actual tested stack independently from normal
+The release constraints define the verification stack independently from normal
 project installation. Run `python -m pip check` after installing.
 
 For browser-use, `acira doctor` separately checks the recorded AnyIO and PyPDF

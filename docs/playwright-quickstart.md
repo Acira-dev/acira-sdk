@@ -1,12 +1,15 @@
 # Connect your existing Playwright workflow
 
+These instructions follow the [0.1.1 version scope](../README.md#version-scope).
+
 Start with your actual project, browser configuration and entry point. The
 [general setup guide](quickstart.md) covers environment activation and installation.
 The bundled test drive is optional and appears after the integration steps below.
 
 ## Install Playwright separately, then add Acira
 
-Activate your existing project's Python 3.11–3.15 environment. If Playwright is
+Activate your existing project's environment with a standard CPython version
+from the [release targets](compatibility.md#release-verification-scope). If Playwright is
 already installed, keep that compatible installation and skip its setup below.
 For a new Playwright project, install the official package first:
 
@@ -17,7 +20,7 @@ python -m playwright install chromium
 ```
 
 Keep your actual Playwright workflow and browser settings. Add Acira to the same
-environment using its published package:
+environment:
 
 ```sh
 python -m pip install acira
@@ -25,8 +28,9 @@ python -m pip check
 ```
 
 Use the versions listed in [compatibility and dependency choices](compatibility.md).
-The native release matrix uses Playwright 1.63.0; separate full source and installed-package
-checks cover the other listed framework versions. Acira supplies the protection adapter
+The required native release matrix uses Playwright 1.63.0; separate full source
+and installed-package gates cover the other listed framework versions.
+Use the version-specific release report for completed verification. Acira supplies the protection adapter
 for your application's Playwright calls; the Playwright package remains separate. Acira does not silently install browsers, download a model, or replace your
 entry point. Playwright automation needs no model, paid API or cloud account.
 
