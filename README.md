@@ -25,6 +25,10 @@ published PyPI version, which may be older than these instructions. Match the gu
 to the version you install; [0.1.0 has versioned installation instructions](https://pypi.org/project/acira/0.1.0/).
 Check your project's framework compatibility with `acira doctor`.
 
+**Acira 0.1.1's supported release scope is macOS with standard CPython
+3.11–3.15.** Linux and Windows release support is deferred; their code, tests and
+contributor examples remain in the project.
+
 ## Installation
 
 Requires Python 3.11 or newer. Use your project's virtual environment and see

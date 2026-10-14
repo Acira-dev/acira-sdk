@@ -12,7 +12,6 @@ license = "MIT AND OFL-1.1"
 license-files = ["LICENSE", "acira_dashboard/static/*-OFL.txt"]
 classifiers = [
     "Operating System :: MacOS",
-    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
