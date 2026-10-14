@@ -152,7 +152,7 @@ async def workflow(project_name, kind, *, keep_active=False):
         async with protect(project=root) as guard:
             state.update(run=guard.runtime_control.run_id, run_state="running")
             async with async_playwright() as p:
-                session = BrowserSession(headless=False, executable_path=p.chromium.executable_path,
+                session = BrowserSession(args=["--password-store=basic", "--use-mock-keychain"], headless=False, executable_path=p.chromium.executable_path,
                     user_data_dir=root / ".acira/browser-use-profiles" / state["run"],
                     downloads_path=root / ".acira/browser-use-downloads",
                     enable_default_extensions=False, permissions=[], keep_alive=True, use_cloud=False,
