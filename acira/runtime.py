@@ -105,6 +105,16 @@ class ProjectRuntime:
             if self.adapter and snapshot.config.adapters != self.snapshot.config.adapters:
                 raise ValueError("Integration changed; restart this agent to use the new adapter")
             if snapshot.revision != self.snapshot.revision:
+                replacement_broker = None
+                if self.adapter and hasattr(self.adapter, "secret_broker"):
+                    from acira_cdp_proxy.secrets import SecretBroker
+                    # Prepare before changing the active revision or policy. A
+                    # provider failure must leave a consistent old snapshot;
+                    # this refresh still fails closed until configuration repair.
+                    try:
+                        replacement_broker = SecretBroker(snapshot.config.secrets)
+                    except Exception:
+                        raise ValueError("Secret provider setup failed; repair its configuration before continuing") from None
                 self.project.remember_revision(self.agent, snapshot)
                 for review_id in tuple(self.pending):
                     self.journal.decide(review_id, "invalidated")
@@ -115,8 +125,7 @@ class ProjectRuntime:
                     policy.config = snapshot.config
                     policy.policy_revision = snapshot.revision
                     if hasattr(self.adapter, "secret_broker"):
-                        from acira_cdp_proxy.secrets import SecretBroker
-                        self.adapter.secret_broker = SecretBroker(snapshot.config.secrets)
+                        self.adapter.secret_broker = replacement_broker
                     for name in ("_review_approved_keys", "_review_denied_keys", "_approved_empty_mapping_keys",
                                  "_approved_preflight_urls", "_denied_preflight_urls", "_preflight_snapshots",
                                  "_preflight_snapshots_by_url", "_preflight_quarantine", "_preflight_quarantine_by_url",
@@ -338,9 +347,12 @@ class ProjectRuntime:
         if self.external_review is not None:
             terminal_task = asyncio.create_task(self.external_review.ask(redact_review_request(request)))
         elif self.snapshot.config.terminal_review and sys.stdin.isatty():
-            if evidence:
-                print("\nAcira operation evidence:", json.dumps(review["evidence"], indent=2), file=sys.stderr, flush=True)
-            terminal_task = asyncio.create_task(TerminalReviewBackend(self.snapshot.config).ask_until(request, stop_event=stop_terminal))
+            terminal_task = asyncio.create_task(TerminalReviewBackend(self.snapshot.config).ask_until(
+                request, stop_event=stop_terminal,
+                display_context={"project": self.registration["name"], "agent": self.agent,
+                                 "run_id": self.run_id, "review_id": review_id},
+                display_evidence=review["evidence"],
+            ))
         try:
             while True:
                 if self.closed:

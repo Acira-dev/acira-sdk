@@ -260,8 +260,20 @@ class Project:
         policies = {sid: block["risks"] for sid, block in general.items()}
         config = replace(config, general_skills=skills, skill_policies=policies,
                          has_page_policy=any(emit.context == "page" and emit.risk in policies.get(s.id, {}) for s in skills for emit in s.emits))
+        # Match the runtime's built-in provider setup before publishing a new
+        # snapshot. Construction checks references/options without resolving a
+        # secret value or reading an environment file.
+        from acira_cdp_proxy.secrets import SecretProviderRegistry
+        SecretProviderRegistry(config.secrets.providers)
         raw = {**base, "general_skills": {sid: {"path": policy_sources[sid], "risks": block["risks"]} for sid, block in general.items()}}
-        revision = digest({"profile": profile, "documents": documents, "secret_references": config.secrets.to_metadata()})
+        # Display metadata intentionally omits provider options. Those options
+        # still select the actual secret source, so they must participate in the
+        # private revision identity and invalidate an outstanding approval.
+        secret_configuration = {"metadata": config.secrets.to_metadata(),
+                                "providers": {key: {"kind": provider.kind, "options": provider.options}
+                                              for key, provider in config.secrets.providers.items()}}
+        revision = digest({"profile": profile, "documents": documents,
+                           "secret_configuration_sha256": digest(secret_configuration)})
         return Snapshot(revision, config, raw, documents, copy.deepcopy(profile))
 
     def policies(self, agent: str) -> list[dict[str, Any]]:
