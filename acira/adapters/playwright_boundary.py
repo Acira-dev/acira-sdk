@@ -9,8 +9,10 @@ import asyncio
 import contextlib
 import inspect
 import json
+import re
 import time
 import weakref
+from collections.abc import Sequence
 from contextvars import ContextVar
 from typing import Any
 
@@ -18,6 +20,8 @@ from acira_cdp_proxy.action_gateway import ActionRequest, AciraActionBlocked
 from acira_cdp_proxy.guard import RUNTIME_OBJECT_PROBE_JS, _target_from_probe_value
 
 OWNERS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+WORKER_HISTORY: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+WORKER_LISTENERS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 ORIGINALS: dict[tuple[type, str], Any] = {}
 INTERNAL: ContextVar[bool] = ContextVar("acira_playwright_internal", default=False)
 CAPTURE: ContextVar[Any] = ContextVar("acira_review_capture", default=None)
@@ -98,13 +102,70 @@ def attach(manager: Any, page: Any) -> None:
     if previous is not None and previous is not manager:
         raise ValueError("This page is already protected by another Acira run")
     OWNERS[page] = manager
+    if page not in WORKER_LISTENERS:
+        WORKER_HISTORY[page] = bool(page.workers)
+        reference = weakref.ref(page)
+        def worker_created(worker):
+            current = reference()
+            if current is not None:
+                WORKER_HISTORY[current] = True
+        page.on("worker", worker_created)
+        WORKER_LISTENERS[page] = worker_created
     for name in ("mouse", "keyboard", "touchscreen"):
         OWNERS[getattr(page, name)] = (manager, page)
+
+
+def _own_handles(value: Any, selected: tuple[Any, Any]) -> Any:
+    """Carry the originating page through public handle/property results."""
+    from playwright.async_api import JSHandle
+    if isinstance(value, JSHandle):
+        OWNERS[value] = selected
+    elif isinstance(value, dict):
+        for handle in value.values():
+            if isinstance(handle, JSHandle):
+                OWNERS[handle] = selected
+    return value
+
+
+def _freeze_selection(kwargs: dict[str, Any]) -> dict[str, Any]:
+    from playwright.async_api import ElementHandle
+    frozen = dict(kwargs)
+    for key, kind in (("value", str), ("label", str), ("index", int), ("element", ElementHandle)):
+        value = frozen.get(key)
+        if value is None:
+            continue
+        multiple = isinstance(value, Sequence) and not isinstance(value, (str, bytes))
+        items = value if multiple else [value]
+        if len(items) > 100 or any(not isinstance(item, kind) or key == "index" and isinstance(item, bool) for item in items):
+            raise AciraActionBlocked("Supply at most one hundred supported option selectors")
+        frozen[key] = list(items) if multiple else value
+    return frozen
+
+
+def _selection_is_sensitive(state: dict[str, Any], target: Any) -> bool:
+    from acira_cdp_proxy.redaction import _key_is_sensitive
+    if any(field_is_sensitive(field) and field["name"] in {target.name, target.id} for field in state["fields"]):
+        return True
+    observed = state.get("target", {})
+    attributes = getattr(target, "attributes", {}) or {}
+    for key in ("id", "name", "type", "aria_label", "title", "autocomplete", "placeholder", "text"):
+        hints = (observed.get(key), getattr(target, key, None), attributes.get(key), attributes.get(key.replace("_", "-")))
+        for hint in hints:
+            if not isinstance(hint, str):
+                continue
+            normalized = re.sub(r"[\s-]+", "_", hint)
+            if _key_is_sensitive(normalized) or re.search(r"password|card|cvv|cvc|secret|token|credential|cc[-_]|otp", hint, re.I):
+                return True
+    return False
 
 
 def detach(manager: Any) -> None:
     for obj, owner in list(OWNERS.items()):
         if owner is manager or (isinstance(owner, tuple) and owner[0] is manager):
+            listener = WORKER_LISTENERS.pop(obj, None)
+            if listener is not None:
+                obj.remove_listener("worker", listener)
+                WORKER_HISTORY.pop(obj, None)
             del OWNERS[obj]
     if not OWNERS:
         for (cls, name), method in ORIGINALS.items():
@@ -129,7 +190,7 @@ async def owner(obj: Any) -> tuple[Any, Any] | None:
 def install() -> None:
     if ORIGINALS:
         return
-    from playwright.async_api import Page, Frame, Locator, ElementHandle, Mouse, Keyboard, Touchscreen, FileChooser, BrowserContext
+    from playwright.async_api import Page, Frame, Locator, ElementHandle, JSHandle, Mouse, Keyboard, Touchscreen, FileChooser, BrowserContext
     for cls in (Page, BrowserContext):
         for name in ("route", "unroute", "route_from_har", "unroute_all"):
             saved = getattr(cls, name, None)
@@ -148,6 +209,19 @@ def install() -> None:
         for method in set(ELEMENT_METHODS) | SCRIPT_METHODS | NAVIGATION_METHODS:
             if hasattr(cls, method):
                 _wrap(cls, method)
+    # ElementHandle's wrappers retain their own saved inherited implementations.
+    for method in ("evaluate", "evaluate_handle"):
+        _wrap(JSHandle, method)
+    for method in ("get_property", "get_properties"):
+        saved = getattr(JSHandle, method)
+        ORIGINALS[(JSHandle, method)] = saved
+        def properties_wrapper(saved):
+            async def properties(obj, *args, **kwargs):
+                selected = await owner(obj)
+                value = await saved(obj, *args, **kwargs)
+                return _own_handles(value, selected) if selected else value
+            return properties
+        setattr(JSHandle, method, properties_wrapper(saved))
     from .playwright_dialogs import install as install_dialog_boundary
     install_dialog_boundary(ORIGINALS)
     for cls, methods in ((Mouse, ("click", "dblclick", "down", "up", "move", "wheel")),
@@ -164,10 +238,28 @@ def _wrap(cls: type, method: str) -> None:
     async def call(obj: Any, *args: Any, **kwargs: Any) -> Any:
         if INTERNAL.get():
             return await saved(obj, *args, **kwargs)
+        requested_kwargs = kwargs
+        requested_args = args
+        if method == "select_option":
+            requested_kwargs = {key: list(value) if key in {"value", "label", "index", "element"} and isinstance(value, Sequence) and not isinstance(value, (str, bytes)) else value for key, value in kwargs.items()}
+            from playwright.async_api import Page, Frame
+            position = 1 if isinstance(obj, (Page, Frame)) else 0
+            if len(args) > position + 1:
+                raise TypeError("select_option received too many positional arguments")
+            if len(args) > position:
+                value = args[position]
+                requested_args = args[:position]
+                if "value" in requested_kwargs:
+                    raise TypeError("select_option received value twice")
+                requested_kwargs["value"] = list(value) if isinstance(value, Sequence) and not isinstance(value, (str, bytes)) else value
         selected = await owner(obj)
         if selected is None:
             return await saved(obj, *args, **kwargs)
-        return await guarded(selected[0], selected[1], obj, method, args, kwargs, saved)
+        if method == "select_option":
+            kwargs = _freeze_selection(requested_kwargs)
+            args = requested_args
+        value = await guarded(selected[0], selected[1], obj, method, args, kwargs, saved)
+        return _own_handles(value, selected)
 
     call.__name__ = method
     call.__doc__ = saved.__doc__
@@ -258,6 +350,20 @@ async def guarded(manager: Any, page: Any, obj: Any, method: str, args: tuple, k
             elif key.lower().split("+")[-1] in {"space", " "}:
                 action = "check" if target.is_checkbox else "click"
     fingerprint = json.dumps(before, sort_keys=True) if before else None
+    selection = None
+    selection_state = None
+    if method == "select_option":
+        selection = {key: value for key, value in kwargs.items() if key in {"value", "label", "index"} and value is not None}
+        options = kwargs.get("element")
+        if options is not None:
+            options = options if isinstance(options, list) else [options]
+            selection["element"] = []
+            for option in options:
+                observed = await trusted(option, "evaluate", "(option, select) => option.tagName === 'OPTION' && option.closest('select') === select ? {index:option.index,value:option.value,label:option.label} : null", element)
+                if observed is None:
+                    raise AciraActionBlocked("Selected options must belong to the reviewed select control")
+                selection["element"].append(observed)
+        selection_state = await trusted(element, "evaluate", "el => Array.from(el.options || []).map(o => ({value:o.value,label:o.label,disabled:o.disabled,selected:o.selected}))")
     critical = is_critical_operation(before, action) if before else action in {"submit", "file_upload"}
     if before and before["has_form"] and getattr(target, "is_submit", False):
         critical = True
@@ -268,12 +374,25 @@ async def guarded(manager: Any, page: Any, obj: Any, method: str, args: tuple, k
     if not critical and before:
         evidence["grant_scope"] = {"url": before["url"], "target": before["target"], "action": action,
                                    "destination": before["destination"]}
+    if selection is not None:
+        sensitive = _selection_is_sensitive(before, target)
+        display = {"by" + key.title(): value for key, value in selection.items() if key != "element"}
+        if "element" in selection:
+            display["byElement"] = [{"index": option["index"], "optionValue": option["value"], "optionLabel": option["label"]} for option in selection["element"]]
+        evidence["requested_selection"] = "[REDACTED]" if sensitive else json.loads(json.dumps(display))
+        if sensitive:
+            evidence["critical"] = True
+            evidence.pop("grant_scope", None)
+        if "grant_scope" in evidence:
+            evidence["grant_scope"]["selection"] = json.loads(json.dumps(selection))
     async def revalidate() -> bool:
         if upload_unchanged is not None and not upload_unchanged():
             return False
         if not element:
             return True
         try:
+            if selection_state is not None and await trusted(element, "evaluate", "el => Array.from(el.options || []).map(o => ({value:o.value,label:o.label,disabled:o.disabled,selected:o.selected}))") != selection_state:
+                return False
             return json.dumps(await trusted(element, "evaluate", STATE_JS), sort_keys=True) == fingerprint
         except Exception:
             return False
@@ -325,6 +444,7 @@ async def guarded(manager: Any, page: Any, obj: Any, method: str, args: tuple, k
     if submission is not None:
         if submission.page is not page or submission.manager is not manager or method != "click":
             raise AciraActionBlocked("Submission contract does not match this browser operation")
+        await submission.bind_initiator(element)
         evidence.update(submission.evidence)
         evidence.pop("grant_scope", None)
     # Capture is invoked by the review backend only, never for ordinary allowed actions.
