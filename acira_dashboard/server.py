@@ -4,8 +4,12 @@ import argparse
 import asyncio
 import copy
 import errno
+import hmac
+import html
 import json
+import os
 import secrets
+import stat
 import sys
 import tempfile
 import time
@@ -98,6 +102,8 @@ class DashboardPaths:
 
 PATHS_KEY = web.AppKey("acira_dashboard_paths", DashboardPaths)
 TOKEN_KEY = web.AppKey("acira_dashboard_token", str)
+SESSIONS_KEY = web.AppKey("acira_dashboard_sessions", dict)
+COOKIE_KEY = web.AppKey("acira_dashboard_cookie", str)
 EVENT_STORE_KEY = web.AppKey("acira_dashboard_event_store", DashboardEventStore)
 RUNTIME_STORE_KEY = web.AppKey("acira_dashboard_runtime_store", DashboardRuntimeStore)
 
@@ -115,9 +121,12 @@ def create_app(
     app = web.Application(middlewares=[_security_middleware])
     app[PATHS_KEY] = selected_paths
     app[TOKEN_KEY] = selected_token
+    app[SESSIONS_KEY] = {}
+    app[COOKIE_KEY] = "acira_legacy_" + secrets.token_hex(6)
     app[EVENT_STORE_KEY] = selected_store
     app[RUNTIME_STORE_KEY] = selected_runtime
     app.router.add_get("/", _handle_index)
+    app.router.add_post("/api/session", _handle_auth_session)
     app.router.add_get("/static/{name}", _handle_static_asset)
     app.router.add_get("/api/bootstrap", _handle_bootstrap)
     app.router.add_get("/api/status", _handle_status)
@@ -206,10 +215,9 @@ async def run_dashboard(
         descriptor_written = False
 
     print(f"Acira dashboard (project {resolved_project_dir}): http://{host}:{bound_port}/", flush=True)
+    print(f"Dashboard access key (paste into the local sign-in form): {token}", flush=True)
     if descriptor_written:
         print("Agents in this project auto-discover the dashboard via .acira/dashboard.json", flush=True)
-    else:
-        print(f"Acira dashboard API key: {token}", flush=True)
     try:
         await asyncio.Future()
     finally:
@@ -222,26 +230,70 @@ async def run_dashboard(
 async def _security_middleware(request: web.Request, handler: Any) -> web.StreamResponse:
     if not _is_allowed_host_header(request.host):
         return _json_error("Only loopback hosts may access the Acira dashboard.", status=403)
-    if not _is_allowed_origin(request.headers.get("Origin")):
-        return _json_error("Only loopback origins may access the Acira dashboard.", status=403)
-    if request.method in MUTATING_METHODS or request.path.startswith("/api/runtime/"):
-        expected = str(request.app[TOKEN_KEY])
-        provided = request.headers.get("X-Acira-Dashboard-Token", "")
-        if provided != expected:
-            return _json_error("Missing or invalid dashboard token.", status=401)
+    origin = request.headers.get("Origin")
+    if origin and origin != f"{request.scheme}://{request.host}":
+        return _json_error("Only this dashboard's origin may access it.", status=403)
+    expected = str(request.app[TOKEN_KEY])
+    provided = request.headers.get("X-Acira-Dashboard-Token", "")
+    token_auth = bool(provided) and hmac.compare_digest(provided.encode(), expected.encode())
+    sessions = request.app[SESSIONS_KEY]
+    for key, expiry in list(sessions.items()):
+        if expiry <= time.time():
+            sessions.pop(key, None)
+    cookie_auth = sessions.get(request.cookies.get(request.app[COOKIE_KEY], ""), 0) > time.time()
+    if request.path.startswith("/api/") and request.path != "/api/session" and not (token_auth or cookie_auth):
+        return _json_error("Authenticate with the local dashboard access key.", status=401)
+    # Preserve the existing explicit mutation confirmation. Cookies authorize
+    # reads, but a form from another page cannot silently change a project.
+    if request.path != "/api/session" and request.method in MUTATING_METHODS and not token_auth:
+        return _json_error("Missing or invalid dashboard token.", status=401)
     response = await handler(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    # Native sign-in POSTs must keep their same-origin Origin header. A
+    # no-referrer policy turns that header into "null" for navigations.
+    response.headers.setdefault("Referrer-Policy", "same-origin")
     response.headers.setdefault("Cache-Control", "no-store")
+    response.headers.setdefault("X-Frame-Options", "DENY")
     return response
 
 
 async def _handle_index(request: web.Request) -> web.Response:
+    expected = str(request.app[TOKEN_KEY])
+    provided = request.headers.get("X-Acira-Dashboard-Token", "")
+    authenticated = (bool(provided) and hmac.compare_digest(provided.encode(), expected.encode())) or (
+        request.app[SESSIONS_KEY].get(request.cookies.get(request.app[COOKIE_KEY], ""), 0) > time.time())
+    if not authenticated:
+        return web.Response(text='''<!doctype html><html lang="en"><meta charset="utf-8">
+<title>Sign in to Acira</title><h1>Acira Dashboard</h1>
+<p>Enter the local dashboard access key shown in your terminal.</p>
+<form method="post" action="/api/session" autocomplete="off">
+<label>Access key <input type="password" name="token" autocomplete="off" required></label>
+<button type="submit">Open dashboard</button></form></html>''', content_type="text/html")
     paths: DashboardPaths = request.app[PATHS_KEY]
     index_path = paths.static_dir / "index.html"
-    html = index_path.read_text(encoding="utf-8")
-    html = html.replace("__ACIRA_DASHBOARD_TOKEN__", str(request.app[TOKEN_KEY]))
-    return web.Response(text=html, content_type="text/html")
+    page = index_path.read_text(encoding="utf-8")
+    page = page.replace("__ACIRA_DASHBOARD_TOKEN__", html.escape(expected, quote=True))
+    return web.Response(text=page, content_type="text/html")
+
+
+async def _handle_auth_session(request: web.Request) -> web.Response:
+    # Browser forms supply Origin. Direct API clients can use the existing token
+    # header instead of exchanging it for a browser cookie.
+    if request.headers.get("Origin") != f"{request.scheme}://{request.host}":
+        return _json_error("Sign in from the local dashboard page.", status=403)
+    form = request.content_type == "application/x-www-form-urlencoded"
+    body = await request.post() if form else await request.json()
+    provided = body.get("token") if hasattr(body, "get") else None
+    if not isinstance(provided, str) or len(provided) > 4096 or not hmac.compare_digest(provided.encode(), request.app[TOKEN_KEY].encode()):
+        return _json_error("Invalid dashboard access key.", status=401)
+    sessions = request.app[SESSIONS_KEY]
+    if len(sessions) >= 256:
+        return _json_error("Too many dashboard sessions; wait for an existing session to expire.", status=429)
+    key = secrets.token_urlsafe(32)
+    sessions[key] = time.time() + 12 * 3600
+    response = web.Response(status=303, headers={"Location": "/"}) if form else web.json_response({"authenticated": True})
+    response.set_cookie(request.app[COOKIE_KEY], key, httponly=True, samesite="Strict", max_age=12 * 3600)
+    return response
 
 
 async def _handle_static_asset(request: web.Request) -> web.StreamResponse:
@@ -1395,15 +1447,50 @@ def _env_ref(secret_id: str) -> str:
 
 
 def _write_env_file(path: Path, env: dict[str, str]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _private_env_path(path)
+    if any("\n" in value or "\r" in value or "\x00" in value for value in env.values()):
+        raise DashboardInputError("Secret values must fit on a single environment-file line.", 400)
     lines = [f"{k}={v}" for k, v in env.items()]
     content = "\n".join(lines) + ("\n" if lines else "")
-    tmp_path = path.with_suffix(".tmp")
-    tmp_path.write_text(content, encoding="utf-8")
-    tmp_path.replace(path)
+    fd, temporary = tempfile.mkstemp(prefix=".acira-secret-", dir=path.parent)
+    tmp_path = Path(temporary)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        _private_env_path(path)
+        tmp_path.replace(path)
+        if os.name != "nt":
+            directory = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory)
+            finally:
+                os.close(directory)
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
+def _private_env_path(path: Path) -> None:
+    for directory in (path.parent.parent, path.parent):
+        if directory.is_symlink():
+            raise DashboardInputError("Secret storage cannot use symbolic-link directories.", 403)
+        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        info = directory.stat()
+        if not stat.S_ISDIR(info.st_mode) or (os.name != "nt" and info.st_uid != os.getuid()):
+            raise DashboardInputError("Secret storage must be owned by the current user.", 403)
+    if os.name != "nt":
+        path.parent.chmod(0o700)
+    if path.is_symlink():
+        raise DashboardInputError("Secret storage cannot use a symbolic-link file.", 403)
+    if path.exists():
+        info = path.stat()
+        if not stat.S_ISREG(info.st_mode) or (os.name != "nt" and info.st_uid != os.getuid()):
+            raise DashboardInputError("Secret storage must be a regular file owned by the current user.", 403)
 
 
 def _read_env_file(path: Path) -> dict[str, str]:
+    _private_env_path(path)
     if not path.exists():
         return {}
     try:
@@ -1447,8 +1534,11 @@ def _envify_secret_record_values(data: dict[str, Any], paths: DashboardPaths, co
         record["provider_ref"] = ref
         touched = True
     if touched:
-        _write_env_file(env_path, env)
         _ensure_env_file_provider(data)
+        valid, error = _validate_secrets_config_data(data)
+        if not valid:
+            raise DashboardInputError("Invalid secrets configuration.", 400)
+        _write_env_file(env_path, env)
 
 
 def _purge_env_file_record(paths: DashboardPaths, config_name: str, secret_id: str) -> None:
