@@ -409,7 +409,9 @@
       state.scopePatterns = state.pendingPatterns;
       state.storageKey = pageStorageKey();
     }
-    const targetId = `target-${state.targets.length + 1}-${slug(
+    // Persisted IDs identify a target, independently of list position. Removing
+    // an earlier target must not recycle another target's identity.
+    const targetId = `target-${newPolicyId().slice("skill-".length)}-${slug(
       state.pendingFingerprint.text || state.pendingFingerprint.id || state.pendingFingerprint.tag || "element"
     )}`;
     state.targets.push({

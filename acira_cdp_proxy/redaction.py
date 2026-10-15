@@ -7,7 +7,7 @@ import threading
 import time
 from dataclasses import dataclass, replace
 from typing import Any
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
 
 SECRET_KEYS = {
@@ -253,9 +253,7 @@ def redact_value(value: Any) -> Any:
         return _redact_number(value)
     if isinstance(value, str):
         redacted = SECRET_REDACTION_REGISTRY.redact_text(value)
-        if redacted != value:
-            return redacted
-        redacted = _redact_sensitive_url_queries(value)
+        redacted = _redact_sensitive_url_queries(redacted)
         if redacted != value:
             return redacted
         if _looks_sensitive(value):
@@ -337,8 +335,9 @@ def value_classes(value: Any) -> tuple[str, ...]:
 
 def _api_key_is_sensitive(key: str) -> bool:
     # Match API-key aliases, including scoped/header names, without treating
-    # every ordinary "key" field as sensitive. Camel-cased apiKey is included.
-    return bool(re.search(r"(?:^|[^a-z0-9])api[_-]?key(?:$|[^a-z0-9])", key.lower()))
+    # every ordinary "key" field as sensitive. Camel-cased apiKey and UI
+    # labels with whitespace ("API key") are included.
+    return bool(re.search(r"(?:^|[^a-z0-9])api(?:[_-]|\s+)?key(?:$|[^a-z0-9])", key.lower()))
 
 
 def _key_is_sensitive(key: str) -> bool:
@@ -378,20 +377,34 @@ def _redact_sensitive_url_query(url: str) -> str:
     try:
         parsed = urlsplit(url)
     except ValueError:
+        # A malformed authority may still contain credentials. Do not echo it.
+        return "[REDACTED:url]"
+    if not parsed.scheme or not parsed.netloc:
         return url
-    if not parsed.scheme or not parsed.netloc or not parsed.query:
+    def mask_pairs(component: str) -> str:
+        pairs = parse_qsl(component, keep_blank_values=True)
+        def sensitive(key: str) -> bool:
+            return _key_is_sensitive(re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", key))
+        if not any(sensitive(key) for key, _ in pairs):
+            return component
+        return urlencode([(key, "[REDACTED]" if sensitive(key) else item)
+                          for key, item in pairs])
+
+    # Userinfo is never useful display evidence, even if it has no recognizable
+    # token prefix. Removing it retains the destination host/port and path.
+    authority = parsed.netloc.rsplit("@", 1)[-1]
+    query = mask_pairs(parsed.query)
+    fragment = parsed.fragment
+    if "?" in fragment:
+        route, separator, parameters = fragment.partition("?")
+        fragment = route + separator + mask_pairs(parameters)
+    else:
+        fragment = mask_pairs(fragment)
+    if fragment == parsed.fragment and _looks_sensitive(unquote(fragment)):
+        fragment = "[REDACTED]"
+    if (authority, query, fragment) == (parsed.netloc, parsed.query, parsed.fragment):
         return url
-    redacted_pairs: list[tuple[str, str]] = []
-    changed = False
-    for key, value in parse_qsl(parsed.query, keep_blank_values=True):
-        if _key_is_sensitive(key):
-            redacted_pairs.append((key, "[REDACTED]"))
-            changed = True
-        else:
-            redacted_pairs.append((key, value))
-    if not changed:
-        return url
-    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(redacted_pairs), parsed.fragment))
+    return urlunsplit((parsed.scheme, authority, parsed.path, query, fragment))
 
 
 def _redact_payload_text(text: str, *, redact_secret_fields: bool = False, redact_generic: bool = True) -> str:
@@ -418,11 +431,9 @@ def _redact_payload_value(value: Any, *, redact_generic: bool = True) -> Any:
         return _redact_number(value, redact_generic=redact_generic)
     if isinstance(value, str):
         redacted = SECRET_REDACTION_REGISTRY.redact_text(value)
-        if redacted != value:
-            return redacted
         if not redact_generic:
-            return value
-        redacted = _redact_sensitive_url_queries(value)
+            return redacted
+        redacted = _redact_sensitive_url_queries(redacted)
         if redacted != value:
             return redacted
         return "[REDACTED]" if _looks_sensitive(value) else value

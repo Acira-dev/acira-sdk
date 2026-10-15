@@ -82,10 +82,11 @@ async def test_request_audit_failure_cancels_intercepted_request():
     gate = NetworkGate(manager, channel)
     contract = RequestContract(manager, channel, "https://test.invalid/payment", {"amount": "10"}, "json", "POST", {}, 1)
     contract.authorized_revision = "r1"
+    contract.frame_id = "frame"
     contract.redirect_token = object()  # execute() assigns the private attempt identity.
     gate.active = contract
     gate.locks.add(contract.destination)
-    await gate.paused({"requestId": "private", "networkId": "network", "resourceType": "Fetch", "request": {
+    await gate.paused({"requestId": "private", "networkId": "network", "frameId": "frame", "resourceType": "Fetch", "request": {
         "url": contract.destination, "method": "POST", "headers": {"Content-Type": "application/json"}, "postData": '{"amount":"10"}'}})
     assert [method for method, _ in sent] == ["Fetch.failRequest"]
     assert writes == ["submission_dispatch_attempt"]

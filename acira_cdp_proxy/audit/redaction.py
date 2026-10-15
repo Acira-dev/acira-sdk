@@ -19,6 +19,7 @@ import re
 import time
 from typing import Any, Callable, Iterable
 from ..bounded_regex import compile_pattern, remaining, MAX_PATTERNS
+from ..redaction import _redact_sensitive_url_queries
 
 PRIVACY_MODES = ("light", "medium", "conservative")
 
@@ -108,6 +109,10 @@ class Redactor:
         if not isinstance(value, str) or not value:
             return value
         text = value
+        sanitized_url = _redact_sensitive_url_queries(text)
+        if sanitized_url != text:
+            text = sanitized_url
+            applied.append(f"{path}:url_credentials")
         deadline = deadline if deadline is not None else time.monotonic()+0.1
         # known secrets first (exact-value masking; all modes)
         for secret in self._known_secrets:

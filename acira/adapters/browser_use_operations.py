@@ -7,6 +7,7 @@ network requests before dispatch; they do not verify business success.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import time
 from uuid import uuid4
@@ -71,6 +72,42 @@ class Element:
             return await self.read(STATE_JS) == self.state
         except Exception:
             return False
+
+    async def submission_frame(self, node):
+        """Find the exact owning document through positive frame comparisons."""
+        async with asyncio.timeout(5):
+            tree = await self.channel.send("Page.getFrameTree")
+            pending, frames = [tree.get("frameTree", {})], []
+            while pending:
+                entry = pending.pop()
+                identifier = entry.get("frame", {}).get("id")
+                if not isinstance(identifier, str) or not identifier or identifier in frames or len(frames) >= 64:
+                    raise AciraActionBlocked("The submission frame tree could not be verified")
+                frames.append(identifier)
+                pending.extend(entry.get("childFrames", []))
+            verified = []
+            for frame_id in frames:
+                world = await self.channel.send("Page.createIsolatedWorld", {"frameId": frame_id, "worldName": "acira-submission-frame"})
+                context = world.get("executionContextId")
+                if not isinstance(context, int) or isinstance(context, bool) or context <= 0:
+                    raise AciraActionBlocked("The submission document could not be inspected")
+                resolved = await self.channel.send("DOM.resolveNode", {"backendNodeId": node.backend_node_id, "executionContextId": context})
+                object_id = resolved.get("object", {}).get("objectId")
+                if not object_id:
+                    raise AciraActionBlocked("The submission target could not be inspected in that document")
+                try:
+                    observed = await self.channel.send("Runtime.callFunctionOn", {"objectId": object_id,
+                        "functionDeclaration": "function(){return this.isConnected && this.ownerDocument === document}", "returnByValue": True})
+                    if observed.get("exceptionDetails") or type(observed.get("result", {}).get("value")) is not bool:
+                        raise AciraActionBlocked("The submission document comparison failed")
+                    if observed["result"]["value"]:
+                        verified.append(frame_id)
+                finally:
+                    with contextlib.suppress(Exception):
+                        await self.channel.send("Runtime.releaseObject", {"objectId": object_id})
+            if len(verified) != 1:
+                raise AciraActionBlocked("The submission target has no unique verified frame")
+            return verified[0]
 
     async def masked_artifact(self):
         from acira_cdp_proxy.screenshots import capture_masked_cdp
@@ -233,7 +270,8 @@ class NetworkGate:
         normalized = SimpleNamespace(url=url, method=request.get("method"),
             headers={key.lower(): value for key, value in request.get("headers", {}).items()}, post_data=request.get("postData"))
         target = self.targets.get(child) if child else self.channel.target_id
-        if (contract is None or target != contract.page.target_id or contract.used or contract.finished or not contract.matches(normalized)):
+        if (contract is None or target != contract.page.target_id or params.get("frameId") != getattr(contract, "frame_id", None)
+                or not params.get("frameId") or contract.used or contract.finished or not contract.matches(normalized)):
             await self.send("Fetch.failRequest", {"requestId": params["requestId"], "errorReason": "BlockedByClient"}, params)
             if contract and (mutation or url == contract.destination) and not contract.outcome.done():
                 contract.outcome.set_result({"blocked": True})
@@ -243,7 +281,7 @@ class NetworkGate:
             return
         if self.manager.guard_policy.before_decision is not None:
             await self.manager.guard_policy.before_decision()
-        if (getattr(self.channel, "closing", False) or contract.finished or self.active is not contract
+        if (getattr(self.channel, "closing", False) or contract.used or contract.finished or self.active is not contract
                 or self.manager.guard_policy.policy_revision != contract.authorized_revision):
             await self.send("Fetch.failRequest", {"requestId": params["requestId"], "errorReason": "BlockedByClient"}, params)
             if not contract.outcome.done():
@@ -314,6 +352,8 @@ async def submit(manager, browser_session, node, *, destination: str, values: di
     from .playwright_boundary import CAPTURE
     token = CAPTURE.set(element.masked_artifact)
     try:
+        contract.frame_id = await element.submission_frame(node)
+        contract.evidence["initiator"] = {"target": channel.target_id, "frame": contract.frame_id}
         await manager._ensure_browser_use_general_page_preflight(browser_session, trigger="before_action")
         await manager._ensure_browser_use_page_mapping_preflight(browser_session)
         request = await manager._browser_use_action_request_for_exact_element(browser_session, element, action="submit")

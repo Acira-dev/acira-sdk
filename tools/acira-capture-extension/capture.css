@@ -2,18 +2,28 @@
   all: initial;
   position: fixed;
   z-index: 2147483647;
-  right: 18px;
-  bottom: 18px;
+  right: 14px;
+  bottom: 14px;
   width: min(360px, calc(100vw - 28px));
   box-sizing: border-box;
+  max-height: calc(100vh - 28px);
+  max-height: calc(100dvh - 28px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  isolation: isolate;
+  direction: ltr;
+  text-align: left;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: max-content;
   gap: 10px;
   padding: 14px;
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.97);
   color: #111113;
-  font: 13px/1.38 "Google Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: 13px/1.38 "Google Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
   box-shadow: 0 20px 54px rgba(15, 23, 42, 0.16), 0 1px 0 rgba(255, 255, 255, 0.88) inset;
   backdrop-filter: blur(18px) saturate(1.08);
 }
@@ -37,18 +47,25 @@
   background: transparent;
 }
 
+/* Preserve inline SVG presentation attributes, including each path's d. */
+#acira-capture-panel :where(*:not(svg, svg *)) {
+  all: revert;
+}
+
 #acira-capture-panel *,
 #acira-capture-panel *::before,
 #acira-capture-panel *::after {
-  box-sizing: border-box;
-  font: inherit;
-  letter-spacing: 0;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  font: inherit !important;
+  letter-spacing: 0 !important;
 }
 
 #acira-capture-panel svg,
 .acira-capture-label svg {
-  width: 14px;
-  height: 14px;
+  width: 14px !important;
+  height: 14px !important;
   flex: 0 0 auto;
   fill: none;
   stroke: currentColor;
@@ -57,30 +74,33 @@
   stroke-linejoin: round;
 }
 
-.acira-capture-header,
-.acira-brand,
-.acira-capture-header-actions,
-.acira-capture-toolbar,
-.acira-capture-actions,
-.acira-capture-footer,
-.acira-target-row,
-.acira-section-label,
-.acira-capture-details summary {
+#acira-capture-panel .acira-capture-header,
+#acira-capture-panel .acira-brand,
+#acira-capture-panel .acira-capture-header-actions,
+#acira-capture-panel .acira-capture-toolbar,
+#acira-capture-panel .acira-capture-actions,
+#acira-capture-panel .acira-capture-footer,
+#acira-capture-panel .acira-target-row,
+#acira-capture-panel .acira-section-label,
+#acira-capture-panel .acira-capture-details summary {
   display: flex;
   align-items: center;
 }
 
-.acira-capture-header {
+#acira-capture-panel .acira-capture-header {
   justify-content: space-between;
-  gap: 12px;
-}
-
-.acira-brand {
-  min-width: 0;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
-.acira-brand-mark {
+#acira-capture-panel .acira-brand {
+  min-width: 0;
+  gap: 10px;
+  flex: 1 1 160px;
+}
+
+#acira-capture-panel .acira-brand-mark {
+  flex: 0 0 31px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -93,74 +113,80 @@
   box-shadow: 0 10px 24px rgba(17, 17, 19, 0.1);
 }
 
-.acira-brand-mark svg {
+#acira-capture-panel .acira-brand-mark svg {
   width: 17px !important;
   height: 17px !important;
 }
 
-.acira-brand-mark img {
+#acira-capture-panel .acira-brand-mark img {
   display: block;
   width: 17px;
   height: 21px;
   object-fit: contain;
 }
 
-.acira-capture-header-actions {
+#acira-capture-panel .acira-capture-header-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
   gap: 8px;
 }
 
-.acira-capture-kicker {
+#acira-capture-panel .acira-capture-kicker {
   color: #8b8b92;
-  font-size: 10px;
-  font-weight: 500;
+  font-size: 10px !important;
+  font-weight: 500 !important;
   text-transform: uppercase;
 }
 
-.acira-capture-title {
+#acira-capture-panel .acira-capture-title {
   color: #111113;
-  font: 18px/1.12 "Source Serif 4", "Source Serif Pro", Georgia, ui-serif, serif;
-  font-weight: 500;
+  font: 18px/1.12 "Source Serif 4", "Source Serif Pro", Georgia, ui-serif, serif !important;
+  font-weight: 500 !important;
 }
 
 #acira-capture-panel .acira-section-label,
 #acira-capture-panel .acira-capture-details summary {
-  font-family: "Source Serif 4", "Source Serif Pro", Georgia, ui-serif, serif;
+  font-family: "Source Serif 4", "Source Serif Pro", Georgia, ui-serif, serif !important;
 }
 
-.acira-capture-guide {
+#acira-capture-panel .acira-capture-guide {
   padding: 7px 9px;
   border: 1px solid #ececef;
   border-radius: 8px;
   background: #fafafa;
   color: #6f7178;
-  font-size: 12px;
-  font-weight: 400;
+  font-size: 12px !important;
+  font-weight: 400 !important;
 }
 
-.acira-capture-pill,
-.acira-decision {
+#acira-capture-panel .acira-capture-pill,
+#acira-capture-panel .acira-decision {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 20px;
   padding: 2px 7px;
   border-radius: 999px;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 11px !important;
+  font-weight: 500 !important;
   text-transform: capitalize;
 }
 
-.acira-capture-pill[data-state="capturing"] {
+#acira-capture-panel .acira-capture-pill[data-state="capturing"] {
   background: #eefaf1;
   color: #257348;
 }
 
-.acira-capture-pill[data-state="paused"] {
+#acira-capture-panel .acira-capture-pill[data-state="paused"] {
   background: #f1f2f4;
   color: #646873;
 }
 
 #acira-capture-panel button {
+  all: unset;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  text-align: center;
   min-height: 32px;
   display: inline-flex;
   align-items: center;
@@ -172,7 +198,7 @@
   background: #ffffff;
   color: #191a1f;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 500 !important;
 }
 
 #acira-capture-panel button:hover:not(:disabled) {
@@ -203,22 +229,26 @@
 }
 
 #acira-capture-panel .acira-icon-button {
-  width: 30px;
+  width: 30px !important;
+  flex: 0 0 30px;
   min-height: 30px;
   padding: 0;
 }
 
-.acira-capture-toolbar,
-.acira-capture-footer {
+#acira-capture-panel .acira-capture-toolbar,
+#acira-capture-panel .acira-capture-actions,
+#acira-capture-panel .acira-capture-footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-.acira-capture-toolbar button,
-.acira-capture-footer button {
+#acira-capture-panel .acira-capture-toolbar button,
+#acira-capture-panel .acira-capture-footer button {
   flex: 1;
 }
 
-.acira-capture-card {
+#acira-capture-panel .acira-capture-card {
   display: grid;
   gap: 8px;
   padding: 10px;
@@ -227,56 +257,56 @@
   background: #ffffff;
 }
 
-.acira-section-label {
+#acira-capture-panel .acira-section-label {
   gap: 6px;
   color: #8b8d96;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 12px !important;
+  font-weight: 500 !important;
   text-transform: none;
 }
 
 #acira-capture-selected-summary,
-.acira-target-name {
+#acira-capture-panel .acira-target-name {
   min-width: 0;
   color: #191a1f;
-  font-weight: 400;
+  font-weight: 400 !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.acira-empty-state {
+#acira-capture-panel .acira-empty-state {
   color: #858894 !important;
 }
 
-.acira-capture-actions {
+#acira-capture-panel .acira-capture-actions {
   gap: 8px;
 }
 
-.acira-capture-actions button {
+#acira-capture-panel .acira-capture-actions button {
   flex: 1;
 }
 
-.acira-capture-actions button[data-kind="block"] {
+#acira-capture-panel .acira-capture-actions button[data-kind="block"] {
   border-color: #f3d0cd;
   background: #fff7f7;
   color: #a3443c;
 }
 
-.acira-capture-actions button[data-kind="ask"] {
+#acira-capture-panel .acira-capture-actions button[data-kind="ask"] {
   border-color: #edd8a2;
   background: #fffaf0;
   color: #8c651b;
 }
 
-.acira-target-list {
+#acira-capture-panel .acira-target-list {
   display: grid;
   gap: 6px;
   max-height: 124px;
   overflow: auto;
 }
 
-.acira-target-row {
+#acira-capture-panel .acira-target-row {
   gap: 8px;
   min-height: 34px;
   padding: 5px 6px;
@@ -285,32 +315,32 @@
   background: #fbfbfc;
 }
 
-.acira-target-name {
+#acira-capture-panel .acira-target-name {
   flex: 1;
 }
 
-.acira-decision-block {
+#acira-capture-panel .acira-decision-block {
   background: #fff1f1;
   color: #a3443c;
 }
 
-.acira-decision-ask {
+#acira-capture-panel .acira-decision-ask {
   background: #fff7df;
   color: #8c651b;
 }
 
-.acira-capture-details {
+#acira-capture-panel .acira-capture-details {
   border: 1px solid #ececef;
   border-radius: 9px;
   background: #ffffff;
 }
 
-.acira-capture-details summary {
+#acira-capture-panel .acira-capture-details summary {
   gap: 7px;
   cursor: pointer;
   padding: 8px 10px;
   color: #5f626b;
-  font-weight: 500;
+  font-weight: 500 !important;
 }
 
 #acira-capture-facts {
@@ -324,10 +354,10 @@
   word-break: break-word;
 }
 
-.acira-capture-status {
+#acira-capture-panel .acira-capture-status {
   min-height: 16px;
   color: #6f7178;
-  font-size: 12px;
+  font-size: 12px !important;
 }
 
 .acira-capture-hover,
@@ -372,4 +402,18 @@
 .acira-capture-label-selected {
   background: #be123c;
   box-shadow: 0 10px 26px rgba(190, 18, 60, 0.22);
+}
+
+/* Labels stay readable when the host site forces nowrap on inline text. */
+#acira-capture-panel button span {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 280px) {
+  #acira-capture-panel .acira-capture-toolbar,
+  #acira-capture-panel .acira-capture-actions,
+  #acira-capture-panel .acira-capture-footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

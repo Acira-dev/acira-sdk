@@ -104,6 +104,9 @@ before changing framework versions. The optional `acira[browser-use]` extra is
 dependency setup for projects that need it, not a requirement for a compatible
 existing installation.
 
+Read the [protection and configuration updates](docs/security-updates.md) for
+approval binding, terminal review behavior and legacy dashboard migration.
+
 ## Policies and human review
 
 Manage policies from your project directory:

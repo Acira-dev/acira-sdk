@@ -8,7 +8,9 @@ import inspect
 import json
 import re
 import sys
+import threading
 import time
+from uuid import uuid4
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field, fields as dataclass_fields, replace
 from typing import Any, Protocol
@@ -36,6 +38,7 @@ from .target_mapping import (
     TargetMappingStore,
     fingerprint_hash,
     target_mapping_key,
+    approved_mapping_matches,
     unchanged_capture_identity,
     url_scope_key,
 )
@@ -1567,6 +1570,11 @@ class CallableReviewBackend:
         return result
 
 
+# A terminal is shared by every run and event loop in this process. Hold its
+# ownership from the contextual prompt through the answer, including cancellation.
+_TERMINAL_REVIEW_OWNER = threading.Lock()
+
+
 class TerminalReviewBackend:
     def __init__(self, config: AciraGuardConfig) -> None:
         self._config = config
@@ -1583,18 +1591,31 @@ class TerminalReviewBackend:
         finally:
             stop.set()
 
-    async def ask_until(self, request: GuardReviewRequest, stop_event: asyncio.Event | None = None) -> ReviewResult | None:
+    async def ask_until(self, request: GuardReviewRequest, stop_event: asyncio.Event | None = None, *,
+                        display_context: dict[str, str] | None = None,
+                        display_evidence: dict[str, Any] | None = None) -> ReviewResult | None:
         if not sys.stdin.isatty():
             return "block"
-
-        prompt = self.prompt_for(request)
+        while not _TERMINAL_REVIEW_OWNER.acquire(blocking=False):
+            if stop_event is not None and stop_event.is_set():
+                return None
+            await asyncio.sleep(0.05)
         try:
-            if stop_event is None:
-                answer = await asyncio.to_thread(input, prompt)
-            else:
-                answer = await _terminal_input_until(prompt, stop_event=stop_event)
-        except EOFError:
-            return self._config.default_review_decision
+            if stop_event is not None and stop_event.is_set():
+                return None
+            context = {"terminal_review": uuid4().hex[:12], **(display_context or {})}
+            print("\nAcira review context:", json.dumps(redact_value(context), ensure_ascii=True), flush=True)
+            if display_evidence:
+                print("Acira operation evidence:", json.dumps(_review_details_projection(display_evidence),
+                    indent=2, ensure_ascii=True), flush=True)
+            try:
+                answer = await _terminal_input_until(self.prompt_for(request), stop_event=stop_event)
+            except EOFError:
+                # Missing affirmative input never authorizes an Ask action,
+                # including configurations with a legacy default of allow.
+                return "block"
+        finally:
+            _TERMINAL_REVIEW_OWNER.release()
         if answer is None:
             return None
         return answer.strip().lower()
@@ -4414,6 +4435,9 @@ class AciraGuardPolicy:
                     url_scope=scope,
                     candidate_key=candidate_key,
                 )
+                if latest is not None and latest.status == "approved" and not approved_mapping_matches(
+                        latest, candidate, eligibility, evidence_gate):
+                    latest = replace(latest, status="stale")
                 ranked.append((candidate, resolution, candidate_key, latest, eligibility, evidence_gate))
             # Saturated totals can tie an unchanged control with nearby decoys.
             # Use the same eligibility-aware score for ordering and assignment.
@@ -4470,12 +4494,13 @@ class AciraGuardPolicy:
             status = no_candidate_status
             concrete_allowed = bool(best_gate.get("concrete")) if isinstance(best_gate, dict) else False
             unchanged = len(raw["unchanged"]) == 1 and best_key == raw["unchanged"][0][2]
-            if assigned_best is None and best_record is not None and best_record.status == "approved":
-                concrete_allowed = True
             if rejected is not None and best_key == rejected[2]:
                 status = "rejected"
             elif best_record is not None and best_record.status == "approved":
-                status = "approved"
+                status = "approved" if assigned_best is not None else "ambiguous"
+            elif best_record is not None and best_record.status == "stale":
+                # Even a high new match score cannot renew old human consent.
+                status = "ambiguous" if assigned_best is not None and concrete_allowed else no_candidate_status
             elif (
                 assigned_best is not None
                 and
@@ -4535,6 +4560,7 @@ class AciraGuardPolicy:
                     "runner_up_resolution": runner_resolution.to_metadata() if runner_resolution else None,
                     "margin": margin,
                     "unchanged_capture_identity": unchanged,
+                    "mapping_approval_invalidated": best_record is not None and best_record.status == "stale",
                     "score": best_resolution.score if best_resolution else 0,
                     "signals": list(best_resolution.matched_signals)[:8] if best_resolution else [],
                     "status": status,
@@ -4557,7 +4583,7 @@ class AciraGuardPolicy:
 
         for index, raw in enumerate(raw_entries):
             approved = raw["approved"]
-            if approved is None:
+            if approved is None or approved[2] in used_candidate_keys or not _assignment_candidate_viable(approved):
                 continue
             assigned[index] = approved
             used_candidate_keys.add(approved[2])
@@ -7539,11 +7565,9 @@ def _is_concrete_mapping_candidate(entry: dict[str, Any]) -> bool:
 
 def _mapping_entry_requires_page_review(entry: dict[str, Any]) -> bool:
     status = str(entry.get("status") or "").strip().lower()
-    if status == "approved":
-        return False
     if status in {"rejected", "ambiguous"}:
         return True
-    if status != "auto_mapped":
+    if status not in {"approved", "auto_mapped"}:
         return True
     resolution = entry.get("best_resolution") if isinstance(entry.get("best_resolution"), dict) else {}
     gate = entry.get("evidence_gate") if isinstance(entry.get("evidence_gate"), dict) else {}
@@ -7551,7 +7575,7 @@ def _mapping_entry_requires_page_review(entry: dict[str, Any]) -> bool:
     disqualifiers = list(gate.get("hard_disqualifiers") or eligibility.get("hard_disqualifiers") or [])
     return not (
         _is_concrete_mapping_candidate(entry)
-        and str(resolution.get("kind") or "") == "strong_match"
+        and (status == "approved" or str(resolution.get("kind") or "") == "strong_match")
         and bool(gate.get("concrete", True))
         and not disqualifiers
     )
@@ -7563,12 +7587,13 @@ def _has_concrete_mapping_candidate(entries: list[dict[str, Any]]) -> bool:
 
 def _assignment_candidate_viable(candidate: tuple[Any, ...]) -> bool:
     record = candidate[3] if len(candidate) > 3 else None
-    if record is not None and getattr(record, "status", None) == "approved":
-        return True
     resolution = candidate[1] if len(candidate) > 1 else None
     gate = candidate[5] if len(candidate) > 5 and isinstance(candidate[5], dict) else {}
-    if not gate.get("concrete"):
+    eligibility = candidate[4] if len(candidate) > 4 and isinstance(candidate[4], dict) else {}
+    if not gate.get("concrete") or gate.get("hard_disqualifiers") or eligibility.get("hard_disqualifiers"):
         return False
+    if record is not None and getattr(record, "status", None) == "approved":
+        return approved_mapping_matches(record, candidate[0], eligibility, gate)
     if getattr(resolution, "kind", "") == "unrelated":
         components = gate.get("score_components") if isinstance(gate.get("score_components"), dict) else {}
         eligibility = candidate[4] if len(candidate) > 4 and isinstance(candidate[4], dict) else {}

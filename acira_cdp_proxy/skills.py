@@ -275,6 +275,10 @@ class SpecificSkill:
         if not skill_id:
             raise ValueError("Specific skill is missing id")
 
+        targets = tuple(SpecificSkillTarget.from_dict(item) for item in raw_targets)
+        if len({target.id for target in targets}) != len(targets):
+            raise ValueError("Specific skill contains duplicate target ids")
+
         profile_items = data.get("semantic_profiles") or (DEFAULT_SEMANTIC_PROFILE_ID,)
         semantic_profiles = load_semantic_profiles(profile_items, base_path=base_path)
 
@@ -283,7 +287,7 @@ class SpecificSkill:
             name=str(data.get("name") or skill_id),
             version=_positive_int(data.get("version"), default=2),
             url_patterns=tuple(url_patterns),
-            targets=tuple(SpecificSkillTarget.from_dict(item) for item in raw_targets),
+            targets=targets,
             semantic_profile_ids=tuple(profile.id for profile in semantic_profiles),
             semantic_profile=_merge_semantic_profiles(semantic_profiles),
             source=source,
@@ -438,12 +442,31 @@ def evaluate_specific_skills(
     if not in_scope_skills:
         return SkillEvaluation(in_scope=False)
 
+    # Imported lazily because the mapping helpers also normalize skill URLs.
+    from .target_mapping import unchanged_capture_identity, target_mapping_key
+    details = facts.get("details") if isinstance(facts.get("details"), dict) else {}
+    probe = details.get("page_target_probe") if isinstance(details.get("page_target_probe"), dict) else {}
+    observed = details.get("page_targets") if probe.get("status") == "ok" else None
+    observed = [item for item in observed if isinstance(item, dict)] if isinstance(observed, list) else []
+
     matches: list[SpecificSkillMatch] = []
     low_scores: list[tuple[SpecificSkill, SpecificSkillTarget, TargetResolution]] = []
     for skill in in_scope_skills:
         token = _ACTIVE_SEMANTIC_PROFILE.set(skill.semantic_profile)
         try:
+            unchanged = {item.id for item in skill.targets
+                         if unchanged_capture_identity(item.fingerprint, target, page_url=url)}
             for protected_target in skill.targets:
+                # Saturated text scores cannot transfer another unchanged
+                # captured control's policy onto this unchanged target. Require
+                # positive, unique current-page evidence of the different control;
+                # generic, missing, drifted and overlapping captures keep normal
+                # Block precedence.
+                if unchanged and protected_target.id not in unchanged:
+                    elsewhere = [item for item in observed if unchanged_capture_identity(
+                        protected_target.fingerprint, item, page_url=url)]
+                    if len(elsewhere) == 1 and target_mapping_key(elsewhere[0]) != target_mapping_key(target):
+                        continue
                 resolution = resolve_target_fingerprint(protected_target.fingerprint, target, facts)
                 if resolution.kind in {"strong_match", "structural_slot_match"} and resolution.score >= protected_target.threshold:
                     matches.append(

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import copy
 import json
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
@@ -77,7 +78,8 @@ class InMemoryTargetMappingStore:
         self.records: list[TargetMappingRecord] = []
 
     def record(self, record: TargetMappingRecord) -> None:
-        self.records.append(record)
+        self.records.append(replace(record, candidate_fingerprint=copy.deepcopy(record.candidate_fingerprint),
+                                    resolution=copy.deepcopy(record.resolution)))
 
     def latest(
         self,
@@ -178,6 +180,38 @@ def target_mapping_key(target: dict[str, Any]) -> str:
     return f"map-target:{normalized[:240]}"
 
 
+def approved_mapping_matches(record: TargetMappingRecord, target: dict[str, Any],
+                             eligibility: dict[str, Any], gate: dict[str, Any]) -> bool:
+    """A saved acknowledgement binds the current control, not just its DOM slot.
+
+    Ignore probe provenance, current input values and layout coordinates. Keep
+    labels, destinations, options, stable attributes and safety state, so a
+    replacement in the same slot requires a fresh mapping review.
+    """
+    if (record.status != "approved" or not record.candidate_fingerprint
+            or not gate.get("concrete") or eligibility.get("hard_disqualifiers")
+            or gate.get("hard_disqualifiers")):
+        return False
+    return _mapping_identity(record.candidate_fingerprint) == _mapping_identity(target)
+
+
+def _mapping_identity(target: dict[str, Any]) -> dict[str, Any]:
+    keys = ("tag", "type", "role", "id", "name", "href", "text", "aria_label", "title", "url",
+            "dom_path", "form_id", "form_name", "form_action", "form_method", "form_target",
+            "control_index", "same_kind_index", "labels", "attributes", "action_signature",
+            "semantic_hints", "identity_tokens", "is_button", "is_checkbox", "is_editable",
+            "is_form_control", "is_select", "is_submit", "is_native_submit")
+    identity = {key: target.get(key) for key in keys}
+    signature = target.get("structure_signature") or {}
+    identity["element_state"] = signature.get("element_state") or {}
+    # Selection and entered values change during ordinary guarded operations;
+    # the option identity/set remains part of the acknowledged control.
+    options = target.get("options") or []
+    identity["options"] = [{key: value for key, value in option.items() if key != "selected"}
+                           if isinstance(option, dict) else option for option in options]
+    return _json_stable(identity)
+
+
 def unchanged_capture_identity(fingerprint: dict[str, Any], target: dict[str, Any], *, page_url: str | None = None) -> bool:
     """Identify an unchanged captured control without relying on a saturated score.
 
@@ -220,11 +254,12 @@ def unchanged_capture_identity(fingerprint: dict[str, Any], target: dict[str, An
     if not labels(fingerprint).intersection(labels(target)):
         return False
     original_state = (fingerprint.get("structure_signature") or {}).get("element_state") or {}
-    observed_state = (target.get("structure_signature") or {}).get("element_state") or {}
+    observed_state = (target.get("structure_signature") or target.get("structureSignature") or {}).get("element_state") or {}
     if any(observed_state.get(key) != value for key, value in original_state.items()):
         return False
     form = fingerprint.get("form") or fingerprint.get("form_context") or {}
-    if any(form.get(key) and form[key] != target.get("form_" + key) for key in ("id", "name", "action")):
+    if any(form.get(key) and form[key] != (target.get("form_" + key) or target.get("form" + key.title()))
+           for key in ("id", "name", "action")):
         return False
     return True
 

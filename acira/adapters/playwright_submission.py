@@ -7,7 +7,7 @@ from contextvars import ContextVar
 from typing import Any
 
 from acira_cdp_proxy.action_gateway import AciraActionBlocked
-from .playwright_boundary import OWNERS, trusted
+from .playwright_boundary import OWNERS, WORKER_HISTORY, trusted
 
 SUBMISSION: ContextVar[Any] = ContextVar("acira_submission", default=None)
 
@@ -20,6 +20,19 @@ class Submission(RequestContract):
         super().__init__(*args, **kwargs)
         self.routes = set()
         self.tasks = set()
+        self.frame = None
+
+    async def bind_initiator(self, element: Any) -> None:
+        frame = await element.owner_frame()
+        if frame is None or frame.page is not self.page or self.frame is not None and self.frame is not frame:
+            raise AciraActionBlocked("The submission initiator could not be bound to its reviewed frame")
+        self.frame = frame
+
+    def worker_free(self) -> bool:
+        # Playwright assigns a dedicated worker's requests to its owner Frame.
+        # Such a context cannot establish an exact document request initiator.
+        pages = self.page.context.pages
+        return self.page in pages and all(page in WORKER_HISTORY and not WORKER_HISTORY[page] and not page.workers for page in pages)
 
     async def route(self, route: Any) -> None:
         task = asyncio.current_task()
@@ -63,7 +76,11 @@ class Submission(RequestContract):
         if not relevant:
             await route.fallback()
             return
-        if self.finished or self.used or not self.matches(request):
+        try:
+            initiator_matches = self.frame is not None and request.frame is self.frame and request.frame.page is self.page
+        except Exception:
+            initiator_matches = False
+        if self.finished or self.used or not self.worker_free() or not initiator_matches or not self.matches(request):
             await route.abort("blockedbyclient")
             if (request.url == self.destination or request.method not in {"GET", "HEAD", "OPTIONS"}) and not self.outcome.done():
                 self.outcome.set_result({"blocked": True})
@@ -73,7 +90,7 @@ class Submission(RequestContract):
             return
         if self.manager.guard_policy.before_decision is not None:
             await self.manager.guard_policy.before_decision()
-        if self.finished or getattr(self.manager, "_closing", False) or self.manager.guard_policy.policy_revision != self.authorized_revision:
+        if self.used or self.finished or not self.worker_free() or getattr(self.manager, "_closing", False) or self.manager.guard_policy.policy_revision != self.authorized_revision:
             await route.abort("blockedbyclient")
             if not self.outcome.done():
                 self.outcome.set_result({"blocked": True})
@@ -108,6 +125,10 @@ class Submission(RequestContract):
             raise
 
     async def execute(self, callback: Any) -> Any:
+        if self.frame is None:
+            raise AciraActionBlocked("Submission contracts require an exact reviewed frame")
+        if not self.worker_free():
+            raise AciraActionBlocked("Critical submissions require a worker-free Playwright context; use a fresh context without workers")
         if not getattr(self.page.context, "_acira_service_workers_blocked", False):
             raise AciraActionBlocked("Submission contracts require a guard-created context with service_workers='block'")
         context = self.page.context

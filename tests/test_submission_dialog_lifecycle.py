@@ -15,7 +15,15 @@ from acira_cdp_proxy.action_gateway import ActionGateway, AciraActionBlocked
 
 
 class Surface:
-    pass
+    def __init__(self):
+        self.workers = []
+        self.listeners = {}
+
+    def on(self, event, listener):
+        self.listeners.setdefault(event, []).append(listener)
+
+    def remove_listener(self, event, listener):
+        self.listeners[event].remove(listener)
 
 
 class SyntheticDialog:
@@ -45,8 +53,9 @@ def dialog_wrapper(monkeypatch):
         manager = SimpleNamespace(action_gateway=gateway, guard_policy=gateway.policy)
         page = Surface()
         page.mouse, page.keyboard, page.touchscreen = Surface(), Surface(), Surface()
-        boundary.attach(manager, page)
+        # Own teardown before attachment can add any shared registration.
         managers.append(manager)
+        boundary.attach(manager, page)
         return manager, page
     try:
         yield Dialog.accept, original_accept, register
@@ -57,6 +66,7 @@ def dialog_wrapper(monkeypatch):
         if not managers:
             boundary.detach(None)
         assert not boundary.OWNERS and not boundary.ORIGINALS
+        assert not boundary.WORKER_HISTORY and not boundary.WORKER_LISTENERS
 
 
 @pytest.mark.asyncio

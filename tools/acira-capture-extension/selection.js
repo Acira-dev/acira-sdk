@@ -18,5 +18,14 @@
   window.addEventListener("keydown", event => {
     if (event.key === "Escape") { event.preventDefault(); send(event, "escape"); }
   });
-  port.postMessage({type: "acira.selection", kind: "ready"});
+  function announceReadyAfterRender() {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      port.postMessage({type: "acira.selection", kind: "ready"});
+    }));
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", announceReadyAfterRender, {once: true});
+  } else {
+    announceReadyAfterRender();
+  }
 })();

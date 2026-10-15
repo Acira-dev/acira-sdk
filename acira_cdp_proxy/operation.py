@@ -28,8 +28,8 @@ STATE_JS = """el => {
       autocomplete:(el.getAttribute('autocomplete')||'').slice(0,500)},
     fields: controls.map(x => ({name:x.name||x.id||x.getAttribute('aria-label')||x.type,
       type:x.type, value:x.value, checked:typeof x.checked === 'boolean' ? x.checked : null, disabled:x.disabled,
-      sensitive:/hidden|password|card|cvv|cvc|secret|token|credential|cc-|otp/i.test([x.type,x.name,x.id,x.autocomplete].join(' '))
-        || /(?:^|[^a-z0-9])api[_-]?key(?:$|[^a-z0-9])/i.test([x.name,x.id,x.getAttribute('aria-label')||''].join(' '))}))};
+      sensitive:/hidden|password|card|cvv|cvc|secret|token|credential|cc-|otp/i.test([x.type,x.name,x.id,x.autocomplete,x.getAttribute('aria-label')||'',x.getAttribute('title')||'',x.getAttribute('placeholder')||''].join(' '))
+        || /(?:^|[^a-z0-9])api[_\\s-]*key(?:$|[^a-z0-9])/i.test([x.type,x.name,x.id,x.autocomplete,x.getAttribute('aria-label')||'',x.getAttribute('title')||'',x.getAttribute('placeholder')||''].join(' '))}))};
 }"""
 
 

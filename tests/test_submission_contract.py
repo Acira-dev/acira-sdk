@@ -86,13 +86,13 @@ async def test_submission_covers_new_targets_and_refuses_page_routing(case):
             if case == "page-routing":
                 await page.route("**/*", lambda route: route.continue_())
             args = {"destination": str(server.make_url("/payment")), "values": {"amount":"10"}}
-            if case == "worker":
+            # A worker created by the reviewed click makes its initiator
+            # ambiguous; it must not consume this page's submission approval.
+            with pytest.raises(AciraActionBlocked):
                 await guard.submit(page.locator("#pay"), **args)
+            if case == "worker":
                 with pytest.raises(AciraActionBlocked, match="Network routing"):
                     await page.context.unroute_all()
-            else:
-                with pytest.raises(AciraActionBlocked):
-                    await guard.submit(page.locator("#pay"), **args)
             await asyncio.sleep(.1)
-            assert received == ([{"amount":"10"}] if case == "worker" else [])
+            assert received == []
             await browser.close()
