@@ -75,6 +75,13 @@ facts=...)` adds an explicit single-request contract:
 - `values` is the complete flat JSON or form body (at most 100 scalar fields and 64 KiB).
 - `facts` maps semantic labels such as amount, recipient and account to body fields.
 - The actual URL, HTTP method, content type and body must match.
+- The request must originate in the reviewed control's exact page and frame.
+  A matching request from another page/frame, a worker, or an unknown initiator
+  cannot consume that approval. Worker-origin submissions are unsupported.
+- Playwright critical submissions require a context without workers observed
+  during the protection run. Playwright can report a worker's owner frame as its
+  request frame, so Acira refuses that ambiguous context. Use a fresh context
+  without workers for `guard.submit(...)`; ordinary browsing is unaffected.
 - Only one request can be sent. Subsequent application retries to that endpoint remain
   blocked until a new explicit contract authorizes another operation.
 - A mismatch, timeout or missing response does not authorize a retry.
